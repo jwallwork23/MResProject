@@ -29,7 +29,7 @@ u0.interpolate(Expression([0, 0]))
 e0.interpolate(Expression('0.01*sin(x[0])'))
 
 # Apply no-slip BCs on the top and bottom edges of the domain
-bc1 = DirichletBC(W.sub(0), (0.0,0.0), (1,2))
+bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
 
 ### WEAK PROBLEM ###
 
@@ -65,13 +65,12 @@ u1, e1 = w1.split()
 # Store multiple functions
 u1.rename("Fluid velocity")
 e1.rename("Free surface displacement")
-w1.rename("Fluid volume")
 
 # Choose a final time and initialise arrays and files
 T = 100.0
 ufile = File('plots/tank_SW.pvd')
 t = 0.0
-ufile.write(u1, e1, w1, time=t)
+ufile.write(u1, e1, time=t)
 
 # Initialise a dump counter and enter the timeloop, writing to file at
 # each dump
@@ -88,4 +87,4 @@ while (t < T - 0.5*dt):
     dumpn += 1
     if dumpn == ndump:
         dumpn -= ndump
-        ufile.write(u1, e1, w1, time=t)
+        ufile.write(u1, e1, time=t)

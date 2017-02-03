@@ -5,7 +5,7 @@ from firedrake import *
 # Set physical and numerical parameters for the scheme
 nu = 1e-3           # Viscosity
 g = 9.81            # Gravitational acceleration
-Cb = 0.0025         # Bottom friction coefficient
+Cb = 1e-7           # Bottom friction coefficient
 h = 0.1             # Mean water depth of tank
 dt = 0.01           # Timestep, chosen small enough for stability                          
 Dt = Constant(dt)
@@ -49,8 +49,8 @@ u0, e0 = split(w0)
 L = (
     (xi*(e1-e0) - Dt*inner((e1+h)*u1, grad(xi)))*dx\
     + (inner(u1-u0, v) + Dt*(inner(dot(u1, nabla_grad(u1)), v)\
-    + nu*inner(grad(u1), grad(v)) + g*inner(grad(e1), v))\
-    + inner(Cb*norm(u1)*u1/(e1+h),v))*dx
+    + nu*inner(grad(u1), grad(v)) + g*inner(grad(e1), v)))*dx
+    # + Cb*inner(u1/(e1+h),v)*dx
 )
 
 # Set up the nonlinear problem

@@ -1,4 +1,5 @@
 from firedrake import *
+import profile
 
 ### FE SETUP ###
 
@@ -56,15 +57,12 @@ L = (
 # Set up the nonlinear problem
 uprob = NonlinearVariationalProblem(L, w1, bcs=bc1)
 usolver = NonlinearVariationalSolver(uprob,
-# Use Newton-Krylov iterations to solve the nonlinear
-# system, using direct factorisation to solve the linear system.
-            solver_parameters={'ksp_converged_reason': False,
-                                'ksp_monitor_true_residual': False,
-                                'snes_monitor': False,
-                                'snes_type': 'ksponly',
-                                'ksp_type': 'gmres'
-#                                'pc_type': 'lu'
-                               })
+                solver_parameters={
+                                    'mat_type': 'aij',
+                                    'snes_type': 'ksponly',
+                                    'ksp_type': 'preonly',
+                                    'pc_type': 'lu'
+                                    })
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
@@ -73,29 +71,35 @@ u1, e1 = w1.split()
 
 ### TIMESTEPPING ###
 
-# Store multiple functions
-u1.rename("Fluid velocity")
-e1.rename("Free surface displacement")
+def main():     
 
-# Choose a final time and initialise arrays and files
-T = 40.0
-ufile = File('plots/tank_SW.pvd')
-t = 0.0
-ufile.write(u1, e1, time=t)
+    # Store multiple functions
+    u1.rename("Fluid velocity")
+    e1.rename("Free surface displacement")
 
-# Initialise a dump counter and enter the timeloop, writing to file at
-# each dump
-ndump = 10
-dumpn = 0
-while (t < T - 0.5*dt):
-    t += dt
-    print "t = ", t
-    # To implement the timestepping algorithm, call the solver and 
-    # assign w1 to w0.
-    usolver.solve()
-    w0.assign(w1)
-    # Dump the data
-    dumpn += 1
-    if dumpn == ndump:
-        dumpn -= ndump
-        ufile.write(u1, e1, time=t)
+    # Choose a final time and initialise arrays and files
+    T = 1.0
+    ufile = File('plots/tank_SW.pvd')
+    t = 0.0
+    ufile.write(u1, e1, time=t)
+    
+    # Initialise a dump counter and enter the timeloop, writing to file at
+    # each dump
+    ndump = 10
+    dumpn = 0
+    while (t < T - 0.5*dt):
+        t += dt
+        print "t = ", t
+        # To implement the timestepping algorithm, call the solver and 
+        # assign w1 to w0.  
+        usolver.solve()
+        w0.assign(w1)
+        # Dump the data
+        dumpn += 1
+        if dumpn == ndump:
+            dumpn -= ndump
+            ufile.write(u1, e1, time=t)
+
+### PROFILING ###
+
+profile.run('main(); print')

@@ -5,7 +5,7 @@ from firedrake import *
 # Set physical and numerical parameters for the scheme
 nu = 1e-3           # Viscosity
 g = 9.81            # Gravitational acceleration
-Cb = 1e-7           # Bottom friction coefficient
+Cb = 0.0025         # Bottom friction coefficient
 h = 0.1             # Mean water depth of tank
 dt = 0.01           # Timestep, chosen small enough for stability                          
 Dt = Constant(dt)
@@ -50,12 +50,21 @@ L = (
     (xi*(e1-e0) - Dt*inner((e1+h)*u1, grad(xi)))*dx\
     + (inner(u1-u0, v) + Dt*(inner(dot(u1, nabla_grad(u1)), v)\
     + nu*inner(grad(u1), grad(v)) + g*inner(grad(e1), v)))*dx
-    # + Cb*inner(u1/(e1+h),v)*dx
+    + Dt*Cb*sqrt(dot(u0,u0))*inner(u1/(e1+h),v)*dx
 )
 
 # Set up the nonlinear problem
 uprob = NonlinearVariationalProblem(L, w1, bcs=bc1)
-usolver = NonlinearVariationalSolver(uprob)
+usolver = NonlinearVariationalSolver(uprob,
+# Use Newton-Krylov iterations to solve the nonlinear
+# system, using direct factorisation to solve the linear system.
+            solver_parameters={'ksp_converged_reason': False,
+                                'ksp_monitor_true_residual': False,
+                                'snes_monitor': False,
+                                'snes_type': 'ksponly',
+                                'ksp_type': 'gmres'
+#                                'pc_type': 'lu'
+                               })
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
@@ -69,7 +78,7 @@ u1.rename("Fluid velocity")
 e1.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays and files
-T = 50.0
+T = 40.0
 ufile = File('plots/tank_SW.pvd')
 t = 0.0
 ufile.write(u1, e1, time=t)

@@ -58,7 +58,7 @@ if (kappa == 1):
         (xi*(e1-e0) - Dt*inner((e1+h)*u1, grad(xi)))*dx\
         + (inner(u1-u0, v) + Dt*(inner(dot(u1, nabla_grad(u1)), v)\
         + nu*inner(grad(u1), grad(v)) + g*inner(grad(e1), v)))*dx
-        # + Cb*inner(u1/(e1+h),v)*dx
+        + Dt*Cb*sqrt(dot(u0,u0))*inner(u1/(e1+h),v)*dx
     )
 
     # Set up the nonlinear problem
@@ -77,7 +77,7 @@ if (kappa == 1):
     e1.rename("Free surface displacement")
 
     # Choose a final time and initialise arrays and files
-    T = 50.0
+    T = 40.0
     ufile = File('plots/variable_depth_tank_SW.pvd')
     t = 0.0
     ufile.write(u1, e1, time=t)
@@ -116,7 +116,7 @@ elif (kappa == 0):
         (- Dt*inner((e0+h)*u0, grad(xi)))*dx\
         + Dt*(inner(dot(u0, nabla_grad(u0)), v)\
         + nu*inner(grad(u0), grad(v)) + g*inner(grad(e0), v))*dx
-        # + Cb*inner(u0/(e0+h),v)*dx
+        + Dt*Cb*sqrt(dot(u0,u0))*inner(u1/(e1+h),v)*dx
     )
 
     # Set up the nonlinear problem

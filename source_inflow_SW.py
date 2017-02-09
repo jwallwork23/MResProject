@@ -57,9 +57,10 @@ un = dot(u1, n)
 # Establish the bilinear form - a function of the output function w1
 Lu_int = (inner(u1-u0, v) + Dt*(inner(dot(u1, nabla_grad(u1)), v)\
     + nu*inner(grad(u1), grad(v)) + g*inner(grad(e1), v)))*dx
+    + Dt*Cb*sqrt(dot(u0,u0))*inner(u1/(e1+h),v)*dx
 Le_int = (xi*(e1-e0) - Dt*inner((e1+h)*u1, grad(xi)))*dx
-# L_flux = Dt*(dot(jump(xi), un('+')*e1('+') - un('-')*e1('-')) )*ds_v
-L = Lu_int + Le_int # + L_flux
+L_sides = Dt*(xi*un*(e1+h))*ds_v
+L = Lu_int + Le_int + L_sides
 
 # Set up the nonlinear problem
 uprob = NonlinearVariationalProblem(L, w1, bcs=[bc1, bc2, bc3])

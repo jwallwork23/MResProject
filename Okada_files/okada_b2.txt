@@ -1,9 +1,11 @@
-Focal_Depth 0
-Fault_Length 210000
-Fault_Width 75000
-Dislocation 13.6
-Strike_Direction 81
-Dip_Angle 41
-Slip_Angle 110
-Fault_Latitude 37.00
-Fault_Longitude -11.50
+# Fault location and dimension details
+
+Focal_Depth 24400
+Fault_Length 210000     # All to find yet
+Fault_Width 75000       #
+Dislocation 13.6        #
+Strike_Direction 81     #   
+Dip_Angle 41            #
+Slip_Angle 110          #
+Fault_Latitude 33.32
+Fault_Longitude 142.36

@@ -1,4 +1,5 @@
 from firedrake import *
+import matplotlib.pyplot as plt
 
 ### FE SETUP ###
 
@@ -20,7 +21,9 @@ W = MixedFunctionSpace((Vu, Ve))
 
 # Set bathymetry
 h = Function(Ve)
-h.interpolate(Expression('0.1-0.05*x[0]'))
+h.interpolate(Expression('0.1+0.04*sin(2*pi*x[0])*sin(2*pi*x[1])'))
+
+File("plots/bathymetry.pvd").write(h)
 
 # Construct a function to store our two variables at time n
 w0 = Function(W)            # Split means we can interpolate the 
@@ -35,7 +38,7 @@ if (kappa == 1):
 
     # Interpolate ICs
     u0.interpolate(Expression([0, 0]))
-    e0.interpolate(Expression('0.01*sin(x[0])'))
+    e0.interpolate(Expression('0.01*cos(0.5*pi*x[0])'))
 
     # Apply no-slip BCs on the top and bottom edges of the domain
     bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
@@ -55,15 +58,25 @@ if (kappa == 1):
 
     # Establish the bilinear form - a function of the output function w1
     L = (
-        (xi*(e1-e0) - Dt*inner((e1+h)*u1, grad(xi)))*dx\
-        + (inner(u1-u0, v) + Dt*(inner(dot(u1, nabla_grad(u1)), v)\
-        + nu*inner(grad(u1), grad(v)) + g*inner(grad(e1), v)))*dx
-        + Dt*Cb*sqrt(dot(u0,u0))*inner(u1/(e1+h),v)*dx
+        (xi*(e1-e0) - Dt*inner((e1+h)*u1, grad(xi))
+        + inner(u1-u0, v) + Dt*(inner(dot(u1, nabla_grad(u1)), v)\
+        + nu*inner(grad(u1), grad(v)) + g*inner(grad(e1), v))
+        + Dt*Cb*sqrt(dot(u0,u0))*inner(u1/(e1+h),v))*dx(degree=4)
     )
 
     # Set up the nonlinear problem
     uprob = NonlinearVariationalProblem(L, w1, bcs=bc1)
-    usolver = NonlinearVariationalSolver(uprob)
+    usolver = NonlinearVariationalSolver(uprob,
+           solver_parameters={
+                            'mat_type': 'matfree',
+                            'snes_type': 'ksponly',
+                            'pc_type': 'python',
+                            'pc_python_type': 'firedrake.AssembledPC',
+                            'assembled_pc_type': 'lu',
+                    # only rebuild the preconditioner every 10 (-1) solves:
+                            'snes_lag_preconditioner': -1, 
+                            'snes_lag_preconditioner_persists': True,
+                            })
 
     # The function 'split' has two forms: now use the form which splits a 
     # function in order to access its data
@@ -116,12 +129,22 @@ elif (kappa == 0):
         (- Dt*inner((e0+h)*u0, grad(xi)))*dx\
         + Dt*(inner(dot(u0, nabla_grad(u0)), v)\
         + nu*inner(grad(u0), grad(v)) + g*inner(grad(e0), v))*dx
-        + Dt*Cb*sqrt(dot(u0,u0))*inner(u1/(e1+h),v)*dx
+        + Dt*Cb*sqrt(dot(u0,u0))*inner(u0/(e0+h),v)*dx
     )
 
     # Set up the nonlinear problem
     uprob = NonlinearVariationalProblem(L, w0)
-    usolver = NonlinearVariationalSolver(uprob)
+    usolver = NonlinearVariationalSolver(uprob,
+        solver_parameters={
+                            'mat_type': 'matfree',
+                            'snes_type': 'ksponly',
+                            'pc_type': 'python',
+                            'pc_python_type': 'firedrake.AssembledPC',
+                            'assembled_pc_type': 'lu',
+                    # only rebuild the preconditioner every 10 (-1) solves:
+                            'snes_lag_preconditioner': -1, 
+                            'snes_lag_preconditioner_persists': True,
+                            })
 
     # The function 'split' has two forms: now use the form which splits a 
     # function in order to access its data

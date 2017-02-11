@@ -34,10 +34,10 @@ bcval = Constant(0.0)
 bc1 = DirichletBC(W.sub(1), bcval, 1)
 
 # Apply no-slip BC to eta on the right end of the domain
-bc3 = DirichletBC(W.sub(1), (0.0), 2)
+bc2 = DirichletBC(W.sub(1), (0.0), 2)
 
 # Apply no-slip BCs on u on the top and bottom edges of the domain
-bc2 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
+#bc3 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
 
 ### WEAK PROBLEM ###
 
@@ -52,30 +52,32 @@ w1.assign(w0)
 u1, e1 = split(w1)      
 u0, e0 = split(w0)
 
+# Define the outward pointing normal to the mesh
 n = FacetNormal(mesh)
-un = dot(u1, n)
+un = 0.5*(dot(u0, n) + abs(dot(u0, n)))
+uGn = dot(n,nabla_grad(u0))
 
 # Establish the bilinear form - a function of the output function w1
 Lu_int = (inner(u1-u0, v) + Dt*(inner(dot(u1, nabla_grad(u1)), v)
     + nu*inner(grad(u1), grad(v)) + g*inner(grad(e1), v))
     + Dt*Cb*sqrt(dot(u0,u0))*inner(u1/(e1+h),v))*dx(degree=4)
 Le_int = (xi*(e1-e0) - Dt*inner((e1+h)*u1, grad(xi)))*dx(degree=4)
-#L_sides = Dt*(xi*un*(e1+h))*ds_v
-L = Lu_int + Le_int #+ L_sides
+L_sides = Dt*(-inner(uGn,v)+un*(xi*(e1+h)))*ds_v
+L = Lu_int + Le_int + L_sides
 
 # Set up the nonlinear problem
-uprob = NonlinearVariationalProblem(L, w1, bcs=[bc1, bc2, bc3])
-usolver = NonlinearVariationalSolver(uprob,
-        solver_parameters={
-                            'mat_type': 'matfree',
-                            'snes_type': 'ksponly',
-                            'pc_type': 'python',
-                            'pc_python_type': 'firedrake.AssembledPC',
-                            'assembled_pc_type': 'lu',
+uprob = NonlinearVariationalProblem(L, w1, bcs=[bc1, bc2])
+usolver = NonlinearVariationalSolver(uprob)
+#        solver_parameters={
+##                            'mat_type': 'matfree',
+##                            'snes_type': 'ksponly',
+##                            'pc_type': 'python',
+##                            'pc_python_type': 'firedrake.AssembledPC',
+##                            'assembled_pc_type': 'lu',
                     # only rebuild the preconditioner every 10 (-1) solves:
-                            'snes_lag_preconditioner': -1, 
-                            'snes_lag_preconditioner_persists': True,
-                            })
+##                            'snes_lag_preconditioner': -1, 
+##                            'snes_lag_preconditioner_persists': True,
+#                            }
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
@@ -106,7 +108,7 @@ while (t < T - 0.5*dt):
     # assign w1 to w0.
     usolver.solve()
     w0.assign(w1)
-    un = dot(u1, n)
+    un = 0.5*(dot(u0, n) + abs(dot(u0, n))) # (zero if dot(u1, n) <= 0)
     # Dump the data
     dumpn += 1
     if dumpn == ndump:

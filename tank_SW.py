@@ -51,7 +51,7 @@ u0, e0 = split(w0)
 L = (
     (xi*(e1-e0) - Dt*inner((e1+h)*u1, grad(xi))\
     + inner(u1-u0, v) + Dt*(inner(dot(u1, nabla_grad(u1)), v)\
-    + nu*inner(grad(u1), grad(v)) + g*inner(grad(e1), v))
+    + nu*inner(grad(u1), grad(v)) + g*inner(grad(e1), v))\
     + Dt*Cb*sqrt(dot(u0,u0))*inner(u1/(e1+h),v))*dx(degree=4)   
 )   
 

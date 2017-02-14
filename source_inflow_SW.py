@@ -54,30 +54,31 @@ u0, e0 = split(w0)
 
 # Define the outward pointing normal to the mesh
 n = FacetNormal(mesh)
-un = 0.5*(dot(u0, n) + abs(dot(u0, n)))
-uGn = dot(n,nabla_grad(u0))
 
 # Establish the bilinear form - a function of the output function w1
 Lu_int = (inner(u1-u0, v) + Dt*(inner(dot(u1, nabla_grad(u1)), v)
     + nu*inner(grad(u1), grad(v)) + g*inner(grad(e1), v))
     + Dt*Cb*sqrt(dot(u0,u0))*inner(u1/(e1+h),v))*dx(degree=4)
 Le_int = (xi*(e1-e0) - Dt*inner((e1+h)*u1, grad(xi)))*dx(degree=4)
-L_sides = Dt*(-inner(uGn,v)+un*(xi*(e1+h)))*ds_v
+L_sides = Dt*(-inner(dot(n,nabla_grad(u1)),v)
+    + dot(u1, n)*(xi*(e1+h)))*ds(degree=4) # Try ds(1) or ds(2)
 L = Lu_int + Le_int + L_sides
 
 # Set up the nonlinear problem
 uprob = NonlinearVariationalProblem(L, w1, bcs=[bc1, bc2])
-usolver = NonlinearVariationalSolver(uprob)
-#        solver_parameters={
-##                            'mat_type': 'matfree',
-##                            'snes_type': 'ksponly',
-##                            'pc_type': 'python',
-##                            'pc_python_type': 'firedrake.AssembledPC',
-##                            'assembled_pc_type': 'lu',
-                    # only rebuild the preconditioner every 10 (-1) solves:
-##                            'snes_lag_preconditioner': -1, 
-##                            'snes_lag_preconditioner_persists': True,
-#                            }
+usolver = NonlinearVariationalSolver(uprob,
+        solver_parameters={
+                            'ksp_type': 'gmres',
+                            'ksp_rtol': '1e-8',
+                            'pc_type': 'fieldsplit',
+                            'pc_fieldsplit_type': 'schur',
+                            'pc_fieldsplit_schur_fact_type': 'full',
+                            'fieldsplit_0_ksp_type': 'cg',
+                            'fieldsplit_0_pc_type': 'lu',
+                            'fieldsplit_1_ksp_type': 'cg',
+                            'fieldsplit_1_pc_type': 'hypre',
+                            'pc_fieldsplit_schur_precondition': 'selfp',
+                            })
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
@@ -108,7 +109,6 @@ while (t < T - 0.5*dt):
     # assign w1 to w0.
     usolver.solve()
     w0.assign(w1)
-    un = 0.5*(dot(u0, n) + abs(dot(u0, n))) # (zero if dot(u1, n) <= 0)
     # Dump the data
     dumpn += 1
     if dumpn == ndump:

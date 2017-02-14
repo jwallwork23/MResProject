@@ -20,14 +20,14 @@ Ve = FunctionSpace(mesh, "CG", 1)
 W = MixedFunctionSpace((Vu, Ve))            
 
 # Construct a function to store our two variables at time n
-w0 = Function(W)            # Split means we can interpolate the 
-u0, e0 = w0.split()         # initial condition into the two components
+w_ = Function(W)            # Split means we can interpolate the 
+u_, eta_ = w_.split()         # initial condition into the two components
 
 ### INITIAL AND BOUNDARY CONDITIONS ###
 
 # Interpolate ICs
-u0.interpolate(Expression([0, 0]))
-e0.interpolate(Expression('0.01*sin(0.5*pi*x[0])'))
+u_.interpolate(Expression([0, 0]))
+eta_.interpolate(Expression('0.01*sin(0.5*pi*x[0])'))
 
 # Apply no-slip BCs on the top and bottom edges of the domain
 #bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
@@ -37,26 +37,26 @@ e0.interpolate(Expression('0.01*sin(0.5*pi*x[0])'))
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem
 v, xi = TestFunctions(W)
-w1 = Function(W)
-w1.assign(w0)
+w = Function(W)
+w.assign(w_)
 
 # Here we split up a function so it can be inserted into a UFL
 # expression
-u1, e1 = split(w1)      
-u0, e0 = split(w0)
+u, eta = split(w)      
+u_, eta_ = split(w_)
 
 # Establish the bilinear form - a function of the output function w1.
 # We use exact integration of degree 4 polynomials used since the 
 # problem we consider is not very nonlinear
 L = (
-    (xi*(e1-e0) - Dt*inner((e1+h)*u1, grad(xi))\
-    + inner(u1-u0, v) + Dt*(inner(dot(u1, nabla_grad(u1)), v)\
-    + nu*inner(grad(u1), grad(v)) + g*inner(grad(e1), v))\
-    + Dt*Cb*sqrt(dot(u0,u0))*inner(u1/(e1+h),v))*dx(degree=4)   
+    (xi*(eta-eta_) - Dt*inner((eta+h)*u, grad(xi))\
+    + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)\
+    + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))\
+    + Dt*Cb*sqrt(dot(u_, u_))*inner(u/(eta+h), v))*dx(degree=4)   
 )   
 
 # Set up the nonlinear problem
-uprob = NonlinearVariationalProblem(L, w1)
+uprob = NonlinearVariationalProblem(L, w)
 usolver = NonlinearVariationalSolver(uprob,
         solver_parameters={
                             'mat_type': 'matfree',
@@ -71,34 +71,29 @@ usolver = NonlinearVariationalSolver(uprob,
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
-u0, e0 = w0.split()
-u1, e1 = w1.split()
+u_, eta_ = w_.split()
+u, eta = w.split()
 
 ### TIMESTEPPING ###
 
 # Store multiple functions
-u1.rename("Fluid velocity")
-e1.rename("Free surface displacement")
+u.rename("Fluid velocity")
+eta.rename("Free surface displacement")
 
-# Choose a final time and initialise arrays and files
+# Choose a final time and initialise arrays, files and dump counter
 T = 40.0
 ufile = File('plots/tank_SW.pvd')
 t = 0.0
-ufile.write(u1, e1, time=t)
-
-# Initialise a dump counter and enter the timeloop, writing to file at
-# each dump
+ufile.write(u, eta, time=t)
 ndump = 10
 dumpn = 0
-while (t < T - 0.5*dt):
+
+while (t < T - 0.5*dt):     # Enter the timeloop
     t += dt
     print "t = ", t
-    # To implement the timestepping algorithm, call the solver and 
-    # assign w1 to w0.  
     usolver.solve()
-    w0.assign(w1)
-    # Dump the data
-    dumpn += 1
+    w_.assign(w)
+    dumpn += 1              # Dump the data
     if dumpn == ndump:
         dumpn -= ndump
-        ufile.write(u1, e1, time=t)
+        ufile.write(u, eta, time=t)

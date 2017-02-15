@@ -27,7 +27,7 @@ u_, eta_ = w_.split()         # initial condition into the two components
 
 # Interpolate ICs
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(Expression('0.01*sin(0.5*pi*x[0])'))
+eta_.interpolate(Expression('0.01*cos(0.5*pi*x[0])'))
 
 # Apply no-slip BCs on the top and bottom edges of the domain
 #bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))

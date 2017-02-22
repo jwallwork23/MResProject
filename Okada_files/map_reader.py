@@ -60,14 +60,17 @@ def get_bathymetry(mesh2d, faultfilename):
 
 ## TESTING
 
-n = 3  # Mesh resolution parameter
+n = 3               # Mesh resolution parameter
+lat = 110904.44     # 1 degree latitude in metres in Japanese locality
+lon = 93453.18      # 1 degree longitude in metres in Japanese locality
 
 # Run file for surface
 surface2d = get_surface(RectangleMesh(28*n, 22*n, 28, 22), 'fault.txt')
-ufile = File('surf.pvd')    # Try using gmsh
+#surface2d = get_surface(RectangleMesh(28*n, 22*n, 28*lon, 22*lat), 'fault.txt')
+ufile = File('plots/surf.pvd')
 ufile.write(surface2d)
 
 # Run file for bathymetry
-#bathymetry2d = get_bathymetry(RectangleMesh(28*n, 22*n, 28, 22), 'fault.txt')
-#ufile = File('bath.pvd')
-#ufile.write(bathymetry2d)
+##bathymetry2d = get_bathymetry(RectangleMesh(28*n, 22*n, 28, 22), 'fault.txt')
+##ufile = File('plots/bath.pvd')
+##ufile.write(bathymetry2d)

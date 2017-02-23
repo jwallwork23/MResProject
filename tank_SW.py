@@ -6,7 +6,7 @@ from firedrake import *
 nu = 1e-3           # Viscosity
 g = 9.81            # Gravitational acceleration
 Cb = 0.0025         # Bottom friction coefficient
-h = 0.1             # Mean water depth of tank
+b = 0.1             # (Flat) bathymetry of tank
 dt = 0.01           # Timestep, chosen small enough for stability                          
 Dt = Constant(dt)
 
@@ -49,10 +49,10 @@ u_, eta_ = split(w_)
 # We use exact integration of degree 4 polynomials used since the 
 # problem we consider is not very nonlinear
 L = (
-    (xi*(eta-eta_) - Dt*inner((eta+h)*u, grad(xi))\
+    (xi*(eta-eta_) - Dt*inner((eta+b)*u, grad(xi))\
     + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)\
     + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))\
-    + Dt*Cb*sqrt(dot(u_, u_))*inner(u/(eta+h), v))*dx(degree=4)   
+    + Dt*Cb*sqrt(dot(u_, u_))*inner(u/(eta+b), v))*dx(degree=4)   
 )   
 
 # Set up the nonlinear problem
@@ -90,7 +90,7 @@ dumpn = 0
 
 while (t < T - 0.5*dt):     # Enter the timeloop
     t += dt
-    print "t = ", t
+    print "t = ", t, " seconds"
     usolver.solve()
     w_.assign(w)
     dumpn += 1              # Dump the data

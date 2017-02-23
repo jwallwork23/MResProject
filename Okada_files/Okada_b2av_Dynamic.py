@@ -1,7 +1,7 @@
 """
 Module for computing seafloor deformation unp.sing Okada model.
 
-Okada model is a mapnp.ping from several fault parameters
+Okada model is a mapping from several fault parameters
 to a surface deformation.
 See Okada 1985, or Okada 1992, Bull. Seism. Soc. Am.
 

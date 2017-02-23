@@ -18,16 +18,14 @@ Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           
 W = MixedFunctionSpace((Vu, Ve))
 
-# Set bathymetry
-h = Function(Ve)
-b = Function(Ve)
-b.interpolate(Expression('0.04*sin(2*pi*x[0])*sin(2*pi*x[1])'))
-h.interpolate(Expression('0.1+0.04*sin(2*pi*x[0])*sin(2*pi*x[1])'))
-File("plots/bathymetry.pvd").write(b)
-
 # Construct a function to store our two variables at time n
 w_ = Function(W)        # Split means we can interpolate the 
 u_, eta_ = w_.split()   # initial condition into the two components
+
+# Interpolate bathymetry
+b = Function(Ve)
+b.interpolate(Expression('0.1+0.04*sin(2*pi*x[0])*sin(2*pi*x[1])'))
+File("plots/bathymetry.pvd").write(b)
 
 ### INITIAL AND BOUNDARY CONDITIONS ###
 
@@ -36,7 +34,7 @@ u_.interpolate(Expression([0, 0]))
 eta_.interpolate(Expression('0.01*cos(0.5*pi*x[0])'))
 
 # Apply no-slip BCs on the top and bottom edges of the domain
-bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
+#bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
 
 ### WEAK PROBLEM ###
 
@@ -53,14 +51,14 @@ u_, eta_ = split(w_)
 
 # Establish the bilinear form - a function of the output function w
 L = (
-        (xi*(eta-eta_) - Dt*inner((eta+h)*u, grad(xi))
+        (xi*(eta-eta_) - Dt*inner((eta+b)*u, grad(xi))
         + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)
         + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))
-        + Dt*Cb*sqrt(dot(u_,u_))*inner(u/(eta+h), v))*dx(degree=4)
+        + Dt*Cb*sqrt(dot(u_,u_))*inner(u/(eta+b), v))*dx(degree=4)
     )
 
 # Set up the nonlinear problem
-uprob = NonlinearVariationalProblem(L, w, bcs=bc1)
+uprob = NonlinearVariationalProblem(L, w)
 usolver = NonlinearVariationalSolver(uprob,
            solver_parameters={
                             'mat_type': 'matfree',
@@ -94,7 +92,7 @@ dumpn = 0
 
 while (t < T - 0.5*dt): # Enter the timeloop
     t += dt
-    print "t = ", t
+    print "t = ", t, " seconds"
     usolver.solve()
     w_.assign(w)
     dumpn += 1          # Dump the data

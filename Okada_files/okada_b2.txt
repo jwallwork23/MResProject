@@ -1,11 +1,11 @@
 ### Fault location and dimension details ###
 
-Focal_Depth 24400		# Depth of the fault plane
-Fault_Length 210000     	#? Length of the fault plane
-Fault_Width 75000       	#? Width of the fault plane
+Focal_Depth 24000		# Depth of the fault plane
+Fault_Length 500000     	# Length of the fault plane
+Fault_Width 200000       	# Width of the fault plane
 Dislocation 13.6        	#? Average displacement
-Strike_Direction 81     	#? Angle from North of fault (in degrees)
-Dip_Angle 41            	#? Angle from horizontal (“)
-Slip_Angle 110          	#? Slip of one fault block compared to another (“)
-Fault_Latitude 33.32
-Fault_Longitude 142.36
+Strike_Direction 195     	# Angle from North of fault (in degrees)
+Dip_Angle 13            	# Angle from horizontal (“)
+Slip_Angle 90          	# Slip of one fault block compared to another (“)
+Fault_Latitude 38.322
+Fault_Longitude 142.369

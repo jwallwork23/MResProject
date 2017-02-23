@@ -8,10 +8,10 @@ import GFD_basisChange_tools as gfd
 ### FE SETUP ###
 
 # Establish dimensional scales
-Lx = 93453.18	# One degree longitude in m at 33N (horizontal length scale)
-Ly = 110904.44	# One degree latitude in m at 33N (vertical length scale)
+Lx = 93453.18	# 1 deg. longitude (m) at 33N (hor. length scale)
+Ly = 110904.44	# 1 deg. latitude (m) at 33N (ver. length scale)
 Lm = 1/sqrt(Lx**2 + Ly**2)	# Inverse magnitude of length scales
-Ts = 30 	# Half minute in s (timescale)
+Ts = 15 	# Quarter minute in s (timescale)
 # Mass scale?
 
 # Set physical and numerical parameters for the scheme
@@ -20,28 +20,28 @@ g = 9.81            # Gravitational acceleration (ms^{-2})
 Cb = 0.0025         # Bottom friction coefficient (dimensionless)
 dt = Ts             # Timestep, chosen small enough for stability (s)
 Dt = Constant(dt)
+n = 3               # Mesh resolution parameter
 
 # Compute Okada function to obtain fault characteristics
 X, Y, Z, Xfbar, Yfbar, Zfbar, sflength, sfwidth = okada.main()
 interpolator_surf = scipy.interpolate.RectBivariateSpline(Y, X, Z)
 
 # Define mesh, function spaces and initial surface
-n = 3
 mesh = RectangleMesh(28*n, 22*n, 28, 22)    # TO DO: use Japanese coastline
-Vu = VectorFunctionSpace(mesh, "CG", 2)     # Use Taylor-Hood elements
-Ve = FunctionSpace(mesh, "CG", 1)
+Vu = VectorFunctionSpace(mesh, "CG", 2)     # \ Use Taylor-Hood elements
+Ve = FunctionSpace(mesh, "CG", 1)           # /
 W = MixedFunctionSpace((Vu, Ve))
 
 # Construct a function to store our two variables at time n
 w_ = Function(W)            # Split means we can interpolate the 
 u_, eta_ = w_.split()       # initial condition into the two components
 
-xvector1 = mesh.coordinates.dat.data
-bvector1 = eta_.dat.data
-assert xvector1.shape[0]==bvector1.shape[0]
+mesh_coords = mesh.coordinates.dat.data
+eta_vec = eta_.dat.data
+assert mesh_coords.shape[0]==eta_vec.shape[0]
 
-for i,xy in enumerate(xvector1):     # Figure out correct map projection
-    bvector1[i] = interpolator_surf(xy[1]+22, xy[0]+130)
+for i,xy in enumerate(mesh_coords):
+    eta_vec[i] = interpolator_surf(xy[1]+22, xy[0]+130)
 
 # Plot initial surface
 ufile = File('plots/init_surf.pvd')
@@ -54,12 +54,11 @@ lat = nc.variables['lat'][:]
 elev = nc.variables['elevation'][:,:]
 interpolator_bath = scipy.interpolate.RectBivariateSpline(lat, lon, elev)
 b = Function(W.sub(1), name="Bathymetry") # Bathymetry profile
-xvector2 = mesh.coordinates.dat.data
-bvector2 = b.dat.data
-assert xvector2.shape[0]==bvector2.shape[0]
+b_vec = b.dat.data
+assert mesh_coords.shape[0]==b_vec.shape[0]
   
-for i,xy in enumerate(xvector2):
-    bvector2[i] = - interpolator_surf(xy[1]+22, xy[0]+130) \
+for i,xy in enumerate(mesh_coords):
+    b_vec[i] = - interpolator_surf(xy[1]+22, xy[0]+130) \
                   - interpolator_bath(xy[1]+22, xy[0]+130)
 # Note h = 1750 is the average depth of Japan basin
 
@@ -119,16 +118,16 @@ u.rename("Fluid velocity")
 eta.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays, files and dump counter
-T = 60.0*Ts
+T = 120.0*Ts
 ufile = File('plots/tsunami_SW.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
-ndump = 2
+ndump = 4
 dumpn = 0
 
 while (t < T - 0.5*dt):     # Enter the timeloop
     t += dt
-    print "t = ", t/30, " mins"
+    print "t = ", t/60, " mins"
     usolver.solve()
     w_.assign(w)
     dumpn += 1              # Dump the data

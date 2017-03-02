@@ -21,14 +21,13 @@ g = 9.81            # Gravitational acceleration (ms^{-2})
 Cb = 0.0025         # Bottom friction coefficient (dimensionless)
 dt = Ts             # Timestep, chosen small enough for stability (s)
 Dt = Constant(dt)
-n = 4               # Mesh resolution parameter
 
 # Compute Okada function to obtain fault characteristics
 X, Y, Z, Xfbar, Yfbar, Zfbar, sflength, sfwidth = okada.main()
 interpolator_surf = scipy.interpolate.RectBivariateSpline(Y, X, Z)
 
 # Define mesh, function spaces and initial surface
-mesh = Mesh("1000_5000_50000_coarse.msh")   # Japanese coastline
+mesh = Mesh("point1_point5_point5.msh")   # Japanese coastline
 Vu = VectorFunctionSpace(mesh, "CG", 2)     # \ Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           # /
 W = MixedFunctionSpace((Vu, Ve))
@@ -42,8 +41,7 @@ eta_vec = eta_.dat.data
 assert mesh_coords.shape[0]==eta_vec.shape[0]
 
 for i,xy in enumerate(mesh_coords):
-    lat, lon = utm.to_latlon(xy[0], xy[1], 54, 'S')
-    eta_vec[i] = interpolator_surf(lat, lon)
+    eta_vec[i] = interpolator_surf(xy[1], xy[0])
 
 # Plot initial surface
 ufile = File('plots/init_surf_test.pvd')
@@ -108,7 +106,7 @@ u.rename("Fluid velocity")
 eta.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays, files and dump counter
-T = 10.0*Ts
+T = 120.0*Ts
 ufile = File('plots/tsunami_SW_test.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)

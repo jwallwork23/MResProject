@@ -1,6 +1,6 @@
-xlower 130.0		# Lisbon -13.5
-ylower 22.0		# Lisbon 35.5
-xupper 158.0		# Lisbon -9.5
+xlower 136.0		# Lisbon -13.5
+ylower 30.0		# Lisbon 35.5
+xupper 150.0		# Lisbon -9.5
 yupper 44.0		# Lisbon 37.5
 mx 28			# maybe 400
 my 22

@@ -4,6 +4,7 @@ import Okada_b2av_Dynamic as okada
 import scipy.interpolate
 from scipy.io.netcdf import NetCDFFile
 import GFD_basisChange_tools as gfd
+import utm
 
 ### FE SETUP ###
 
@@ -27,7 +28,7 @@ X, Y, Z, Xfbar, Yfbar, Zfbar, sflength, sfwidth = okada.main()
 interpolator_surf = scipy.interpolate.RectBivariateSpline(Y, X, Z)
 
 # Define mesh, function spaces and initial surface
-mesh = RectangleMesh(14*n, 14*n, 14, 14)    # TO DO: use Japanese coastline
+mesh = Mesh("1000_5000_50000_coarse.msh")   # Japanese coastline
 Vu = VectorFunctionSpace(mesh, "CG", 2)     # \ Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           # /
 W = MixedFunctionSpace((Vu, Ve))
@@ -41,26 +42,15 @@ eta_vec = eta_.dat.data
 assert mesh_coords.shape[0]==eta_vec.shape[0]
 
 for i,xy in enumerate(mesh_coords):
-    eta_vec[i] = interpolator_surf(xy[1]+30, xy[0]+136)
+    lat, lon = utm.to_latlon(xy[0], xy[1], 54, 'S')
+    eta_vec[i] = interpolator_surf(lat, lon)
 
 # Plot initial surface
-ufile = File('plots/init_surf.pvd')
+ufile = File('plots/init_surf_test.pvd')
 ufile.write(eta_)
 
 # Read bathymetry data
-nc = NetCDFFile('bathy_data/GEBCO_bathy.nc')
-lon = nc.variables['lon'][:]
-lat = nc.variables['lat'][:]
-elev = nc.variables['elevation'][:,:]
-interpolator_bath = scipy.interpolate.RectBivariateSpline(lat, lon, elev)
-b = Function(W.sub(1), name="Bathymetry") # Bathymetry profile
-b_vec = b.dat.data
-assert mesh_coords.shape[0]==b_vec.shape[0]
-  
-for i,xy in enumerate(mesh_coords):
-    b_vec[i] = - interpolator_surf(xy[1]+30, xy[0]+136) \
-                  - interpolator_bath(xy[1]+30, xy[0]+136)
-# Note h = 1750 is the average depth of Japan basin
+b = -1750   # Average depth of Japan basin
 
 ### INITIAL AND BOUNDARY CONDITIONS ###
 
@@ -118,8 +108,8 @@ u.rename("Fluid velocity")
 eta.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays, files and dump counter
-T = 120.0*Ts
-ufile = File('plots/tsunami_SW.pvd')
+T = 10.0*Ts
+ufile = File('plots/tsunami_SW_test.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 4
@@ -130,10 +120,6 @@ while (t < T - 0.5*dt):     # Enter the timeloop
     print "t = ", t/60, " mins"
     usolver.solve()
     w_.assign(w)
-    # Check Courant number < 1 for stability
-##    c = sqrt(dot(w_.sub(0),w_.sub(0)))*dt*14*n/Lm
-##    if (c >= 1):
-##        print "WARNING! Courant number = ", c
     dumpn += 1              # Dump the data
     if dumpn == ndump:
         dumpn -= ndump

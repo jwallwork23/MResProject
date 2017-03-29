@@ -60,7 +60,12 @@ assert mesh_coords.shape[0]==b_vec.shape[0]
 for i,xy in enumerate(mesh_coords):
     b_vec[i] = - interpolator_surf(xy[1]+30, xy[0]+136) \
                   - interpolator_bath(xy[1]+30, xy[0]+136)
-# Note h = 1750 is the average depth of Japan basin
+
+# Plot bathymetry profile
+ufile = File('plots/tsunami_SW_test_bathy.pvd')
+ufile.write(b)
+
+# NOTE: The average depth of Japan basin is b = 1750
 
 ### INITIAL AND BOUNDARY CONDITIONS ###
 

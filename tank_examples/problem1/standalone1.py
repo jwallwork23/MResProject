@@ -7,12 +7,17 @@ nu = 1e-3           # Viscosity
 g = 9.81            # Gravitational acceleration
 Cb = 0.0025         # Bottom friction coefficient
 b = 0.1             # (Flat) bathymetry of tank
-dt = 0.01           # Timestep, chosen small enough for stability 
+dt = 0.01           # Timestep, chosen small enough for stability
 Dt = Constant(dt)
+T = 40.0            # End-time of simulation
 
 # Define domain and mesh
 n = 30
-mesh = RectangleMesh(4*n, n, 4, 1)
+lx = 4
+ly = 1
+nx = lx*n
+ny = ly*n
+mesh = RectangleMesh(nx, ny, lx, ly)
 
 # Define function spaces
 Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
@@ -20,12 +25,12 @@ Ve = FunctionSpace(mesh, "CG", 1)
 W = MixedFunctionSpace((Vu, Ve))            
 
 # Construct a function to store our two variables at time n
-w_ = Function(W)            # Split means we can interpolate the 
-u_, eta_ = w_.split()         # initial condition into the two components
+w_ = Function(W)            # \ Split means we can interpolate the 
+u_, eta_ = w_.split()       # / initial condition into the two components
 
 ##################### INITIAL AND BOUNDARY CONDITIONS ##########################
 
-# Interpolate ICs
+# Interpolate ICs:
 u_.interpolate(Expression([0, 0]))
 eta_.interpolate(Expression('-0.01*cos(0.5*pi*x[0])'))
 
@@ -80,15 +85,15 @@ u, eta = w.split()
 u.rename("Fluid velocity")
 eta.rename("Free surface displacement")
 
-# Choose a final time and initialise arrays, files and dump counter
-T = 40.0
-ufile = File('tank_plots/model_prob1.pvd')
+# Initialise arrays, files and dump counter
+ufile = File('outputs/model_prob1.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10
 dumpn = 0
 
-while (t < T - 0.5*dt):     # Enter the timeloop
+# Enter the timeloop:
+while (t < T - 0.5*dt):     
     t += dt
     print "t = ", t, " seconds"
     usolver.solve()

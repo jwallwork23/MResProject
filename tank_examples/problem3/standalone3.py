@@ -8,10 +8,15 @@ g = 9.81            # Gravitational acceleration
 Cb = 1e-7           # Bottom friction coefficient
 dt = 0.01           # Timestep, chosen small enough for stability 
 Dt = Constant(dt)
+T = 40.0            # End-time of simulation
 
 # Define domain and mesh
 n = 30
-mesh = RectangleMesh(4*n, n, 4, 1)
+lx = 4
+ly = 1
+nx = lx*n
+ny = ly*n
+mesh = RectangleMesh(nx, ny, lx, ly)
 
 # Define function spaces
 Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
@@ -23,15 +28,16 @@ w_ = Function(W)        # Split means we can interpolate the
 u_, eta_ = w_.split()   # initial condition into the two components
 
 # Interpolate bathymetry
-b = Function(Ve)
-b.interpolate(Expression('0.1+0.04*sin(2*pi*x[0])*sin(2*pi*x[1])'))
-File("plots/bathymetry.pvd").write(b)
+x = SpatialCoordinate(mesh)
+b = Function(Ve, name = 'Bathymetry')
+b.interpolate(0.1 + 0.04 * sin(2*pi*x[0]) * sin(2*pi*x[1]))
+File("outputs/bathymetry.pvd").write(b)
 
 ####################### INITIAL AND BOUNDARY CONDITIONS ########################
 
 # Interpolate ICs
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(Expression('-0.01*cos(0.5*pi*x[0])'))
+eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 
 # Apply no-slip BCs on the top and bottom edges of the domain
 #bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
@@ -78,19 +84,19 @@ u, eta = w.split()
 
 ################################# TIMESTEPPING #################################
 
-# Store multiple functions
+# Store multiple functions:
 u.rename("Fluid velocity")
 eta.rename("Free surface displacement")
 
-# Choose a final time and initialise arrays, files and dump counter
-T = 40.0
-ufile = File('tank_plots/model_prob3.pvd')
+# Choose a final time and initialise arrays, files and dump counter:
+ufile = File('outputs/model_prob3.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10
 dumpn = 0
 
-while (t < T - 0.5*dt): # Enter the timeloop
+# Enter the timeloop:
+while (t < T - 0.5*dt):
     t += dt
     print "t = ", t, " seconds"
     usolver.solve()

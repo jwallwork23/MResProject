@@ -1,5 +1,12 @@
 from firedrake import *
 
+############################## USEFUL FUNCTIONS ################################
+
+# For imposing time-dependent BCs:
+def wave_machine(t, A, p, in_flux):
+    """Time-dependent flux function"""
+    return A * sin(2 * pi * t / p) + in_flux
+
 ################################### FE SETUP ###################################
 
 # Set physical and numerical parameters for the scheme
@@ -9,10 +16,18 @@ Cb = 0.0025         # Bottom friction coefficient
 b = 0.1             # (Flat) bathymetry of tank
 dt = 0.01           # Timestep, chosen small enough for stability
 Dt = Constant(dt)
+T = 40.0            # End-time of simulation
+A = 0.01            # 'Tide' amplitude
+p = 0.5             # 'Tide' period
+in_flux = 0         # Flux into domain
 
 # Define domain and mesh
 n = 30
-mesh = RectangleMesh(4*n, n, 4, 1)
+lx = 4
+ly = 1
+nx = lx*n
+ny = ly*n
+mesh = RectangleMesh(nx, ny, lx, ly)
 
 # Define function spaces
 Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
@@ -93,22 +108,22 @@ u, eta = w.split()
 
 ################################# TIMESTEPPING #################################
 
-# Store multiple functions
+# Store multiple functions:
 u.rename("Fluid velocity")
 eta.rename("Free surface displacement")
 
-# Choose a final time and initialise arrays, files and dump counter
-T = 40.0
-ufile = File('tank_plots/model_prob2.pvd')
+# Choose a final time and initialise arrays, files and dump counter:
+ufile = File('outputs/model_prob2.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10
 dumpn = 0
 
-while (t < T - 0.5*dt):     # Enter the timeloop
+# Enter the timeloop:
+while (t < T - 0.5*dt):
     t += dt
     print "t = ", t, " seconds"
-    bcval.assign(0.01*sin(2*pi*2*t)) # Update BC
+    bcval.assign(wave_machine(t, A, p, in_flux)) # Update BC
     usolver.solve()
     w_.assign(w)
     dumpn += 1              # Dump the data

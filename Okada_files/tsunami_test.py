@@ -6,13 +6,14 @@ from scipy.io.netcdf import NetCDFFile
 import GFD_basisChange_tools as gfd
 import utm
 
-### USEFUL FUNCTIONS ###
+############################ USEFUL FUNCTIONS ##################################
 
 # Read initial surface data:
-def init_profile():
+def get_coords():
     with open("Saito_files/init_profile", "r") as f:
         data = f.readlines()
     l = len(data)
+    # Dimension preallocated for speed:
     X = np.zeros((l, 1))
     Y = np.zeros((l, 1))
     Z = np.zeros((l, 1))
@@ -25,7 +26,7 @@ def init_profile():
         i += 1
     return X, Y, Z
 
-### FE SETUP ###
+################################# FE SETUP #####################################
 
 # Establish dimensional scales:
 Lx = 93453.18	            # 1 deg. longitude (m) at 33N (hor. length scale)
@@ -48,20 +49,19 @@ Ve = FunctionSpace(mesh, "CG", 1)           # /
 W = MixedFunctionSpace((Vu, Ve))            # We consider a mixed FE problem
 
 # Construct functions to store dependent variables and bathymetry:
-w_ = Function(W)                            # \ Here split means we interpolate 
-u_, eta_ = w_.split()                       # / the IC into two components
+w_ = Function(W)                            # \ Here 'split' means we  
+u_, eta_ = w_.split()                       # / interpolate IC into components
 b = Function(W.sub(1), name="Bathymetry")   # Bathymetry function
 
-### INITIAL AND BOUNDARY CONDITIONS AND BATHYMETRY ###
+############### INITIAL AND BOUNDARY CONDITIONS AND BATHYMETRY #################
 
 ##  # Compute Okada function to obtain fault characteristics:
 ##  X, Y, Z, Xfbar, Yfbar, Zfbar, sflength, sfwidth = okada.main()
 ##  interpolator_surf = scipy.interpolate.RectBivariateSpline(Y, X, Z)
 
 # Read and interpolate initial surface data (courtesy of Saito):
-X, Y, Z = init_profile()
-interpolator_surf = \   # Use 'smooth' for scattered, unordered data
-                  scipy.interpolate.SmoothBivariateSpline(Y, X, Z)
+X, Y, Z = get_coords()
+interpolator_surf = scipy.interpolate.SmoothBivariateSpline(Y, X, Z)
 mesh_coords = mesh.coordinates.dat.data
 eta_vec = eta_.dat.data
 assert mesh_coords.shape[0]==eta_vec.shape[0]
@@ -71,16 +71,20 @@ nc = NetCDFFile('bathy_data/GEBCO_bathy.nc')
 lon = nc.variables['lon'][:]
 lat = nc.variables['lat'][:]
 elev = nc.variables['elevation'][:,:]
-interpolator_bath = \   # Use 'rectangular' for structured, ordered data
-                  scipy.interpolate.RectBivariateSpline(lat, lon, elev)
+interpolator_bath = scipy.interpolate.RectBivariateSpline(lat, lon, elev)
 b_vec = b.dat.data
 assert mesh_coords.shape[0]==b_vec.shape[0]
 
+print lon
+print X
+
 # Interpolate data onto initial surface and bathymetry profiles:
-for i,xy in enumerate(mesh_coords):
-    eta_vec[i] = interpolator_surf(xy[1], xy[0])
-    b_vec[i] = - interpolator_surf(xy[1], xy[0]) \
-                  - interpolator_bath(xy[1], xy[0])
+for i,p in enumerate(mesh_coords):
+    eta_vec[i] = interpolator_surf(p[1], p[0])
+    b_vec[i] = - interpolator_surf(p[1], p[0]) - interpolator_bath(p[1], p[0])
+
+# Post-process the bathymetry to have minimum depth of 30m:
+b.assign(conditional(lt(30, b), b, 30))
 
 # Plot initial surface and bathymetry profiles:
 ufile = File('plots/init_surf_test.pvd')
@@ -91,7 +95,7 @@ ufile.write(b)
 # Interpolate IC on fluid velocity:
 u_.interpolate(Expression([0, 0]))
 
-### WEAK PROBLEM ###
+################################# WEAK PROBLEM #################################
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem:
@@ -131,7 +135,7 @@ usolver = NonlinearVariationalSolver(uprob,
 u_, eta_ = w_.split()       # IS THIS NEEDED?
 u, eta = w.split()
 
-### TIMESTEPPING ###
+################################# TIMESTEPPING #################################
 
 # Store multiple functions
 u.rename("Fluid velocity")

@@ -83,9 +83,9 @@ for i,p in enumerate(mesh_coords):
 b.assign(conditional(lt(30, b), b, 30))
 
 # Plot initial surface and bathymetry profiles:
-ufile = File('plots/init_surf_test.pvd')
+ufile = File('plots/init_surf.pvd')
 ufile.write(eta_)
-ufile = File('plots/tsunami_test_bathy.pvd')
+ufile = File('plots/tsunami_bathy.pvd')
 ufile.write(b)
 
 # Interpolate IC on fluid velocity:
@@ -128,7 +128,7 @@ usolver = NonlinearVariationalSolver(uprob,
                             })
 
 # Split dependent variables, to access data:
-u_, eta_ = w_.split()       # IS THIS NEEDED?
+u_, eta_ = w_.split()                           # IS THIS NEEDED?
 u, eta = w.split()
 
 ################################# TIMESTEPPING #################################
@@ -139,7 +139,7 @@ eta.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays, files and dump counter
 T = 500.0*Ts
-ufile = File('plots/tsunami_SW_test.pvd')
+ufile = File('plots/simulation.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 20

@@ -31,7 +31,7 @@ u_, eta_ = w_.split()   # initial condition into the two components
 x = SpatialCoordinate(mesh)
 b = Function(Ve, name = 'Bathymetry')
 b.interpolate(0.1 + 0.04 * sin(2*pi*x[0]) * sin(2*pi*x[1]))
-File("outputs/bathymetry.pvd").write(b)
+File("../screenshots/bathymetry.pvd").write(b)
 
 ####################### INITIAL AND BOUNDARY CONDITIONS ########################
 

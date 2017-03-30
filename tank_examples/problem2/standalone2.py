@@ -123,10 +123,10 @@ dumpn = 0
 while (t < T - 0.5*dt):
     t += dt
     print "t = ", t, " seconds"
-    bcval.assign(wave_machine(t, A, p, in_flux)) # Update BC
+    bcval.assign(wave_machine(t, A, p, in_flux))    # Update BC
     usolver.solve()
     w_.assign(w)
-    dumpn += 1              # Dump the data
+    dumpn += 1                                      # Dump the data
     if dumpn == ndump:
         dumpn -= ndump
         ufile.write(u, eta, time=t)

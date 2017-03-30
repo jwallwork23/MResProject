@@ -1,7 +1,0 @@
-grdsample -I0.1 -R-60/10/10/75 -fg /home/data/gebco/08/gebco_08.nc -Gbathymetry.grd
-
-grdmath bathymetry.grd 1000000 GE = zero.grd # create a zero field everywhere
-
-grdsample okada_0.nc -T -Gokada_0_resamp.nc -I0.1/0.1 -R-13.0/-7.0/35.0/39.0
-
-grdblend blend_file -R-60/10/10/75 -I0.1/0.1 -Gokada_0_full.nc

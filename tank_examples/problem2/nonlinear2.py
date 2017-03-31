@@ -9,11 +9,11 @@ def wave_machine(t, A, p, in_flux):
 
 ################################### FE SETUP ###################################
 
-# Set physical and numerical parameters for the scheme
+# Set physical and numerical parameters for the scheme:
 nu = 1e-3           # Viscosity
 g = 9.81            # Gravitational acceleration
 Cb = 0.0025         # Bottom friction coefficient
-b = 0.1             # (Flat) bathymetry of tank
+depth = 0.1         # Specify tank water depth
 dt = 0.01           # Timestep, chosen small enough for stability
 Dt = Constant(dt)
 T = 40.0            # End-time of simulation
@@ -21,7 +21,7 @@ A = 0.01            # 'Tide' amplitude
 p = 0.5             # 'Tide' period
 in_flux = 0         # Flux into domain
 
-# Define domain and mesh
+# Define domain and mesh:
 n = 30
 lx = 4
 ly = 1
@@ -29,14 +29,18 @@ nx = lx*n
 ny = ly*n
 mesh = RectangleMesh(nx, ny, lx, ly)
 
-# Define function spaces
+# Define function spaces:
 Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           
 W = MixedFunctionSpace((Vu, Ve))            
 
-# Construct a function to store our two variables at time n
+# Construct a function to store our two variables at time n:
 w_ = Function(W)        # Split means we can interpolate the 
 u_, eta_ = w_.split()   # initial condition into the two components
+
+# Construct a (constant) bathymetry function:
+b = Function(Ve, name = 'Bathymetry')
+b.assign(depth)
 
 ####################### INITIAL AND BOUNDARY CONDITIONS ########################
 

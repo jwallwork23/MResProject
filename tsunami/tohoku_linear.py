@@ -43,6 +43,7 @@ Dt = Constant(dt)
 
 # Define mesh (courtesy of QMESH), function spaces and initial surface:
 mesh = Mesh("meshes/point1_point5_point5.msh")     # Japanese coastline
+mesh_coords = mesh.coordinates.dat.data
 Vu = VectorFunctionSpace(mesh, "CG", 2)     # \ Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           # /
 W = MixedFunctionSpace((Vu, Ve))            # We consider a mixed FE problem
@@ -54,23 +55,28 @@ b = Function(W.sub(1), name="Bathymetry")   # Bathymetry function
 
 ############### INITIAL AND BOUNDARY CONDITIONS AND BATHYMETRY #################
 
-##  # Compute Okada function to obtain fault characteristics:
-##  X, Y, Z, Xfbar, Yfbar, Zfbar, sflength, sfwidth = okada.main()
-##  interpolator_surf = scipy.interpolate.RectBivariateSpline(Y, X, Z)
+## # Compute Okada function to obtain fault characteristics:
+## X, Y, Z, Xfbar, Yfbar, Zfbar, sflength, sfwidth = okada.main()
+## interpolator_surf = scipy.interpolate.RectBivariateSpline(Y, X, Z)
+## OR second attempt:
+## lon1, lat1, elev1 = get_coords()
+## interpolator_surf = scipy.interpolate.SmoothBivariateSpline(lat1, lon1, elev1)
 
 # Read and interpolate initial surface data (courtesy of Saito):
-X, Y, Z = get_coords()
-interpolator_surf = scipy.interpolate.SmoothBivariateSpline(Y, X, Z)
-mesh_coords = mesh.coordinates.dat.data
+nc1 = NetCDFFile('Saito_files/init_profile.nc')
+lon1 = nc1.variables['x'][:]
+lat1 = nc1.variables['y'][:]
+elev1 = nc1.variables['z'][:,:]
+interpolator_surf = scipy.interpolate.RectBivariateSpline(lat1, lon1, elev1)
 eta_vec = eta_.dat.data
 assert mesh_coords.shape[0]==eta_vec.shape[0]
 
 # Read and interpolate bathymetry data (courtesy of GEBCO):
-nc = NetCDFFile('bathy_data/GEBCO_bathy.nc')
-lon = nc.variables['lon'][:]
-lat = nc.variables['lat'][:]
-elev = nc.variables['elevation'][:,:]
-interpolator_bath = scipy.interpolate.RectBivariateSpline(lat, lon, elev)
+nc2 = NetCDFFile('bathy_data/GEBCO_bathy.nc')
+lon2 = nc2.variables['lon'][:]
+lat2 = nc2.variables['lat'][:]
+elev2 = nc2.variables['elevation'][:,:]
+interpolator_bath = scipy.interpolate.RectBivariateSpline(lat2, lon2, elev2)
 b_vec = b.dat.data
 assert mesh_coords.shape[0]==b_vec.shape[0]
 
@@ -94,26 +100,23 @@ u_.interpolate(Expression([0, 0]))
 ################################# WEAK PROBLEM #################################
 
 # Build the weak form of the timestepping algorithm, expressed as a 
-# mixed nonlinear problem:
+# mixed linear problem:
 v, xi = TestFunctions(W)
 w = Function(W)
 w.assign(w_)
 u, eta = split(w)           # \ Here split means we split up a function so
 u_, eta_ = split(w_)        # / it can be inserted into a UFL expression
 
-# Establish the bilinear form, a function of the output function w.
-# (NOTE: We use exact integration of degree 4 polynomials used since the 
-# problem we consider is 'not very nonlinear'):
-L = (
-    (xi*(eta-eta_) - Lm*Dt*inner((eta+b)*u, grad(xi))\
-    + Lm*inner(u-u_, v) + Lm*Lm*2*Dt*(inner(dot(u, nabla_grad(u)), v)\
-    + Lm*nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))\
-    + Lm*Lm*Dt*Cb*sqrt(dot(u_, u_))*inner(u/(eta+b), v))*dx(degree=4)   
-) 
+# Establish the linear and bilinear forms (functions of the output w1):
+L = Constant(0)*xi*dx
+a = (
+    (xi*(eta-eta_) - Dt*inner(mu, grad(xi)) + \
+    inner(mu-mu_, v) + Dt*g*b*inner(grad(eta), v))*dx   
+)
 
 # Set up the nonlinear problem and specify solver parameters:
-uprob = NonlinearVariationalProblem(L, w)
-usolver = NonlinearVariationalSolver(uprob,
+uprob = LinearVariationalProblem(a, L, w)
+usolver = LinearVariationalSolver(uprob,
         solver_parameters={
                             'ksp_type': 'gmres',
                             'ksp_rtol': '1e-8',
@@ -139,7 +142,7 @@ eta.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays, files and dump counter
 T = 500.0*Ts
-ufile = File('plots/simulation.pvd')
+ufile = File('plots/simulation_linear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 20

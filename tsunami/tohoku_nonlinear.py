@@ -5,33 +5,13 @@ from scipy.io.netcdf import NetCDFFile
 import GFD_basisChange_tools as gfd
 import utm
 
-############################ USEFUL FUNCTIONS ##################################
-
-# Read initial surface data:
-def get_coords():
-    with open("Saito_files/init_profile", "r") as f:
-        data = f.readlines()
-    l = len(data)
-    # Dimension preallocated for speed:
-    X = np.zeros((l, 1))
-    Y = np.zeros((l, 1))
-    Z = np.zeros((l, 1))
-    i = 0
-    for line in data:
-        words = line.split()
-        X[i] = words[0]         # Longitude data
-        Y[i] = words[1]         # Latitude data
-        Z[i] = words[2]         # Free surface displacement data
-        i += 1
-    return X, Y, Z
-
 ################################# FE SETUP #####################################
 
 # Establish dimensional scales:
 Lx = 93453.18	            # 1 deg. longitude (m) at 33N (hor. length scale)
 Ly = 110904.44	            # 1 deg. latitude (m) at 33N (ver. length scale)
 Lm = 1/sqrt(Lx**2 + Ly**2)  # Inverse magnitude of length scales
-Ts = 15  	            # Quarter minute in s (timescale)
+Ts = 10  	            # Timescale (s)
                         # Mass scale?
 
 # Set physical and numerical parameters for the scheme:
@@ -55,15 +35,8 @@ b = Function(W.sub(1), name="Bathymetry")   # Bathymetry function
 
 ############### INITIAL AND BOUNDARY CONDITIONS AND BATHYMETRY #################
 
-## # Compute Okada function to obtain fault characteristics:
-## X, Y, Z, Xfbar, Yfbar, Zfbar, sflength, sfwidth = okada.main()
-## interpolator_surf = scipy.interpolate.RectBivariateSpline(Y, X, Z)
-## OR second attempt:
-## lon1, lat1, elev1 = get_coords()
-## interpolator_surf = scipy.interpolate.SmoothBivariateSpline(lat1, lon1, elev1)
-
 # Read and interpolate initial surface data (courtesy of Saito):
-nc1 = NetCDFFile('Saito_files/init_profile.nc')
+nc1 = NetCDFFile('Saito_files/init_profile.nc', mmap=False)
 lon1 = nc1.variables['x'][:]
 lat1 = nc1.variables['y'][:]
 elev1 = nc1.variables['z'][:,:]
@@ -72,7 +45,7 @@ eta_vec = eta_.dat.data
 assert mesh_coords.shape[0]==eta_vec.shape[0]
 
 # Read and interpolate bathymetry data (courtesy of GEBCO):
-nc2 = NetCDFFile('bathy_data/GEBCO_bathy.nc')
+nc2 = NetCDFFile('bathy_data/GEBCO_bathy.nc', mmap=False)
 lon2 = nc2.variables['lon'][:]
 lat2 = nc2.variables['lat'][:]
 elev2 = nc2.variables['elevation'][:,:]
@@ -144,11 +117,11 @@ u.rename("Fluid velocity")
 eta.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays, files and dump counter
-T = 500.0*Ts
+T = 1000.0*Ts
 ufile = File('plots/simulation.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
-ndump = 20
+ndump = 5
 dumpn = 0
 
 while (t < T - 0.5*dt):     # Enter the timeloop

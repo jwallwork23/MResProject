@@ -11,9 +11,7 @@ T = input('Specify simulation duration in s (40 recommended):')
 ################################### FE SETUP ###################################
 
 # Set physical and numerical parameters for the scheme
-nu = 1e-3           # Viscosity
 g = 9.81            # Gravitational acceleration
-Cb = 0.0025         # Bottom friction coefficient (dimensionless)
 
 # Define domain and mesh
 lx = 4
@@ -23,13 +21,13 @@ ny = ly*n
 mesh = RectangleMesh(nx, ny, lx, ly)
 
 # Define function spaces
-Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
+Vmu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           
-W = MixedFunctionSpace((Vu, Ve))
+W = MixedFunctionSpace((Vmu, Ve))
 
 # Construct a function to store our two variables at time n
 w_ = Function(W)        # Split means we can interpolate the 
-u_, eta_ = w_.split()   # initial condition into the two components
+mu_, eta_ = w_.split()   # initial condition into the two components
 
 # Interpolate bathymetry
 x = SpatialCoordinate(mesh)
@@ -40,7 +38,7 @@ File("../screenshots/bathymetry.pvd").write(b)
 ####################### INITIAL AND BOUNDARY CONDITIONS ########################
 
 # Interpolate ICs
-u_.interpolate(Expression([0, 0]))
+mu_.interpolate(Expression([0, 0]))
 eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 
 # Apply no-slip BCs on the top and bottom edges of the domain
@@ -56,15 +54,14 @@ w.assign(w_)
 
 # Here we split up a function so it can be inserted into a UFL
 # expression
-u, eta = split(w)      
-u_, eta_ = split(w_)
+mu, eta = split(w)      
+mu_, eta_ = split(w_)
 
-# Establish the bilinear form - a function of the output function w
+# Establish forms (functions of the output w1), noting we only have a linear
+# equation if the stong form is written in terms of a matrix:
 L = (
-        (xi*(eta-eta_) - Dt*inner((eta+b)*u, grad(xi))
-        + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)
-        + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))
-        + Dt*Cb*sqrt(dot(u_,u_))*inner(u/(eta+b), v))*dx(degree=4)
+    (xi*(eta-eta_) - Dt*inner(mu, grad(xi)) + \
+    inner(mu-mu_, v) + Dt*g*b*inner(grad(eta), v))*dx   
     )
 
 # Set up the nonlinear problem
@@ -83,19 +80,19 @@ usolver = NonlinearVariationalSolver(uprob,
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
-u_, eta_ = w_.split()
-u, eta = w.split()
+mu_, eta_ = w_.split()
+mu, eta = w.split()
 
 ################################# TIMESTEPPING #################################
 
 # Store multiple functions:
-u.rename("Fluid velocity")
+mu.rename("Fluid momentum")
 eta.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays, files and dump counter:
-ufile = File('outputs/model_prob3.pvd')
+ufile = File('outputs/model_prob3_linear.pvd')
 t = 0.0
-ufile.write(u, eta, time=t)
+ufile.write(mu, eta, time=t)
 ndump = 10
 dumpn = 0
 
@@ -108,4 +105,4 @@ while (t < T - 0.5*dt):
     dumpn += 1          # Dump the data
     if dumpn == ndump:
         dumpn -= ndump
-        ufile.write(u, eta, time=t)
+        ufile.write(mu, eta, time=t)

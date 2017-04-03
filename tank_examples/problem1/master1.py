@@ -1,4 +1,5 @@
 from firedrake import *
+from thetis import *
 
 ################################# USER INPUT ###################################
 
@@ -15,6 +16,7 @@ nu = 1e-3           # Viscosity
 g = 9.81            # Gravitational acceleration
 Cb = 0.0025         # Bottom friction coefficient
 depth = 0.1         # Specify tank water depth
+t_export = 0.1  # Export interval in seconds
 
 # Define domain and mesh:
 lx = 4
@@ -58,20 +60,30 @@ w.assign(w_)
 u, eta = split(w)      
 u_, eta_ = split(w_)
 
-# Establish the bilinear form (a function of the output function w1).
-# We use exact integration of degree 4 polynomials used since the problem we
-# consider is 'not very nonlinear'
-L = (
-    (xi*(eta-eta_) - Dt*inner((eta+b)*u, grad(xi))\
-    + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)\
-    + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))\
-    + Dt*Cb*sqrt(dot(u_, u_))*inner(u/(eta+b), v))*dx(degree=4)   
-)
+# Establish form:
+
+def nonlinear_form():
+    L = (
+        (xi*(eta-eta_) - Dt*inner((eta+b)*u, grad(xi))\
+        + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)\
+        + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))\
+        + Dt*Cb*sqrt(dot(u_, u_))*inner(u/(eta+b), v))*dx(degree=4)
+    )
+    return L
+
+def linear_form():
+    L = (
+    (xi*(eta-eta_) - Dt*inner(mu, grad(xi)) + \
+    inner(mu-mu_, v) + Dt*g*b*inner(grad(eta), v))*dx   
+    )
+    return L
 
 # Set up the variational problem
-uprob = NonlinearVariationalProblem(L, w)
-usolver = NonlinearVariationalSolver(uprob,
-        solver_parameters={
+
+def variational_solver(L,w):
+    uprob = NonlinearVariationalProblem(L, w)
+    usolver = NonlinearVariationalSolver(uprob,
+            solver_parameters={
                             'mat_type': 'matfree',
                             'snes_type': 'ksponly',
                             'pc_type': 'python',
@@ -81,11 +93,33 @@ usolver = NonlinearVariationalSolver(uprob,
                             'snes_lag_preconditioner': -1, 
                             'snes_lag_preconditioner_persists': True,
                             })
+    return usolver
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
 u_, eta_ = w_.split()
 u, eta = w.split()
+
+################################# THETIS SETUP #################################
+
+# Construct solver:
+solver_obj = solver2d.FlowSolver2d(mesh, b)
+options = solver_obj.options
+options.t_export = t_export
+options.t_end = T
+
+# Specify integrator of choice:
+options.timestepper_type = 'backwardeuler'  # Use implicit timestepping
+options.dt = 0.01
+
+# Specify initial surface elevation:
+elev_init = Function(P1_2d, name = 'Initial elevation')
+x = SpatialCoordinate(mesh)
+elev_init.interpolate(-0.01*cos(0.5*pi*x[0]))
+solver_obj.assign_initial_conditions(elev=elev_init)
+
+# Run the model:
+solver_obj.iterate()
 
 ################################# TIMESTEPPING #################################
 
@@ -94,7 +128,7 @@ u.rename("Fluid velocity")
 eta.rename("Free surface displacement")
 
 # Initialise arrays, files and dump counter
-ufile = File('outputs/model_prob1.pvd')
+ufile = File('outputs/error.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10

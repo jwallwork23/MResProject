@@ -1,16 +1,21 @@
 from firedrake import *
+import numpy as np
+
+################################# USER INPUT ###################################
+
+# Specify problem parameters:
+dt = input('Specify timestep (0.01 recommended):')
+Dt = Constant(dt)
+n = input('Specify number of mesh cells per m (30 recommended):')
+T = input('Specify simulation duration in s (40 recommended):')
 
 ################################# FE SETUP #####################################
 
 # Set physical and numerical parameters for the scheme:
 g = 9.81            # Gravitational acceleration
 depth = 0.1         # Specify tank water depth
-dt = 0.01           # Timestep, chosen small enough for stability
-Dt = Constant(dt)
-T = 40.0            # End-time of simulation
 
 # Define domain and mesh:
-n = 30
 lx = 4
 ly = 1
 nx = lx*n
@@ -49,16 +54,16 @@ w.assign(w_)
 mu, eta = split(w)      
 mu_, eta_ = split(w_)
 
-# Establish the linear and bilinear forms (functions of the output w1):
-L = Constant(0)*xi*dx
-a = (
+# Establish forms (functions of the output w1), noting we only have a linear
+# equation if the stong form is written in terms of a matrix:
+L = (
     (xi*(eta-eta_) - Dt*inner(mu, grad(xi)) + \
     inner(mu-mu_, v) + Dt*g*b*inner(grad(eta), v))*dx   
-)   
+    )   
 
 # Set up the linear problem
-uprob = LinearVariationalProblem(a, L, w)
-usolver = LinearVariationalSolver(uprob,
+uprob = NonlinearVariationalProblem(L, w)
+usolver = NonlinearVariationalSolver(uprob,
         solver_parameters={
                             'mat_type': 'matfree',
                             'snes_type': 'ksponly',

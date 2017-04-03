@@ -62,10 +62,10 @@ u_, eta_ = split(w_)
 # We use exact integration of degree 4 polynomials used since the problem we
 # consider is 'not very nonlinear'
 L = (
-    (xi*(eta-eta_) - Dt*inner((eta+b)*u, grad(xi))\
-    + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)\
-    + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))\
-    + Dt*Cb*sqrt(dot(u_, u_))*inner(u/(eta+b), v))*dx(degree=4)   
+    (xi * (eta-eta_) - Dt * inner((eta + b) * u, grad(xi))\
+    + inner(u-u_, v) + Dt * (inner(dot(u, nabla_grad(u)), v)\
+    + nu * inner(grad(u), grad(v)) + g * inner(grad(eta), v))\
+    + Dt * Cb * sqrt(dot(u_, u_)) * inner(u / (eta + b), v)) * dx(degree=4)   
 )
 
 # Set up the variational problem

@@ -85,9 +85,10 @@ u_, eta_ = split(w_)       # / it can be inserted into a UFL expression
 
 # Establish the linear and bilinear forms (functions of the output w1):
 L = (
-    (xi * (eta-eta_) - Dt * Lm * inner((eta + b) * u, grad(xi)) + \
-    Lm * inner(u-u_, v) + Dt * g * (inner(grad(eta), v))) * dx
-    )
+    (xi * (eta-eta_) - Lm * Dt * inner((eta + b) * u, grad(xi)) + \
+    Lm**2 * inner(u-u_, v) + Lm * Dt * g * (inner(grad(eta), v))) * dx
+)
+
 
 # Set up the nonlinear problem and specify solver parameters:
 uprob = NonlinearVariationalProblem(L, w)
@@ -98,7 +99,6 @@ usolver = NonlinearVariationalSolver(uprob,
                             'pc_type': 'python',
                             'pc_python_type': 'firedrake.AssembledPC',
                             'assembled_pc_type': 'lu',
-                    # only rebuild the preconditioner every 10 (-1) solves:
                             'snes_lag_preconditioner': -1, 
                             'snes_lag_preconditioner_persists': True,
                             })

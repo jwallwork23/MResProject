@@ -2,8 +2,14 @@ from firedrake import *
 import numpy as np
 import scipy.interpolate
 from scipy.io.netcdf import NetCDFFile
-import GFD_basisChange_tools as gfd
-import utm
+import GFD_basisChange_tools as gfd         # Not currently used
+import utm                                  # --------""--------
+
+################################# USER INPUT ###################################
+
+# Specify problem parameters:
+Ts = input('Specify timescale (s) (10 recommended):')
+# INCLUDE FUNCTIONALITY FOR MESH CHOICE
 
 ################################# FE SETUP #####################################
 
@@ -11,7 +17,6 @@ import utm
 Lx = 93453.18	            # 1 deg. longitude (m) at 33N (hor. length scale)
 Ly = 110904.44	            # 1 deg. latitude (m) at 33N (ver. length scale)
 Lm = 1/sqrt(Lx**2 + Ly**2)  # Inverse magnitude of length scales
-Ts = 10  	            # Timescale (s)
                         # Mass scale?
 
 # Set physical and numerical parameters for the scheme:

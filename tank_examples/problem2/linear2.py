@@ -32,13 +32,13 @@ ny = ly*n
 mesh = RectangleMesh(nx, ny, lx, ly)
 
 # Define function spaces:
-Vmu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
+Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           
-W = MixedFunctionSpace((Vmu, Ve))            
+W = MixedFunctionSpace((Vu, Ve))            
 
 # Construct a function to store our two variables at time n:
 w_ = Function(W)        # Split means we can interpolate the 
-mu_, eta_ = w_.split()   # initial condition into the two components
+u_, eta_ = w_.split()   # initial condition into the two components
 
 # Construct a (constant) bathymetry function:
 b = Function(Ve, name = 'Bathymetry')
@@ -47,7 +47,7 @@ b.assign(depth)
 ####################### INITIAL AND BOUNDARY CONDITIONS ########################
 
 # Interpolate intial steady state
-mu_.interpolate(Expression([0, 0]))
+u_.interpolate(Expression([0, 0]))
 eta_.interpolate(Expression(0))
 
 # Establish a BC object for the oscillating inflow condition
@@ -70,20 +70,20 @@ w.assign(w_)
 
 # Here we split up a function so it can be inserted into a UFL
 # expression
-mu, eta = split(w)      
-mu_, eta_ = split(w_)
+u, eta = split(w)      
+u_, eta_ = split(w_)
 
 # Define the outward pointing normal to the mesh
 n = FacetNormal(mesh)
 
 # Integrate terms of the momentum equation over the interior:
-Lu_int = (inner(mu-mu_, v) + Dt*g*b*inner(grad(eta), v)) * dx 
+Lu_int = (inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
 # Integrate terms of the continuity equation over the interior:
-Le_int = (xi*(eta-eta_) - Dt*inner(mu, grad(xi))) * dx
+Le_int = (xi * (eta-eta_) - Dt * inner((eta + b) * u, grad(xi))) * dx
 # Integrate over left-hand boundary:
-L_side1 = Constant(0)*ds(1)
+L_side1 = dot(u, n) * (xi * (eta + b)) * ds(1)
 # Integrate over right-hand boundary:
-L_side2 = Constant(0)*ds(2)
+L_side2 = dot(u, n) * (xi * (eta + b)) * ds(2)
 # Establish the bilinear form using the above integrals:
 L = Lu_int + Le_int + L_side1 + L_side2
 
@@ -105,19 +105,19 @@ usolver = NonlinearVariationalSolver(uprob,
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
-mu_, eta_ = w_.split()
-mu, eta = w.split()
+u_, eta_ = w_.split()
+u, eta = w.split()
 
 ################################# TIMESTEPPING #################################
 
 # Store multiple functions:
-mu.rename("Fluid velocity")
+u.rename("Fluid velocity")
 eta.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays, files and dump counter:
 ufile = File('outputs/model_prob2_linear.pvd')
 t = 0.0
-ufile.write(mu, eta, time=t)
+ufile.write(u, eta, time=t)
 ndump = 10
 dumpn = 0
 
@@ -131,4 +131,4 @@ while (t < T - 0.5*dt):
     dumpn += 1                                      # Dump the data
     if dumpn == ndump:
         dumpn -= ndump
-        ufile.write(mu, eta, time=t)
+        ufile.write(u, eta, time=t)

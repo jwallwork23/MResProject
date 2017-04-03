@@ -79,17 +79,17 @@ u_, eta_ = split(w_)
 n = FacetNormal(mesh)
 
 # Integrate terms of the momentum equation over the interior:
-Lu_int = (inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)
-    + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))
-    + Dt*Cb*sqrt(dot(u_, u_))*inner(u/(eta+b), v))*dx(degree=4)
+Lu_int = (inner(u-u_, v) + Dt * (inner(dot(u, nabla_grad(u)), v)
+    + nu * inner(grad(u), grad(v)) + g * inner(grad(eta), v))
+    + Dt * Cb * sqrt(dot(u_, u_)) * inner(u / (eta + b), v)) * dx(degree=4)
 # Integrate terms of the continuity equation over the interior:
-Le_int = (xi*(eta-eta_) - Dt*inner((eta+b)*u, grad(xi)))*dx(degree=4)
+Le_int = (xi * (eta-eta_) - Dt * inner((eta + b) * u, grad(xi))) * dx(degree=4)
 # Integrate over left-hand boundary:
-L_side1 = Dt*(-inner(dot(n, nabla_grad(u)), v)
-    + dot(u, n)*(xi*(eta+b)))*ds(1)(degree=4)
+L_side1 = Dt * (-inner(dot(n, nabla_grad(u)), v)
+    + dot(u, n) * (xi * (eta + b))) * ds(1)(degree=4)
 # Integrate over right-hand boundary:
-L_side2 = Dt*(-inner(dot(n, nabla_grad(u)), v)
-    + dot(u, n)*(xi*(eta+b)))*ds(2)(degree=4)
+L_side2 = Dt * (-inner(dot(n, nabla_grad(u)), v)
+    + dot(u, n) * (xi * (eta + b))) * ds(2)(degree=4)
 # Establish the bilinear form using the above integrals:
 L = Lu_int + Le_int + L_side1 + L_side2
 

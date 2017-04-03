@@ -2,8 +2,14 @@ from firedrake import *
 import numpy as np
 import scipy.interpolate
 from scipy.io.netcdf import NetCDFFile
-import GFD_basisChange_tools as gfd
-import utm
+import GFD_basisChange_tools as gfd         # Not currently used
+import utm                                  # --------""--------
+
+################################# USER INPUT ###################################
+
+# Specify problem parameters:
+Ts = input('Specify timescale (s) (10 recommended):')
+# INCLUDE FUNCTIONALITY FOR MESH CHOICE
 
 ################################# FE SETUP #####################################
 
@@ -11,7 +17,6 @@ import utm
 Lx = 93453.18	            # 1 deg. longitude (m) at 33N (hor. length scale)
 Ly = 110904.44	            # 1 deg. latitude (m) at 33N (ver. length scale)
 Lm = 1/sqrt(Lx**2 + Ly**2)  # Inverse magnitude of length scales
-Ts = 10  	            # Timescale (s)
                         # Mass scale?
 
 # Set physical and numerical parameters for the scheme:
@@ -22,13 +27,13 @@ Dt = Constant(dt)
 # Define mesh (courtesy of QMESH), function spaces and initial surface:
 mesh = Mesh("meshes/point1_point5_point5.msh")     # Japanese coastline
 mesh_coords = mesh.coordinates.dat.data
-Vmu = VectorFunctionSpace(mesh, "CG", 2)    # \ Use Taylor-Hood elements
+Vu = VectorFunctionSpace(mesh, "CG", 2)    # \ Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           # /
-W = MixedFunctionSpace((Vmu, Ve))           # We consider a mixed FE problem
+W = MixedFunctionSpace((Vu, Ve))           # We consider a mixed FE problem
 
 # Construct functions to store dependent variables and bathymetry:
 w_ = Function(W)                            # \ Here 'split' means we  
-mu_, eta_ = w_.split()                      # / interpolate IC into components
+u_, eta_ = w_.split()                       # / interpolate IC into components
 b = Function(W.sub(1), name="Bathymetry")   # Bathymetry function
 
 ############### INITIAL AND BOUNDARY CONDITIONS AND BATHYMETRY #################
@@ -66,7 +71,7 @@ ufile = File('plots/tsunami_bathy.pvd')
 ufile.write(b)
 
 # Interpolate IC on fluid velocity:
-mu_.interpolate(Expression([0, 0]))
+u_.interpolate(Expression([0, 0]))
 
 ################################# WEAK PROBLEM #################################
 
@@ -75,14 +80,14 @@ mu_.interpolate(Expression([0, 0]))
 v, xi = TestFunctions(W)
 w = Function(W)
 w.assign(w_)
-mu, eta = split(w)          # \ Here split means we split up a function so
-mu_, eta_ = split(w_)       # / it can be inserted into a UFL expression
+u, eta = split(w)          # \ Here split means we split up a function so
+u_, eta_ = split(w_)       # / it can be inserted into a UFL expression
 
 # Establish the linear and bilinear forms (functions of the output w1):
 L = (
-    (xi*(eta-eta_) - Lm*Dt*inner(mu, grad(xi)) + \
-    Lm*inner(mu-mu_, v) + Dt*g*b*inner(grad(eta), v))*dx   
-)
+    (xi * (eta-eta_) - Dt * Lm * inner((eta + b) * u, grad(xi)) + \
+    Lm * inner(u-u_, v) + Dt * g * (inner(grad(eta), v))) * dx
+    )
 
 # Set up the nonlinear problem and specify solver parameters:
 uprob = NonlinearVariationalProblem(L, w)
@@ -99,21 +104,21 @@ usolver = NonlinearVariationalSolver(uprob,
                             })
 
 # Split dependent variables, to access data:
-mu_, eta_ = w_.split()                           # IS THIS NEEDED?
-mu, eta = w.split()
+u_, eta_ = w_.split()                           # IS THIS NEEDED?
+u, eta = w.split()
 
 ################################# TIMESTEPPING #################################
 
 # Store multiple functions
-mu.rename("Fluid momentum")
+u.rename("Fluid velocity")
 eta.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays, files and dump counter
-T = 800.0*Ts
+T = 1000.0*Ts
 ufile = File('plots/simulation_linear.pvd')
 t = 0.0
-ufile.write(mu, eta, time=t)
-ndump = 10
+ufile.write(u, eta, time=t)
+ndump = 5
 dumpn = 0
 
 while (t < T - 0.5*dt):     # Enter the timeloop
@@ -125,4 +130,4 @@ while (t < T - 0.5*dt):     # Enter the timeloop
     dumpn += 1              # Dump the data
     if dumpn == ndump:
         dumpn -= ndump
-        ufile.write(mu, eta, time=t)
+        ufile.write(u, eta, time=t)

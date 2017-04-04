@@ -8,7 +8,7 @@ import utm                                  # --------""--------
 ################################# USER INPUT ###################################
 
 # Specify problem parameters:
-Ts = input('Specify timescale (s) (10 recommended):')
+Ts = input('Specify timescale (s) (default 10):') or 10
 # INCLUDE FUNCTIONALITY FOR MESH CHOICE
 
 ################################# FE SETUP #####################################

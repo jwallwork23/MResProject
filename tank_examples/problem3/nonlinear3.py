@@ -3,10 +3,10 @@ from firedrake import *
 ################################# USER INPUT ###################################
 
 # Specify problem parameters:
-dt = input('Specify timestep (0.01 recommended): ')
+dt = raw_input('Specify timestep (default 0.01): ') or 0.01
 Dt = Constant(dt)
-n = input('Specify number of mesh cells per m (30 recommended): ')
-T = input('Specify simulation duration in s (40 recommended): ')
+n = raw_input('Specify number of mesh cells per m (default 30): ') or 30
+T = raw_input('Specify simulation duration in s (default 40): ') or 40
 
 ################################### FE SETUP ###################################
 

@@ -8,7 +8,7 @@ import utm                                  # --------""--------
 ################################# USER INPUT ###################################
 
 # Specify problem parameters:
-dt = input('Specify timestep (s) (10 recommended):')
+dt = input('Specify timestep (s) (default 10):') or 10
 Dt = Constant(dt)
 g = 9.81            # Gravitational acceleration (ms^{-2})
 a = 6.35e6          # (Average) radius of the Earth (m)

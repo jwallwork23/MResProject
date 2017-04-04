@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 ################################# USER INPUT ###################################
 
 # Specify problem parameters:
-dt = input('Specify timestep (1 recommended): ')
+dt = raw_input('Specify timestep (default 1): ') or 1
 Dt = Constant(dt)
-n = input('Specify number of mesh cells per m (0.01 recommended): ')
-T = input('Specify simulation duration in s (500 recommended): ')
+n = raw_input('Specify number of mesh cells per m (default 0.001): ') or 0.001
+T = raw_input('Specify simulation duration in s (default 500): ') or 500
 g = 9.81            # Gravitational acceleration
 
 ################################### FE SETUP ###################################
@@ -28,14 +28,23 @@ mu_, eta_ = q_.split()   # initial condition into the two components
 
 # Interpolate bathymetry
 b = Function(Ve, name = 'Bathymetry')
-b.interpolate(Expression('x[0] <= 50.0 ? 200.0 : 4000.0'))
+b.interpolate(Expression('x[0] <= 50000.0 ? 200.0 : 4000.0'))
+plot(b)
+plt.title('Ocean depth (m)')
+plt.show()
 
 ####################### INITIAL AND BOUNDARY CONDITIONS ########################
 
 # Interpolate ICs
 mu_.interpolate(Expression(0))
-eta_.interpolate(Expression('exp(-((x[0]-x0)**2)/(2*spread**2))', \
-                       x0 = 125.0, spread = 10.0))
+x0 = 125000.0
+spread = 1000.0
+eta_ = Function(Ve)
+eta_.interpolate(Expression( \
+    '(x[0] > 120000.0) && (x[0] < 130000.0) ? 0.4 : 0.0'))
+plot(eta_)
+plt.title('Initial surface profile (m)')
+plt.show()
 
 ################################# WEAK PROBLEM #################################
 
@@ -53,23 +62,16 @@ mu_, eta_ = split(q_)
 # Establish forms (functions of the output w1), noting we only have a linear
 # equation if the stong form is written in terms of a matrix:
 L = (
-    (ze * (eta-eta_) + Dt * mu.dx(0) *ze + \
+    (ze * (eta-eta_) - Dt * mu * ze.dx(0) + \
     inner(mu-mu_, v) + Dt * g * b* eta.dx(0) * v) * dx
     )
 
 # Set up the problem
 uprob = NonlinearVariationalProblem(L, q)
-usolver = NonlinearVariationalSolver(uprob,
-           solver_parameters={
-                            'mat_type': 'matfree',
-                            'snes_type': 'ksponly',
-                            'pc_type': 'python',
-                            'pc_python_type': 'firedrake.AssembledPC',
-                            'assembled_pc_type': 'lu',
-                    # only rebuild the preconditioner every 10 (-1) solves:
-                            'snes_lag_preconditioner': -1, 
-                            'snes_lag_preconditioner_persists': True,
-                            })
+usolver = NonlinearVariationalSolver(uprob, solver_parameters=
+                                     {'mat_type' : 'aij',
+                                      'ksp_type' : 'preonly',
+                                      'pc_type' : 'lu'})
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
@@ -83,9 +85,9 @@ mu.rename('Fluid momentum')
 eta.rename('Free surface displacement')
 
 # Choose a final time and initialise arrays, files and dump counter:
-ufile = File('outputs/Davis_and_LeVeque_test.pvd')
+##ufile = File('outputs/Davis_and_LeVeque_test.pvd')
 t = 0.0
-ufile.write(eta, time=t)
+##ufile.write(eta, time=t)
 ndump = 10
 dumpn = 0
 all_us = []
@@ -99,7 +101,7 @@ while (t < T - 0.5*dt):
     dumpn += 1          # Dump the data
     if dumpn == ndump:
         dumpn -= ndump
-        ufile.write(eta, time=t)
+        ##ufile.write(eta, time=t)
         all_us.append(Function(eta))
 
 # Plot solution

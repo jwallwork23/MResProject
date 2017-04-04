@@ -1,19 +1,19 @@
 from firedrake import *
-import numpy as np
 
 ################################# USER INPUT ###################################
 
 # Specify problem parameters:
-dt = input('Specify timestep (0.01 recommended):')
+dt = input('Specify timestep (0.01 recommended): ')
 Dt = Constant(dt)
-n = input('Specify number of mesh cells per m (30 recommended):')
-T = input('Specify simulation duration in s (40 recommended):')
+n = input('Specify number of mesh cells per m (30 recommended): ')
+T = input('Specify simulation duration in s (40 recommended): ')
 
 ################################# FE SETUP #####################################
 
 # Set physical and numerical parameters for the scheme:
 g = 9.81            # Gravitational acceleration
 depth = 0.1         # Specify tank water depth
+ndump = 10
 
 # Define domain and mesh:
 lx = 4
@@ -23,8 +23,8 @@ ny = ly*n
 mesh = RectangleMesh(nx, ny, lx, ly)
 
 # Define function spaces:
-Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
-Ve = FunctionSpace(mesh, "CG", 1)           
+Vu  = VectorFunctionSpace(mesh, 'CG', 2)    # Use Taylor-Hood elements
+Ve = FunctionSpace(mesh, 'CG', 1)           
 Vq = MixedFunctionSpace((Vu, Ve))            
 
 # Construct a function to store our two forward variables at time n:
@@ -87,20 +87,21 @@ u, eta = q.split()
 ############################# FORWARD TIMESTEPPING #############################
 
 # Store multiple functions
-u.rename("Fluid velocity")
-eta.rename("Free surface displacement")
+u.rename('Fluid velocity')
+eta.rename('Free surface displacement')
 
 # Initialise arrays, files and dump counter
 ufile = File('outputs/model_prob1_linear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
-ndump = 10
 dumpn = 0
 
 # Enter the timeloop:
+print '='*85
+print 'Entering the FORWARD timeloop!'
 while (t < T - 0.5*dt):     
     t += dt
-    print "t = ", t, " seconds"
+    print 't = ', t, ' seconds'
     usolver.solve()
     q_.assign(q)
     dumpn += 1              # Dump the data
@@ -110,9 +111,10 @@ while (t < T - 0.5*dt):
 
 ############################# ADJOINT ICs AND BCs ##############################
 
-# Specify ICs of adjoint problem as end conditions of forward problem:
-lu_.assign(u)
-le_.assign(eta)
+# Interpolate ICs:
+lu_.interpolate(Expression([0, 0]))
+le_.interpolate(Expression( \
+    '(x[0] < 3.9) && (x[1] > 0.3) && (x[1] < 0.7) ? 1.0 : 0.0'))
 
 ########################### ADJOINT WEAK PROBLEM ###############################
 
@@ -127,12 +129,14 @@ lam.assign(lam_)
 lu, le = split(lam)      
 lu_, le_ = split(lam_)
 
+# NEED TO INCLUDE THE ABILITY TO ACCESS U AND ETA VALUES FROM PVD
+
 # Establish forms (functions of the output w1), noting we only have a linear
 # equation if the stong form is written in terms of a matrix:
 L2 = (
     (xi * (le-le_) - Dt * g * inner(lu, grad(xi)) + \
-    inner(u-u_, w) + Dt * g * inner(grad((eta + b) * le, w)) * dx
-    )                                                       # + derivative term
+    inner(u-u_, w) + Dt * g * inner(grad((eta + b) * le), w)) * dx
+    )                                                   # + J derivative term?
 
 # Set up the linear problem
 uprob = NonlinearVariationalProblem(L2, lam)
@@ -156,23 +160,23 @@ lu, le = lam.split()
 ############################# ADJOINT TIMESTEPPING #############################
 
 # Store multiple functions
-lu.rename("Adjoint fluid velocity")
-le.rename("Adjoint free surface displacement")
+lu.rename('Adjoint fluid velocity')
+le.rename('Adjoint free surface displacement')
 
 # Initialise arrays, files and dump counter
 ufile = File('outputs/model_prob1_linear_adjoint.pvd')
-t = 0.0
 ufile.write(lu, le, time=t)
-ndump = 10
 dumpn = 0
 
-# Enter the timeloop:
-while (t < T - 0.5*dt):     
-    t += dt
-    print "t = ", t, " seconds"
+# Enter the timeloop (backwards in time):
+print '='*85
+print 'Entering the BACKWARD timeloop!'
+while (t > 0.5*dt):     
+    t -= dt
+    print 't = ', T-t, ' seconds'
     usolver.solve()
     lam_.assign(lam)
     dumpn += 1              # Dump the data
     if dumpn == ndump:
         dumpn -= ndump
-        ufile.write(lu, le, time=t)
+        ufile.write(lu, le, time=T-t)

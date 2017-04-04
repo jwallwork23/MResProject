@@ -1,50 +1,41 @@
 from firedrake import *
+import matplotlib.pyplot as plt
 
 ################################# USER INPUT ###################################
 
 # Specify problem parameters:
-dt = input('Specify timestep (0.01 recommended): ')
+dt = input('Specify timestep (1 recommended): ')
 Dt = Constant(dt)
-n = input('Specify number of mesh cells per m (30 recommended): ')
-T = input('Specify simulation duration in s (40 recommended): ')
+n = input('Specify number of mesh cells per m (0.01 recommended): ')
+T = input('Specify simulation duration in s (500 recommended): ')
+g = 9.81            # Gravitational acceleration
 
 ################################### FE SETUP ###################################
 
-# Set physical and numerical parameters for the scheme
-nu = 1e-3           # Viscosity
-g = 9.81            # Gravitational acceleration
-Cb = 0.0025         # Bottom friction coefficient (dimensionless)
-
 # Define domain and mesh
-lx = 4
-ly = 1
+lx = 4e5
 nx = lx*n
-ny = ly*n
-mesh = RectangleMesh(nx, ny, lx, ly)
+mesh = IntervalMesh(nx, lx)
 
 # Define function spaces
-Vu  = VectorFunctionSpace(mesh, 'CG', 2)    # Use Taylor-Hood elements
+Vmu = FunctionSpace(mesh, 'CG', 2)    # Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, 'CG', 1)           
-Vq = MixedFunctionSpace((Vu, Ve))
+Vq = MixedFunctionSpace((Vmu, Ve))
 
 # Construct a function to store our two variables at time n
 q_ = Function(Vq)        # Split means we can interpolate the 
-u_, eta_ = q_.split()   # initial condition into the two components
+mu_, eta_ = q_.split()   # initial condition into the two components
 
 # Interpolate bathymetry
-x = SpatialCoordinate(mesh)
 b = Function(Ve, name = 'Bathymetry')
-b.interpolate(0.1 + 0.04 * sin(2*pi*x[0]) * sin(2*pi*x[1]))
-File('../screenshots/bathymetry.pvd').write(b)
+b.interpolate(Expression('x[0] <= 50.0 ? 200.0 : 4000.0'))
 
 ####################### INITIAL AND BOUNDARY CONDITIONS ########################
 
 # Interpolate ICs
-u_.interpolate(Expression([0, 0]))
-eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
-
-# Apply no-slip BCs on the top and bottom edges of the domain
-#bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
+mu_.interpolate(Expression(0))
+eta_.interpolate(Expression('exp(-((x[0]-x0)**2)/(2*spread**2))', \
+                       x0 = 125.0, spread = 10.0))
 
 ################################# WEAK PROBLEM #################################
 
@@ -56,18 +47,17 @@ q.assign(q_)
 
 # Here we split up a function so it can be inserted into a UFL
 # expression
-u, eta = split(q)      
-u_, eta_ = split(q_)
+mu, eta = split(q)      
+mu_, eta_ = split(q_)
 
-# Establish the bilinear form - a function of the output function w
+# Establish forms (functions of the output w1), noting we only have a linear
+# equation if the stong form is written in terms of a matrix:
 L = (
-        (ze*(eta-eta_) - Dt*inner((eta+b)*u, grad(ze))
-        + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)
-        + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))
-        + Dt*Cb*sqrt(dot(u_,u_))*inner(u/(eta+b), v))*dx(degree=4)
+    (ze * (eta-eta_) + Dt * mu.dx(0) *ze + \
+    inner(mu-mu_, v) + Dt * g * b* eta.dx(0) * v) * dx
     )
 
-# Set up the nonlinear problem
+# Set up the problem
 uprob = NonlinearVariationalProblem(L, q)
 usolver = NonlinearVariationalSolver(uprob,
            solver_parameters={
@@ -83,21 +73,22 @@ usolver = NonlinearVariationalSolver(uprob,
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
-u_, eta_ = q_.split()
-u, eta = q.split()
+mu_, eta_ = q_.split()
+mu, eta = q.split()
 
 ################################# TIMESTEPPING #################################
 
 # Store multiple functions:
-u.rename('Fluid velocity')
+mu.rename('Fluid momentum')
 eta.rename('Free surface displacement')
 
 # Choose a final time and initialise arrays, files and dump counter:
-ufile = File('outputs/model_prob3.pvd')
+ufile = File('outputs/Davis_and_LeVeque_test.pvd')
 t = 0.0
-ufile.write(u, eta, time=t)
+ufile.write(eta, time=t)
 ndump = 10
 dumpn = 0
+all_us = []
 
 # Enter the timeloop:
 while (t < T - 0.5*dt):
@@ -108,4 +99,15 @@ while (t < T - 0.5*dt):
     dumpn += 1          # Dump the data
     if dumpn == ndump:
         dumpn -= ndump
-        ufile.write(u, eta, time=t)
+        ufile.write(eta, time=t)
+        all_us.append(Function(eta))
+
+# Plot solution
+try:
+  plot(all_us)
+except Exception as e:
+  warning("Cannot plot figure. Error msg: '%s'" % e.message)
+try:
+  plt.show()
+except Exception as e:
+  warning("Cannot show figure. Error msg: '%s'" % e.message)

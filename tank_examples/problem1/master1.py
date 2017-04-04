@@ -4,10 +4,10 @@ from thetis import *
 ################################# USER INPUT ###################################
 
 # Specify problem parameters:
-dt = input('Specify timestep (0.01 recommended):')
+dt = input('Specify timestep (0.01 recommended): ')
 Dt = Constant(dt)
-n = input('Specify number of mesh cells per m (30 recommended):')
-T = input('Specify simulation duration in s (40 recommended):')
+n = input('Specify number of mesh cells per m (30 recommended): ')
+T = input('Specify simulation duration in s (40 recommended): ')
 
 ################################# FE SETUP #####################################
 
@@ -26,8 +26,8 @@ ny = ly*n
 mesh = RectangleMesh(nx, ny, lx, ly)
 
 # Define function spaces:
-Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
-Ve = FunctionSpace(mesh, "CG", 1)           
+Vu  = VectorFunctionSpace(mesh, 'CG', 2)    # Use Taylor-Hood elements
+Ve = FunctionSpace(mesh, 'CG', 1)           
 Vq = MixedFunctionSpace((Vu, Ve))            
 
 # Construct a function to store our two variables at time n:
@@ -124,8 +124,8 @@ solver_obj.iterate()
 ################################# TIMESTEPPING #################################
 
 # Store multiple functions
-u.rename("Fluid velocity")
-eta.rename("Free surface displacement")
+u.rename('Fluid velocity')
+eta.rename('Free surface displacement')
 
 # Initialise arrays, files and dump counter
 ufile = File('outputs/error.pvd')
@@ -137,7 +137,7 @@ dumpn = 0
 # Enter the timeloop:
 while (t < T - 0.5*dt):     
     t += dt
-    print "t = ", t, " seconds"
+    print 't = ', t, ' seconds'
     usolver.solve()
     w_.assign(w)
     dumpn += 1              # Dump the data

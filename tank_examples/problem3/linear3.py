@@ -3,10 +3,10 @@ from firedrake import *
 ################################# USER INPUT ###################################
 
 # Specify problem parameters:
-dt = input('Specify timestep (0.01 recommended):')
+dt = input('Specify timestep (0.01 recommended): ')
 Dt = Constant(dt)
-n = input('Specify number of mesh cells per m (30 recommended):')
-T = input('Specify simulation duration in s (40 recommended):')
+n = input('Specify number of mesh cells per m (30 recommended): ')
+T = input('Specify simulation duration in s (40 recommended): ')
 
 ################################### FE SETUP ###################################
 
@@ -21,8 +21,8 @@ ny = ly*n
 mesh = RectangleMesh(nx, ny, lx, ly)
 
 # Define function spaces
-Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
-Ve = FunctionSpace(mesh, "CG", 1)           
+Vu = VectorFunctionSpace(mesh, 'CG', 2)    # Use Taylor-Hood elements
+Ve = FunctionSpace(mesh, 'CG', 1)           
 Vq = MixedFunctionSpace((Vu, Ve))
 
 # Construct a function to store our two variables at time n
@@ -33,7 +33,7 @@ u_, eta_ = q_.split()   # initial condition into the two components
 x = SpatialCoordinate(mesh)
 b = Function(Ve, name = 'Bathymetry')
 b.interpolate(0.1 + 0.04 * sin(2*pi*x[0]) * sin(2*pi*x[1]))
-File("../screenshots/bathymetry.pvd").write(b)
+File('../screenshots/bathymetry.pvd').write(b)
 
 ####################### INITIAL AND BOUNDARY CONDITIONS ########################
 
@@ -64,7 +64,7 @@ L = (
     inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
     )
 
-# Set up the nonlinear problem
+# Set up the problem
 uprob = NonlinearVariationalProblem(L, q)
 usolver = NonlinearVariationalSolver(uprob,
            solver_parameters={
@@ -86,8 +86,8 @@ u, eta = q.split()
 ################################# TIMESTEPPING #################################
 
 # Store multiple functions:
-u.rename("Fluid momentum")
-eta.rename("Free surface displacement")
+u.rename('Fluid velocity')
+eta.rename('Free surface displacement')
 
 # Choose a final time and initialise arrays, files and dump counter:
 ufile = File('outputs/model_prob3_linear.pvd')
@@ -99,7 +99,7 @@ dumpn = 0
 # Enter the timeloop:
 while (t < T - 0.5*dt):
     t += dt
-    print "t = ", t, " seconds"
+    print 't = ', t, ' seconds'
     usolver.solve()
     q_.assign(q)
     dumpn += 1          # Dump the data

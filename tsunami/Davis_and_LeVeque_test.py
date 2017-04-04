@@ -36,9 +36,7 @@ plt.show()
 ####################### INITIAL AND BOUNDARY CONDITIONS ########################
 
 # Interpolate ICs
-mu_.interpolate(Expression(0))
-x0 = 125000.0
-spread = 1000.0
+mu_.interpolate(Expression(0.0))
 eta_ = Function(Ve)
 eta_.interpolate(Expression( \
     '(x[0] > 120000.0) && (x[0] < 130000.0) ? 0.4 : 0.0'))
@@ -54,29 +52,37 @@ v, ze = TestFunctions(Vq)
 q = Function(Vq)
 q.assign(q_)
 
-# Here we split up a function so it can be inserted into a UFL
-# expression
-mu, eta = split(q)      
+# Here we split up a function so it can be inserted into a UFL expression
+mu, eta = split(q)                                                  ##
 mu_, eta_ = split(q_)
 
 # Establish forms (functions of the output w1), noting we only have a linear
 # equation if the stong form is written in terms of a matrix:
 L = (
     (ze * (eta-eta_) - Dt * mu * ze.dx(0) + \
-    inner(mu-mu_, v) + Dt * g * b* eta.dx(0) * v) * dx
+    inner(mu-mu_, v) + Dt * g * b * eta.dx(0) * v) * dx
     )
 
 # Set up the problem
 uprob = NonlinearVariationalProblem(L, q)
-usolver = NonlinearVariationalSolver(uprob, solver_parameters=
-                                     {'mat_type' : 'aij',
-                                      'ksp_type' : 'preonly',
-                                      'pc_type' : 'lu'})
+usolver = NonlinearVariationalSolver(uprob, solver_parameters={
+                            'mat_type': 'matfree',
+                            'snes_type': 'ksponly',
+                            'pc_type': 'python',
+                            'pc_python_type': 'firedrake.AssembledPC',
+                            'assembled_pc_type': 'lu',
+                            'snes_lag_preconditioner': -1, 
+                            'snes_lag_preconditioner_persists': True,
+                            })
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
 mu_, eta_ = q_.split()
-mu, eta = q.split()
+mu, eta = q.split()                                                 ##
+
+plot(eta_)
+plt.title('WHY IS THIS ZERO???')
+plt.show()
 
 ################################# TIMESTEPPING #################################
 
@@ -85,9 +91,9 @@ mu.rename('Fluid momentum')
 eta.rename('Free surface displacement')
 
 # Choose a final time and initialise arrays, files and dump counter:
-##ufile = File('outputs/Davis_and_LeVeque_test.pvd')
+ufile = File('outputs/Davis_and_LeVeque_test.pvd')
 t = 0.0
-##ufile.write(eta, time=t)
+ufile.write(mu, eta, time=t)
 ndump = 10
 dumpn = 0
 all_us = []
@@ -101,15 +107,10 @@ while (t < T - 0.5*dt):
     dumpn += 1          # Dump the data
     if dumpn == ndump:
         dumpn -= ndump
-        ##ufile.write(eta, time=t)
+        ufile.write(mu, eta, time=t)
         all_us.append(Function(eta))
 
-# Plot solution
-try:
-  plot(all_us)
-except Exception as e:
-  warning("Cannot plot figure. Error msg: '%s'" % e.message)
-try:
-  plt.show()
-except Exception as e:
-  warning("Cannot show figure. Error msg: '%s'" % e.message)
+#################################### PLOTTING ##################################
+plot(all_us)
+plt.title('Free surface displacement (m)')
+plt.show()

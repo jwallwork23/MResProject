@@ -66,7 +66,7 @@ bc2 = DirichletBC(W.sub(1), (0.0), 2)
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem
-v, xi = TestFunctions(Vq)
+v, ze = TestFunctions(Vq)
 q = Function(Vq)
 q.assign(q_)
 
@@ -83,7 +83,7 @@ Lu_int = (inner(u-u_, v) + Dt * (inner(dot(u, nabla_grad(u)), v)
     + nu * inner(grad(u), grad(v)) + g * inner(grad(eta), v))
     + Dt * Cb * sqrt(dot(u_, u_)) * inner(u / (eta + b), v)) * dx(degree=4)
 # Integrate terms of the continuity equation over the interior:
-Le_int = (xi * (eta-eta_) - Dt * inner((eta + b) * u, grad(xi))) * dx(degree=4)
+Le_int = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze))) * dx(degree=4)
 # Integrate over left-hand boundary:
 L_side1 = Dt * (-inner(dot(n, nabla_grad(u)), v)
     + dot(u, n) * (xi * (eta + b))) * ds(1)(degree=4)

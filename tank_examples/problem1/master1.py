@@ -28,11 +28,11 @@ mesh = RectangleMesh(nx, ny, lx, ly)
 # Define function spaces:
 Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           
-W = MixedFunctionSpace((Vu, Ve))            
+Vq = MixedFunctionSpace((Vu, Ve))            
 
 # Construct a function to store our two variables at time n:
-w_ = Function(W)            # \ Split means we can interpolate the 
-u_, eta_ = w_.split()       # / initial condition into the two components
+q_ = Function(Vq)            # \ Split means we can interpolate the 
+u_, eta_ = q_.split()       # / initial condition into the two components
 
 # Construct a (constant) bathymetry function:
 b = Function(Ve, name = 'Bathymetry')
@@ -51,20 +51,20 @@ eta_.interpolate(Expression('-0.01*cos(0.5*pi*x[0])'))
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem
-v, xi = TestFunctions(W)
-w = Function(W)
-w.assign(w_)
+v, ze = TestFunctions(Vq)
+q = Function(Vq)
+q.assign(q_)
 
 # Here we split up a function so it can be inserted into a UFL
 # expression
-u, eta = split(w)      
-u_, eta_ = split(w_)
+u, eta = split(q)      
+u_, eta_ = split(q_)
 
 # Establish form:
 
 def nonlinear_form():
     L = (
-        (xi*(eta-eta_) - Dt*inner((eta+b)*u, grad(xi))\
+        (ze*(eta-eta_) - Dt*inner((eta+b)*u, grad(ze))\
         + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)\
         + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))\
         + Dt*Cb*sqrt(dot(u_, u_))*inner(u/(eta+b), v))*dx(degree=4)
@@ -73,15 +73,15 @@ def nonlinear_form():
 
 def linear_form():
     L = (
-    (xi*(eta-eta_) - Dt*inner(mu, grad(xi)) + \
+    (ze*(eta-eta_) - Dt*inner(mu, grad(ze)) + \
     inner(mu-mu_, v) + Dt*g*b*inner(grad(eta), v))*dx   
     )
     return L
 
 # Set up the variational problem
 
-def variational_solver(L,w):
-    uprob = NonlinearVariationalProblem(L, w)
+def variational_solver(L, q):
+    uprob = NonlinearVariationalProblem(L, q)
     usolver = NonlinearVariationalSolver(uprob,
             solver_parameters={
                             'mat_type': 'matfree',
@@ -97,8 +97,8 @@ def variational_solver(L,w):
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
-u_, eta_ = w_.split()
-u, eta = w.split()
+u_, eta_ = q_.split()
+u, eta = q.split()
 
 ################################# THETIS SETUP #################################
 

@@ -48,7 +48,7 @@ eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem
-v, xi = TestFunctions(Vq)
+v, ze = TestFunctions(Vq)
 q = Function(Vq)
 q.assign(q_)
 
@@ -60,7 +60,7 @@ u_, eta_ = split(q_)
 # Establish forms (functions of the output w1), noting we only have a linear
 # equation if the stong form is written in terms of a matrix:
 L = (
-    (xi * (eta-eta_) - Dt * inner((eta + b) * u, grad(xi)) + \
+    (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
     inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
     )
 

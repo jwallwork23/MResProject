@@ -50,7 +50,7 @@ eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem
-v, xi = TestFunctions(Vq)
+v, ze = TestFunctions(Vq)
 q = Function(Vq)
 q.assign(q_)
 
@@ -61,7 +61,7 @@ u_, eta_ = split(q_)
 
 # Establish the bilinear form - a function of the output function w
 L = (
-        (xi*(eta-eta_) - Dt*inner((eta+b)*u, grad(xi))
+        (ze*(eta-eta_) - Dt*inner((eta+b)*u, grad(ze))
         + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)
         + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))
         + Dt*Cb*sqrt(dot(u_,u_))*inner(u/(eta+b), v))*dx(degree=4)

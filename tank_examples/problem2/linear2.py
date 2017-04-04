@@ -64,7 +64,7 @@ bc2 = DirichletBC(W.sub(1), (0.0), 2)
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem
-v, xi = TestFunctions(Vq)
+v, ze = TestFunctions(Vq)
 q = Function(Vq)
 q.assign(q_)
 
@@ -79,11 +79,11 @@ n = FacetNormal(mesh)
 # Integrate terms of the momentum equation over the interior:
 Lu_int = (inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
 # Integrate terms of the continuity equation over the interior:
-Le_int = (xi * (eta-eta_) - Dt * inner((eta + b) * u, grad(xi))) * dx
+Le_int = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze))) * dx
 # Integrate over left-hand boundary:
-L_side1 = dot(u, n) * (xi * (eta + b)) * ds(1)
+L_side1 = dot(u, n) * (ze * (eta + b)) * ds(1)
 # Integrate over right-hand boundary:
-L_side2 = dot(u, n) * (xi * (eta + b)) * ds(2)
+L_side2 = dot(u, n) * (ze * (eta + b)) * ds(2)
 # Establish the bilinear form using the above integrals:
 L = Lu_int + Le_int + L_side1 + L_side2
 

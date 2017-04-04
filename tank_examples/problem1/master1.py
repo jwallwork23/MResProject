@@ -4,6 +4,9 @@ from thetis import *
 ################################# USER INPUT ###################################
 
 # Specify problem parameters:
+mode = raw_input('Use linear or nonlinear equations? (l/n): ') or 'l'
+if ((mode != 'l') & (mode != 'n')):
+    raise ValueError('Please try again, choosing l or n.')
 dt = raw_input('Specify timestep (default 0.01): ') or 0.01
 Dt = Constant(dt)
 n = raw_input('Specify number of mesh cells per m (default 30): ') or 30
@@ -16,7 +19,8 @@ nu = 1e-3           # Viscosity
 g = 9.81            # Gravitational acceleration
 Cb = 0.0025         # Bottom friction coefficient
 depth = 0.1         # Specify tank water depth
-t_export = 0.1  # Export interval in seconds
+ndump = 10
+t_export = dt*ndump
 
 # Define domain and mesh:
 lx = 4
@@ -73,53 +77,33 @@ def nonlinear_form():
 
 def linear_form():
     L = (
-    (ze*(eta-eta_) - Dt*inner(mu, grad(ze)) + \
-    inner(mu-mu_, v) + Dt*g*b*inner(grad(eta), v))*dx   
+    (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
+    inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
     )
     return L
 
-# Set up the variational problem
+if (mode == 'l'):
+    L = linear_form()
+elif (mode == 'n'):
+    L = nonlinear_form()
 
-def variational_solver(L, q):
-    uprob = NonlinearVariationalProblem(L, q)
-    usolver = NonlinearVariationalSolver(uprob,
-            solver_parameters={
+# Set up the variational problem
+uprob = NonlinearVariationalProblem(L, q)
+usolver = NonlinearVariationalSolver(uprob,
+        solver_parameters={
                             'mat_type': 'matfree',
                             'snes_type': 'ksponly',
                             'pc_type': 'python',
                             'pc_python_type': 'firedrake.AssembledPC',
                             'assembled_pc_type': 'lu',
-                    # only rebuild the preconditioner every 10 (-1) solves:
                             'snes_lag_preconditioner': -1, 
                             'snes_lag_preconditioner_persists': True,
                             })
-    return usolver
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
 u_, eta_ = q_.split()
 u, eta = q.split()
-
-################################# THETIS SETUP #################################
-
-# Construct solver:
-solver_obj = solver2d.FlowSolver2d(mesh, b)
-options = solver_obj.options
-options.t_export = t_export
-options.t_end = T
-
-# Specify integrator of choice:
-options.timestepper_type = 'backwardeuler'  # Use implicit timestepping
-options.dt = 0.01
-
-# Specify initial surface elevation:
-elev_init = Function(P1_2d, name = 'Initial elevation')
-x = SpatialCoordinate(mesh)
-elev_init.interpolate(-0.01*cos(0.5*pi*x[0]))
-solver_obj.assign_initial_conditions(elev=elev_init)
-
-# Run the model:
-solver_obj.iterate()
 
 ################################# TIMESTEPPING #################################
 
@@ -128,10 +112,9 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Initialise arrays, files and dump counter
-ufile = File('outputs/error.pvd')
+ufile = File('outputs/model_prob1.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
-ndump = 10
 dumpn = 0
 
 # Enter the timeloop:
@@ -144,3 +127,30 @@ while (t < T - 0.5*dt):
     if dumpn == ndump:
         dumpn -= ndump
         ufile.write(u, eta, time=t)
+
+################################# THETIS SETUP #################################
+
+# Construct solver:
+solver_obj = solver2d.FlowSolver2d(mesh, b)
+options = solver_obj.options
+options.t_export = t_export
+options.t_end = T
+
+# Specify integrator of choice:
+options.timestepper_type = 'backwardeuler'  # Use implicit timestepping
+options.dt = dt
+
+# Specify initial surface elevation:
+elev_init = Function(Ve, name = 'Initial elevation')
+x = SpatialCoordinate(mesh)
+elev_init.interpolate(-0.01*cos(0.5*pi*x[0]))
+solver_obj.assign_initial_conditions(elev=elev_init)
+
+# Run the model:
+solver_obj.iterate()
+
+############################### EVALUATE ERROR #################################
+
+for i in range(T*ndump+1):
+    # TO DO
+

@@ -112,21 +112,26 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Initialise arrays, files and dump counter
-ufile = File('outputs/model_prob1.pvd')
+ufile = File('outputs/model_prob1_linear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
+ndump = 10
 dumpn = 0
+checks ={0.0: eta}  # Create a dictionary containing checkpointed values of eta
 
 # Enter the timeloop:
 while (t < T - 0.5*dt):     
     t += dt
     print 't = ', t, ' seconds'
     usolver.solve()
-    w_.assign(w)
+    q_.assign(q)
     dumpn += 1              # Dump the data
     if dumpn == ndump:
         dumpn -= ndump
         ufile.write(u, eta, time=t)
+        checks[float(int(10*t))/10.0 + 0.1] = eta   # MAKE THIS MORE GENERAL
+
+print len(checks.keys())    # Sanity check
 
 ################################# THETIS SETUP #################################
 
@@ -149,8 +154,10 @@ solver_obj.assign_initial_conditions(elev=elev_init)
 # Run the model:
 solver_obj.iterate()
 
+# OUTPUT CHECKS FOR THETIS TOO
+
 ############################### EVALUATE ERROR #################################
 
-for i in range(T*ndump+1):
+for keys in checks:
     # TO DO
 

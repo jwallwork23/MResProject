@@ -6,7 +6,7 @@ from firedrake import *
 dt = raw_input('Specify timestep (default 0.01): ') or 0.01
 Dt = Constant(dt)
 n = raw_input('Specify number of mesh cells per m (default 30): ') or 30
-T = raw_input('Specify simulation duration in s (default 40): ') or 40
+T = raw_input('Specify simulation duration in s (default 40): ') or 40.0
 
 ################################# FE SETUP #####################################
 
@@ -86,19 +86,20 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Initialise arrays, files and dump counter
-ufile = File('outputs/model_prob1_linear.pvd')
+ufile = File('outputs/model_prob1.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
-ndump = 10
 dumpn = 0
+checks ={}
 
 # Enter the timeloop:
 while (t < T - 0.5*dt):     
     t += dt
     print 't = ', t, ' seconds'
     usolver.solve()
-    q_.assign(q)
+    w_.assign(w)
     dumpn += 1              # Dump the data
     if dumpn == ndump:
         dumpn -= ndump
         ufile.write(u, eta, time=t)
+        checks[t] = eta

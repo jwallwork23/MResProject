@@ -36,11 +36,11 @@ mesh = RectangleMesh(nx, ny, lx, ly)
 # Define function spaces:
 Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           
-W = MixedFunctionSpace((Vu, Ve))            
+Vq = MixedFunctionSpace((Vu, Ve))            
 
 # Construct a function to store our two variables at time n:
-w_ = Function(W)        # Split means we can interpolate the 
-u_, eta_ = w_.split()   # initial condition into the two components
+q_ = Function(Vq)        # Split means we can interpolate the 
+u_, eta_ = q_.split()   # initial condition into the two components
 
 # Construct a (constant) bathymetry function:
 b = Function(Ve, name = 'Bathymetry')
@@ -66,14 +66,14 @@ bc2 = DirichletBC(W.sub(1), (0.0), 2)
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem
-v, xi = TestFunctions(W)
-w = Function(W)
-w.assign(w_)
+v, xi = TestFunctions(Vq)
+q = Function(Vq)
+q.assign(q_)
 
 # Here we split up a function so it can be inserted into a UFL
 # expression
-u, eta = split(w)      
-u_, eta_ = split(w_)
+u, eta = split(q)      
+u_, eta_ = split(q_)
 
 # Define the outward pointing normal to the mesh
 n = FacetNormal(mesh)
@@ -94,7 +94,7 @@ L_side2 = Dt * (-inner(dot(n, nabla_grad(u)), v)
 L = Lu_int + Le_int + L_side1 + L_side2
 
 # Set up the nonlinear problem
-uprob = NonlinearVariationalProblem(L, w, bcs=[bc1, bc2])
+uprob = NonlinearVariationalProblem(L, q, bcs=[bc1, bc2])
 usolver = NonlinearVariationalSolver(uprob,
         solver_parameters={
                             'ksp_type': 'gmres',
@@ -111,8 +111,8 @@ usolver = NonlinearVariationalSolver(uprob,
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
-u_, eta_ = w_.split()
-u, eta = w.split()
+u_, eta_ = q_.split()
+u, eta = q.split()
 
 ################################# TIMESTEPPING #################################
 
@@ -133,7 +133,7 @@ while (t < T - 0.5*dt):
     print "t = ", t, " seconds"
     bcval.assign(wave_machine(t, A, p, in_flux))    # Update BC
     usolver.solve()
-    w_.assign(w)
+    q_.assign(q)
     dumpn += 1                                      # Dump the data
     if dumpn == ndump:
         dumpn -= ndump

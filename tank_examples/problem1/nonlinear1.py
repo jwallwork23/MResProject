@@ -26,11 +26,11 @@ mesh = RectangleMesh(nx, ny, lx, ly)
 # Define function spaces:
 Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           
-W = MixedFunctionSpace((Vu, Ve))            
+Vq = MixedFunctionSpace((Vu, Ve))            
 
 # Construct a function to store our two variables at time n:
-w_ = Function(W)            # \ Split means we can interpolate the 
-u_, eta_ = w_.split()       # / initial condition into the two components
+q_ = Function(Vq)            # \ Split means we can interpolate the 
+u_, eta_ = q_.split()       # / initial condition into the two components
 
 # Construct a (constant) bathymetry function:
 b = Function(Ve, name = 'Bathymetry')
@@ -49,14 +49,14 @@ eta_.interpolate(Expression('-0.01*cos(0.5*pi*x[0])'))
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem
-v, xi = TestFunctions(W)
-w = Function(W)
-w.assign(w_)
+v, xi = TestFunctions(Vq)
+q = Function(Vq)
+q.assign(q_)
 
 # Here we split up a function so it can be inserted into a UFL
 # expression
-u, eta = split(w)      
-u_, eta_ = split(w_)
+u, eta = split(q)      
+u_, eta_ = split(q_)
 
 # Establish the bilinear form (a function of the output function w1).
 # We use exact integration of degree 4 polynomials used since the problem we
@@ -69,7 +69,7 @@ L = (
 )
 
 # Set up the variational problem
-uprob = NonlinearVariationalProblem(L, w)
+uprob = NonlinearVariationalProblem(L, q)
 usolver = NonlinearVariationalSolver(uprob,
         solver_parameters={
                             'mat_type': 'matfree',
@@ -84,8 +84,8 @@ usolver = NonlinearVariationalSolver(uprob,
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data
-u_, eta_ = w_.split()
-u, eta = w.split()
+u_, eta_ = q_.split()
+u, eta = q.split()
 
 ################################# TIMESTEPPING #################################
 
@@ -105,7 +105,7 @@ while (t < T - 0.5*dt):
     t += dt
     print "t = ", t, " seconds"
     usolver.solve()
-    w_.assign(w)
+    q_.assign(q)
     dumpn += 1              # Dump the data
     if dumpn == ndump:
         dumpn -= ndump

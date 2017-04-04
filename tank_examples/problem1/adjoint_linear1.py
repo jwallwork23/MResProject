@@ -1,4 +1,5 @@
 from firedrake import *
+import numpy as np
 
 ################################# USER INPUT ###################################
 
@@ -8,43 +9,39 @@ Dt = Constant(dt)
 n = input('Specify number of mesh cells per m (30 recommended):')
 T = input('Specify simulation duration in s (40 recommended):')
 
-################################### FE SETUP ###################################
+################################# FE SETUP #####################################
 
-# Set physical and numerical parameters for the scheme
+# Set physical and numerical parameters for the scheme:
 g = 9.81            # Gravitational acceleration
+depth = 0.1         # Specify tank water depth
 
-# Define domain and mesh
+# Define domain and mesh:
 lx = 4
 ly = 1
 nx = lx*n
 ny = ly*n
 mesh = RectangleMesh(nx, ny, lx, ly)
 
-# Define function spaces
+# Define function spaces:
 Vu  = VectorFunctionSpace(mesh, "CG", 2)    # Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           
-Vq = MixedFunctionSpace((Vu, Ve))
+Vq = MixedFunctionSpace((Vu, Ve))            
 
-# Construct a function to store our two variables at time n
-q_ = Function(Vq)        # Split means we can interpolate the 
-u_, eta_ = q_.split()   # initial condition into the two components
+# Construct a function to store our two variables at time n:
+q_ = Function(Vq)           # \ Split means we can interpolate the 
+u_, eta_ = q_.split()       # / initial condition into the two components
 
-# Interpolate bathymetry
-x = SpatialCoordinate(mesh)
+# Construct a (constant) bathymetry function:
 b = Function(Ve, name = 'Bathymetry')
-b.interpolate(0.1 + 0.04 * sin(2*pi*x[0]) * sin(2*pi*x[1]))
-File("../screenshots/bathymetry.pvd").write(b)
+b.assign(depth)
 
-####################### INITIAL AND BOUNDARY CONDITIONS ########################
+##################### INITIAL AND BOUNDARY CONDITIONS ##########################
 
-# Interpolate ICs
+# Interpolate ICs:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
+eta_.interpolate(Expression('-0.01*cos(0.5*pi*x[0])'))
 
-# Apply no-slip BCs on the top and bottom edges of the domain
-#bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
-
-################################# WEAK PROBLEM #################################
+########################### FORWARD WEAK PROBLEM ###############################
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem
@@ -64,10 +61,10 @@ L = (
     inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
     )
 
-# Set up the nonlinear problem
+# Set up the linear problem
 uprob = NonlinearVariationalProblem(L, q)
 usolver = NonlinearVariationalSolver(uprob,
-           solver_parameters={
+        solver_parameters={
                             'mat_type': 'matfree',
                             'snes_type': 'ksponly',
                             'pc_type': 'python',
@@ -83,26 +80,26 @@ usolver = NonlinearVariationalSolver(uprob,
 u_, eta_ = q_.split()
 u, eta = q.split()
 
-################################# TIMESTEPPING #################################
+############################# FORWARD TIMESTEPPING #############################
 
-# Store multiple functions:
-u.rename("Fluid momentum")
+# Store multiple functions
+u.rename("Fluid velocity")
 eta.rename("Free surface displacement")
 
-# Choose a final time and initialise arrays, files and dump counter:
-ufile = File('outputs/model_prob3_linear.pvd')
+# Initialise arrays, files and dump counter
+ufile = File('outputs/model_prob1_linear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10
 dumpn = 0
 
 # Enter the timeloop:
-while (t < T - 0.5*dt):
+while (t < T - 0.5*dt):     
     t += dt
     print "t = ", t, " seconds"
     usolver.solve()
     q_.assign(q)
-    dumpn += 1          # Dump the data
+    dumpn += 1              # Dump the data
     if dumpn == ndump:
         dumpn -= ndump
         ufile.write(u, eta, time=t)

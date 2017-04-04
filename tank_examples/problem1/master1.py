@@ -140,6 +140,7 @@ solver_obj = solver2d.FlowSolver2d(mesh, b)
 options = solver_obj.options
 options.t_export = t_export
 options.t_end = T
+options.outputdir = 'master_output'
 
 # Specify integrator of choice:
 options.timestepper_type = 'backwardeuler'  # Use implicit timestepping

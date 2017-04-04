@@ -94,7 +94,7 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Initialise arrays, files and dump counter
-ufile = File('outputs/model_prob1.pvd')
+ufile = File('prob1_outputs/model_prob1.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10

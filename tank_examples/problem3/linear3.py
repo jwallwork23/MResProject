@@ -90,7 +90,7 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Choose a final time and initialise arrays, files and dump counter:
-ufile = File('outputs/model_prob3_linear.pvd')
+ufile = File('prob3_outputs/model_prob3_linear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10

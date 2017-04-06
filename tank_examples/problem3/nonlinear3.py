@@ -59,7 +59,7 @@ q.assign(q_)
 u, eta = split(q)      
 u_, eta_ = split(q_)
 
-# Establish the bilinear form - a function of the output function w
+# Establish the bilinear form - a function of the output function q:
 L = (
         (ze*(eta-eta_) - Dt*inner((eta+b)*u, grad(ze))
         + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)

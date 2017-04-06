@@ -16,18 +16,18 @@ a = 6.35e6          # (Average) radius of the Earth (m)
 
 ################################# FE SETUP #####################################
 
-# Define mesh (courtesy of QMESH), function spaces and initial surface:
+# Define mesh (courtesy of QMESH) and function spaces:
 mesh = Mesh("meshes/point1_point5_point5.msh")     # Japanese coastline
 mesh_coords = mesh.coordinates.dat.data
 Vu = FunctionSpace(mesh, "CG", 2)       # \
 Vv = FunctionSpace(mesh, "CG", 2)       #  | Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)       # /
-W = MixedFunctionSpace((Vu, Vv, Ve))    # We consider a mixed FE problem
+Vq = MixedFunctionSpace((Vu, Vv, Ve))   # We consider a mixed FE problem
 
 # Construct functions to store dependent variables and bathymetry:
-w_ = Function(W)                            # \ Here 'split' means we  
-u_, v_, eta_ = w_.split()                   # / interpolate IC into components
-b = Function(W.sub(2), name="Bathymetry")   # Bathymetry function
+q_ = Function(Vq)                           # \ Here 'split' means we  
+u_, v_, eta_ = q_.split()                   # / interpolate IC into components
+b = Function(Vq.sub(2), name="Bathymetry")  # Bathymetry function
 
 ############### INITIAL AND BOUNDARY CONDITIONS AND BATHYMETRY #################
 
@@ -71,24 +71,24 @@ v_.interpolate(Expression(0))
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed linear problem:
-y, z, xi = TestFunctions(W)
-w = Function(W)
-w.assign(w_)
-u, v, eta = split(w)        # \ Here split means we split up a function so
-u_, v_, eta_ = split(w_)    # / it can be inserted into a UFL expression
+y, z, ze = TestFunctions(Vq)
+q = Function(Vq)
+q.assign(q_)
+u, v, eta = split(q)        # \ Here split means we split up a function so
+u_, v_, eta_ = split(q_)    # / it can be inserted into a UFL expression
 
-# Establish the linear and bilinear forms (functions of the output w1):
+# Establish the linear and bilinear forms (functions of the output q):
 x = SpatialCoordinate(mesh)
 L = (
-    ((eta-eta_) * xi - Dt * ((eta + b) * u * xi.dx(0) + \
-                             (eta + b) * v * xi.dx(1))/(a * cos(x[1])) + \
+    ((eta-eta_) * ze - Dt * ((eta + b) * u * ze.dx(0) + \
+                             (eta + b) * v * ze.dx(1))/(a * cos(x[1])) + \
     (u-u_) * y + Dt * g * (eta.dx(0) * y)/(a * cos(x[1])) + \
     (v-v_) * z + Dt * g * (eta.dx(1) * z)/a ) * dx
 )
 
 
 # Set up the nonlinear problem and specify solver parameters:
-uprob = NonlinearVariationalProblem(L, w)
+uprob = NonlinearVariationalProblem(L, q)
 usolver = NonlinearVariationalSolver(uprob,
         solver_parameters={
                             'mat_type': 'matfree',
@@ -101,8 +101,8 @@ usolver = NonlinearVariationalSolver(uprob,
                             })
 
 # Split dependent variables, to access data:
-u_, v_, eta_ = w_.split()                           # IS THIS NEEDED?
-u, v, eta = w.split()
+u_, v_, eta_ = q_.split()                           # IS THIS NEEDED?
+u, v, eta = q.split()
 
 ################################# TIMESTEPPING #################################
 
@@ -124,7 +124,7 @@ while (t < T - 0.5*dt):     # Enter the timeloop
     if (t % 60 == 0):
         print "t = ", t/60, " mins"
     usolver.solve()
-    w_.assign(w)
+    q_.assign(q)
     dumpn += 1              # Dump the data
     if dumpn == ndump:
         dumpn -= ndump

@@ -56,7 +56,7 @@ q.assign(q_)
 mu, eta = split(q)                                                  ##
 mu_, eta_ = split(q_)
 
-# Establish forms (functions of the output w1), noting we only have a linear
+# Establish forms (functions of the output q), noting we only have a linear
 # equation if the stong form is written in terms of a matrix:
 L = (
     (ze * (eta-eta_) - Dt * mu * ze.dx(0) + \

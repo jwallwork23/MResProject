@@ -53,7 +53,7 @@ q.assign(q_)
 u, eta = split(q)      
 u_, eta_ = split(q_)
 
-# Establish forms (functions of the output w1), noting we only have a linear
+# Establish forms (functions of the output q), noting we only have a linear
 # equation if the stong form is written in terms of a matrix:
 L = (
     (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \

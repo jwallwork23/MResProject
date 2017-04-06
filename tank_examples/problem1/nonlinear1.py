@@ -58,7 +58,7 @@ q.assign(q_)
 u, eta = split(q)      
 u_, eta_ = split(q_)
 
-# Establish the bilinear form (a function of the output function w1).
+# Establish the bilinear form (a function of the output function q).
 # We use exact integration of degree 4 polynomials used since the problem we
 # consider is 'not very nonlinear'
 L = (

@@ -131,7 +131,7 @@ lu_, le_ = split(lam_)
 
 # NEED TO INCLUDE THE ABILITY TO ACCESS U AND ETA VALUES FROM PVD
 
-# Establish forms (functions of the output w1), noting we only have a linear
+# Establish forms (functions of the output q), noting we only have a linear
 # equation if the stong form is written in terms of a matrix:
 L2 = (
     (xi * (le-le_) - Dt * g * inner(lu, grad(xi)) + \

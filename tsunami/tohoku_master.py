@@ -11,12 +11,12 @@ if ((mode != 'l') & (mode != 'n')):
     raise ValueError('Please try again, choosing l or n.')
 
 # Specify time parameters:
-Ts = raw_input('Specify timescale (s) (default 15):') or 15
+Ts = float(raw_input('Specify timescale (s) (default 15):') or 15)
 dt = Ts             # Timestep, chosen small enough for stability (s)
 Dt = Constant(dt)
 ndump = 4
 t_export = dt*ndump
-T = 5000.0         # End time in seconds
+T = float(raw_input('Specify time period (s) (default 7200):') or 7200)
 # INCLUDE FUNCTIONALITY FOR MESH CHOICE
 
 ############################ FE SETUP #################################
@@ -95,10 +95,11 @@ u_, eta_ = split(q_)    # / it can be inserted into a UFL expression
 def nonlinear_form():
     L = (
      (ze * (eta-eta_) - Lm * Dt * inner((eta + b) * u, grad(ze)) + \
-     Lm * inner(u-u_, v) + \
-      Lm * Lm * Dt * (inner(dot(u, nabla_grad(u)), v)\
-     + Lm * nu * inner(grad(u), grad(v)) + g * inner(grad(eta), v))\
-     + Lm * Lm * Dt * Cb * sqrt(dot(u_, u_)) * inner(u/(eta+b), v)) * \
+      Lm * inner(u-u_, v) + \
+      Lm * Lm * Dt * inner(dot(u, nabla_grad(u)), v) + \
+      Lm * nu * inner(grad(u), grad(v)) + \
+      Lm * Lm * Dt * g * inner(grad(eta), v) + \
+      Lm * Lm * Dt * Cb * sqrt(dot(u_, u_)) * inner(u/(eta+b), v)) * \
      dx(degree=4)   
      )
     return L
@@ -175,15 +176,15 @@ print len(checks.keys())    # Sanity check
 
 # Construct solver:
 solver_obj = solver2d.FlowSolver2d(mesh, b)
-solver_obj.assign_initial_conditions(elev=eta_)
 options = solver_obj.options
 options.t_export = t_export
 options.t_end = T
+options.timestepper_type = 'backwardeuler'  # Use implicit timestepping
+options.dt = Dt
 options.outputdir = 'tsunami_outputs'
 
-# Specify integrator of choice:
-options.timestepper_type = 'backwardeuler'  # Use implicit timestepping
-options.dt = dt
+# Apply ICs:
+solver_obj.assign_initial_conditions(elev=eta_)
 
 # Run the model:
 solver_obj.iterate()

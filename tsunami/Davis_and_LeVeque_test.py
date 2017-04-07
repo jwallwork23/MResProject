@@ -1,16 +1,16 @@
 from firedrake import *
 import matplotlib.pyplot as plt
 
-################################# USER INPUT ###################################
+############################ USER INPUT ###############################
 
 # Specify problem parameters:
 dt = raw_input('Specify timestep (default 1): ') or 1
 Dt = Constant(dt)
-n = raw_input('Specify number of mesh cells per m (default 0.001): ') or 0.001
-T = raw_input('Specify simulation duration in s (default 500): ') or 500
+n = raw_input('Specify no. of cells per m (default 1e-4): ') or 1e-4
+T = raw_input('Specify duration in s (default 500): ') or 500
 g = 9.81            # Gravitational acceleration
 
-################################### FE SETUP ###################################
+############################## FE SETUP ###############################
 
 # Define domain and mesh
 lx = 4e5
@@ -33,7 +33,7 @@ plot(b)
 plt.title('Ocean depth (m)')
 plt.show()
 
-####################### INITIAL AND BOUNDARY CONDITIONS ########################
+################## INITIAL AND BOUNDARY CONDITIONS ####################
 
 # Interpolate ICs
 mu_.interpolate(Expression(0.0))
@@ -44,7 +44,7 @@ plot(eta_)
 plt.title('Initial surface profile (m)')
 plt.show()
 
-################################# WEAK PROBLEM #################################
+########################### WEAK PROBLEM ##############################
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem
@@ -84,7 +84,7 @@ plot(eta_)
 plt.title('WHY IS THIS ZERO???')
 plt.show()
 
-################################# TIMESTEPPING #################################
+############################ TIMESTEPPING ############################
 
 # Store multiple functions:
 mu.rename('Fluid momentum')
@@ -110,7 +110,7 @@ while (t < T - 0.5*dt):
         ufile.write(mu, eta, time=t)
         all_us.append(Function(eta))
 
-#################################### PLOTTING ##################################
+############################## PLOTTING ###############################
 plot(all_us)
 plt.title('Free surface displacement (m)')
 plt.show()

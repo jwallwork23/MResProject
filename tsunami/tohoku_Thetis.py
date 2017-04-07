@@ -2,14 +2,22 @@ from thetis import *
 import scipy.interpolate
 from scipy.io.netcdf import NetCDFFile
 
+########################### USER INPUT ################################
+
+# Specify time parameters:
+Ts = float(raw_input('Specify timescale (s) (default 15):') or 15)
+dt = Ts             # Timestep, chosen small enough for stability (s)
+Dt = Constant(dt)
+ndump = 4
+t_export = dt*ndump
+T = float(raw_input('Specify time period (s) (default 7200):') or 7200)
+
+############################## SETUP ##################################
+
 # Define mesh (courtesy of QMESH) and function space:
 mesh = Mesh("meshes/point1_point5_point5.msh")     # Japanese coastline
 mesh_coords = mesh.coordinates.dat.data
 P1_2d = FunctionSpace(mesh, 'CG', 1)
-
-# Set end-time parameters:
-T = 10000.0         # End time in seconds
-t_export = 50.0     # Export interval in seconds
 
 # Construct functions to hold initial surface elevation and bathymetry:
 b = Function(P1_2d, name = 'Bathymetry')
@@ -40,15 +48,15 @@ for i,p in enumerate(mesh_coords):
 
 # Construct solver:
 solver_obj = solver2d.FlowSolver2d(mesh, b)
-solver_obj.assign_initial_conditions(elev=elev_init)
 options = solver_obj.options
 options.t_export = t_export
 options.t_end = T
+options.timestepper_type = 'backwardeuler'      # Use implicit timestepping
+options.dt = dt
 options.outputdir = 'tsunami_test_outputs'
 
-# Specify integrator of choice:
-options.timestepper_type = 'backwardeuler'      # Use implicit timestepping
-options.dt = 10.0
+# Apply ICs:
+solver_obj.assign_initial_conditions(elev=elev_init)
 
 # Run the model:
 solver_obj.iterate()

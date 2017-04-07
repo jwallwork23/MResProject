@@ -12,6 +12,13 @@ Dt = Constant(dt)
 n = raw_input('Specify number of cells per m (default 30): ') or 30
 T = raw_input('Specify simulation duration in s (default 40): ') or 40
 
+######################### USEFUL FUNCTIONS ############################
+
+# For imposing time-dependent BCs:
+def wave_machine(t, A, p, in_flux):
+    '''Time-dependent flux function'''
+    return A * sin(2 * pi * t / p) + in_flux
+
 ############################ FE SETUP #################################
 
 # Set physical and numerical parameters for the scheme:
@@ -19,6 +26,9 @@ nu = 1e-3           # Viscosity
 g = 9.81            # Gravitational acceleration
 Cb = 0.0025         # Bottom friction coefficient
 depth = 0.1         # Specify tank water depth
+A = 0.01            # 'Tide' amplitude
+p = 0.5             # 'Tide' period
+in_flux = 0         # Flux into domain
 ndump = 10
 t_export = dt*ndump
 
@@ -44,12 +54,16 @@ b.assign(depth)
 
 ################## INITIAL AND BOUNDARY CONDITIONS ####################
 
-# Interpolate ICs:
+# Interpolate intial steady state
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(Expression('-0.01*cos(0.5*pi*x[0])'))
+eta_.interpolate(Expression(0))
 
-# Apply no-slip BCs on the top and bottom edges of the domain
-#bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
+# Establish a BC object for the oscillating inflow condition
+bcval = Constant(0.0)
+bc1 = DirichletBC(Vq.sub(1), bcval, 1)
+
+# Apply no-slip BC to eta on the right end of the domain
+bc2 = DirichletBC(Vq.sub(1), (0.0), 2)
 
 ########################## WEAK PROBLEM ###############################
 
@@ -64,23 +78,41 @@ q.assign(q_)
 u, eta = split(q)      
 u_, eta_ = split(q_)
 
+# Define the outward pointing normal to the mesh
+n = FacetNormal(mesh)
+
 # Establish form:
 
 def nonlinear_form():
-    L = (
-        (ze*(eta-eta_) - Dt*inner((eta+b)*u, grad(ze))\
-        + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)\
-        + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))\
-        + Dt*Cb*sqrt(dot(u_, u_))*inner(u/(eta+b), v))*dx(degree=4)
-    )
-    return L
+    # Integrate terms of the momentum equation over the interior:
+    Lu_int = (inner(u-u_, v) + Dt * (inner(dot(u, nabla_grad(u)), v)
+        + nu * inner(grad(u), grad(v)) + g * inner(grad(eta), v))
+        + Dt * Cb * sqrt(dot(u_, u_)) * inner(u / (eta + b), v)) * \
+        dx(degree=4)
+    # Integrate terms of the continuity equation over the interior:
+    Le_int = (ze * (eta-eta_) - \
+              Dt * inner((eta + b) * u, grad(ze))) * dx(degree=4)
+    # Integrate over left-hand boundary:
+    L_side1 = Dt * (-inner(dot(n, nabla_grad(u)), v)
+        + dot(u, n) * (ze * (eta + b))) * ds(1)(degree=4)
+    # Integrate over right-hand boundary:
+    L_side2 = Dt * (-inner(dot(n, nabla_grad(u)), v)
+        + dot(u, n) * (ze * (eta + b))) * ds(2)(degree=4)
+    # Establish the bilinear form using the above integrals:
+    return Lu_int + Le_int + L_side1 + L_side2
 
 def linear_form():
-    L = (
-    (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
-    inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
-    )
-    return L
+    # Integrate terms of the momentum equation over the interior:
+    Lu_int = (inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
+    # Integrate terms of the continuity equation over the interior:
+    Le_int = (ze * (eta-eta_) - \
+              Dt * inner((eta + b) * u, grad(ze))) * dx
+    # Integrate over left-hand boundary:
+    L_side1 = dot(u, n) * (ze * (eta + b)) * ds(1)
+    # Integrate over right-hand boundary:
+    L_side2 = dot(u, n) * (ze * (eta + b)) * ds(2)
+    # Establish the bilinear form using the above integrals:
+    return Lu_int + Le_int + L_side1 + L_side2
 
 if (mode == 'l'):
     L = linear_form()
@@ -88,16 +120,19 @@ elif (mode == 'n'):
     L = nonlinear_form()
 
 # Set up the variational problem
-uprob = NonlinearVariationalProblem(L, q)
+uprob = NonlinearVariationalProblem(L, q, bcs=[bc1, bc2])
 usolver = NonlinearVariationalSolver(uprob,
         solver_parameters={
-                            'mat_type': 'matfree',
-                            'snes_type': 'ksponly',
-                            'pc_type': 'python',
-                            'pc_python_type': 'firedrake.AssembledPC',
-                            'assembled_pc_type': 'lu',
-                            'snes_lag_preconditioner': -1, 
-                            'snes_lag_preconditioner_persists': True,
+                            'ksp_type': 'gmres',
+                            'ksp_rtol': '1e-8',
+                            'pc_type': 'fieldsplit',
+                            'pc_fieldsplit_type': 'schur',
+                            'pc_fieldsplit_schur_fact_type': 'full',
+                            'fieldsplit_0_ksp_type': 'cg',
+                            'fieldsplit_0_pc_type': 'lu',
+                            'fieldsplit_1_ksp_type': 'cg',
+                            'fieldsplit_1_pc_type': 'hypre',
+                            'pc_fieldsplit_schur_precondition': 'selfp',
                             })
 
 # The function 'split' has two forms: now use the form which splits a 
@@ -113,9 +148,9 @@ eta.rename('Free surface displacement')
 
 # Initialise arrays, files and dump counter
 if (mode == 'l'):
-    ufile = File('master_output/model_prob1_linear.pvd')
+    ufile = File('master_output/model_prob2_linear.pvd')
 elif (mode == 'n'):
-    ufile = File('master_output/model_prob1_nonlinear.pvd')
+    ufile = File('master_output/model_prob2_nonlinear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10
@@ -128,6 +163,7 @@ checks ={0.0: eta}
 while (t < T - 0.5*dt):     
     t += dt
     print 't = ', t, ' seconds'
+    bcval.assign(wave_machine(t, A, p, in_flux))    # Update BC
     usolver.solve()
     q_.assign(q)
     dumpn += 1              # Dump the data

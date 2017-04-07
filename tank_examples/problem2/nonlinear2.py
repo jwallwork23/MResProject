@@ -54,13 +54,13 @@ eta_.interpolate(Expression(0))
 
 # Establish a BC object for the oscillating inflow condition
 bcval = Constant(0.0)
-bc1 = DirichletBC(W.sub(1), bcval, 1)
+bc1 = DirichletBC(Vq.sub(1), bcval, 1)
 
 # Apply no-slip BC to eta on the right end of the domain
-bc2 = DirichletBC(W.sub(1), (0.0), 2)
+bc2 = DirichletBC(Vq.sub(1), (0.0), 2)
 
 # Apply no-slip BCs on u on the top and bottom edges of the domain
-#bc3 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
+#bc3 = DirichletBC(Vq.sub(0), (0.0,0.0), (3,4))
 
 ################################# WEAK PROBLEM #################################
 
@@ -86,10 +86,10 @@ Lu_int = (inner(u-u_, v) + Dt * (inner(dot(u, nabla_grad(u)), v)
 Le_int = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze))) * dx(degree=4)
 # Integrate over left-hand boundary:
 L_side1 = Dt * (-inner(dot(n, nabla_grad(u)), v)
-    + dot(u, n) * (xi * (eta + b))) * ds(1)(degree=4)
+    + dot(u, n) * (ze * (eta + b))) * ds(1)(degree=4)
 # Integrate over right-hand boundary:
 L_side2 = Dt * (-inner(dot(n, nabla_grad(u)), v)
-    + dot(u, n) * (xi * (eta + b))) * ds(2)(degree=4)
+    + dot(u, n) * (ze * (eta + b))) * ds(2)(degree=4)
 # Establish the bilinear form using the above integrals:
 L = Lu_int + Le_int + L_side1 + L_side2
 

@@ -52,13 +52,13 @@ eta_.interpolate(Expression(0))
 
 # Establish a BC object for the oscillating inflow condition
 bcval = Constant(0.0)
-bc1 = DirichletBC(W.sub(1), bcval, 1)
+bc1 = DirichletBC(Vq.sub(1), bcval, 1)
 
 # Apply no-slip BC to eta on the right end of the domain
-bc2 = DirichletBC(W.sub(1), (0.0), 2)
+bc2 = DirichletBC(Vq.sub(1), (0.0), 2)
 
 # Apply no-slip BCs on u on the top and bottom edges of the domain
-#bc3 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
+#bc3 = DirichletBC(Vq.sub(0), (0.0,0.0), (3,4))
 
 ################################# WEAK PROBLEM #################################
 

@@ -1,9 +1,10 @@
 from firedrake import *
-import numpy as np
 import scipy.interpolate
 from scipy.io.netcdf import NetCDFFile
-import GFD_basisChange_tools as gfd         # Not currently used
-import utm                                  # --------""--------
+import GFD_basisChange_tools as gfd         # USE THIS
+
+import utm
+import numpy as np
 
 ################################# USER INPUT ###################################
 

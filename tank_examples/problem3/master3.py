@@ -38,15 +38,17 @@ Vq = MixedFunctionSpace((Vu, Ve))
 q_ = Function(Vq)       # \ Split means we can interpolate the 
 u_, eta_ = q_.split()   # / initial condition into the two components
 
-# Construct a (constant) bathymetry function:
+# Interpolate bathymetry
+x = SpatialCoordinate(mesh)
 b = Function(Ve, name = 'Bathymetry')
-b.assign(depth)
+b.interpolate(0.1 + 0.04 * sin(2*pi*x[0]) * sin(2*pi*x[1]))
+File('../screenshots/bathymetry.pvd').write(b)
 
 ################## INITIAL AND BOUNDARY CONDITIONS ####################
 
 # Interpolate ICs:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(Expression('-0.01*cos(0.5*pi*x[0])'))
+eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 
 # Apply no-slip BCs on the top and bottom edges of the domain
 #bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
@@ -113,9 +115,9 @@ eta.rename('Free surface displacement')
 
 # Initialise arrays, files and dump counter
 if (mode == 'l'):
-    ufile = File('master_output/model_prob1_linear.pvd')
+    ufile = File('master_output/model_prob3_linear.pvd')
 elif (mode == 'n'):
-    ufile = File('master_output/model_prob1_nonlinear.pvd')
+    ufile = File('master_output/model_prob3_nonlinear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10

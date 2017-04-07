@@ -11,10 +11,9 @@ import utm
 ################################# USER INPUT ###################################
 
 # Specify time parameters:
-Ts = raw_input('Specify timescale (s) (default 10):') or 10
-dt = Ts             # Timestep, chosen small enough for stability (s)
+dt = raw_input('Specify timestep (s) (default 15):') or 15
 Dt = Constant(dt)
-ndump = 5
+ndump = 4
 # INCLUDE FUNCTIONALITY FOR MESH CHOICE
 
 ############################ USEFUL FUNCTIONS ##################################
@@ -43,7 +42,7 @@ def vectorlonlat2tangentxy(lon, lat, lon0, lat0):
     coordinates (x,y), with units being metres.'''
     x = np.zeros((len(lon), 1))
     y = np.zeros((len(lat), 1))
-    assert len(x)==len(y)
+    assert (len(x) == len(y))
     for i in range(len(x)):
         x[i], y[i] = lonlat2tangentxy(lon[i], lat[i], lon0, lat0)
     return x, y    
@@ -54,7 +53,7 @@ def vectorlonlat2tangentxy(lon, lat, lon0, lat0):
 g = 9.81            # Gravitational acceleration (ms^{-2})
 
 # Define mesh (courtesy of QMESH) and function spaces:
-mesh = Mesh("meshes/point1_point5_point5.msh")     # Japanese coastline
+mesh = Mesh("meshes/Cartesian_tohoku.msh")     # Japanese coastline
 mesh_coords = mesh.coordinates.dat.data
 Vu = VectorFunctionSpace(mesh, "CG", 2)     # \ Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           # /
@@ -80,9 +79,9 @@ assert mesh_coords.shape[0]==eta_vec.shape[0]
 # Read and interpolate bathymetry data (courtesy of GEBCO):
 nc2 = NetCDFFile('bathy_data/GEBCO_bathy.nc', mmap=False)
 lon2 = nc2.variables['lon'][:]
-lat2 = nc2.variables['lat'][:]
+lat2 = nc2.variables['lat'][:-1]
 x2, y2 = vectorlonlat2tangentxy(lon2, lat2, 143., 37.)
-elev2 = nc2.variables['elevation'][:,:]
+elev2 = nc2.variables['elevation'][:-1,:]
 interpolator_bath = scipy.interpolate.RectBivariateSpline(y2, x2, elev2)
 b_vec = b.dat.data
 assert mesh_coords.shape[0]==b_vec.shape[0]
@@ -145,7 +144,7 @@ u.rename("Fluid velocity")
 eta.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays, files and dump counter
-T = 1000.0*Ts
+T = 7200.
 ufile = File('tsunami_test_outputs/simulation_linear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)

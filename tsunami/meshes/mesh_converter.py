@@ -1,7 +1,5 @@
 #!/usr/bin/python
-
 from math import radians, sin, cos
-import sys
 
 def earth_radius(lat):
     '''A function which calculates the radius of the Earth for a given
@@ -22,8 +20,8 @@ def lonlat2tangentxy(lon, lat, lon0, lat0):
     return x, y
 
 # Open mesh file
-mesh1 = open("tohoku_edit.msh", "r")
-mesh2 = open("Cartesian_tohoku.msh", "w")
+mesh1 = open("Tohoku_edit.msh", "r")
+mesh2 = open("Cartesian_Tohoku.msh", "w")
 print "Name of mesh to be edited: ", mesh1.name
 
 i = 0

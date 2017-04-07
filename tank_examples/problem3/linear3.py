@@ -33,7 +33,7 @@ u_, eta_ = q_.split()   # initial condition into the two components
 x = SpatialCoordinate(mesh)
 b = Function(Ve, name = 'Bathymetry')
 b.interpolate(0.1 + 0.04 * sin(2*pi*x[0]) * sin(2*pi*x[1]))
-File('../screenshots/bathymetry.pvd').write(b)
+File('../screenshots/tank_bathymetry.pvd').write(b)
 
 ####################### INITIAL AND BOUNDARY CONDITIONS ########################
 
@@ -90,7 +90,7 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Choose a final time and initialise arrays, files and dump counter:
-ufile = File('prob3_outputs/model_prob3_linear.pvd')
+ufile = File('prob3_test_outputs/model_prob3_linear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10

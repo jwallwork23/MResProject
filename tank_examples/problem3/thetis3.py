@@ -27,7 +27,7 @@ options.t_end = T
 # Specify integrator of choice:
 options.timestepper_type = 'backwardeuler'      # Use implicit timestepping
 options.dt = 0.01
-options.outputdir = 'prob3_outputs'
+options.outputdir = 'prob3_test_outputs'
 
 # Specify initial surface elevation:
 elev_init = Function(P1_2d, name = 'Initial elevation')

@@ -3,14 +3,16 @@ import scipy.interpolate
 from scipy.io.netcdf import NetCDFFile
 import GFD_basisChange_tools as gfd         # USE THIS
 
+# Not currently used
 import utm
 import numpy as np
 
 ################################# USER INPUT ###################################
 
 # Specify problem parameters:
-dt = input('Specify timestep (s) (default 10):') or 10
+dt = raw_input('Specify timestep (s) (default 10):') or 10
 Dt = Constant(dt)
+ndump = 5
 g = 9.81            # Gravitational acceleration (ms^{-2})
 a = 6.35e6          # (Average) radius of the Earth (m)
 # INCLUDE FUNCTIONALITY FOR MESH CHOICE
@@ -59,9 +61,9 @@ for i,p in enumerate(mesh_coords):
 b.assign(conditional(lt(30, b), b, 30))
 
 # Plot initial surface and bathymetry profiles:
-ufile = File('plots/init_surf.pvd')
+ufile = File('tsunami_test_outputs/init_surf.pvd')
 ufile.write(eta_)
-ufile = File('plots/tsunami_bathy.pvd')
+ufile = File('tsunami_test_outputs/tsunami_bathy.pvd')
 ufile.write(b)
 
 # Interpolate IC on fluid velocity:
@@ -114,10 +116,9 @@ eta.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays, files and dump counter
 T = 1000.0*dt
-ufile = File('plots/simulation_linear_txn.pvd')
+ufile = File('tsunami_test_outputs/simulation_linear_txn.pvd')
 t = 0.0
 ufile.write(u, v, eta, time=t)
-ndump = 5
 dumpn = 0
 
 while (t < T - 0.5*dt):     # Enter the timeloop

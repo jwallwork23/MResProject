@@ -42,7 +42,7 @@ u_, eta_ = q_.split()   # / initial condition into the two components
 x = SpatialCoordinate(mesh)
 b = Function(Ve, name = 'Bathymetry')
 b.interpolate(0.1 + 0.04 * sin(2*pi*x[0]) * sin(2*pi*x[1]))
-File('../screenshots/bathymetry.pvd').write(b)
+File('../screenshots/tank_bathymetry.pvd').write(b)
 
 ################## INITIAL AND BOUNDARY CONDITIONS ####################
 
@@ -115,9 +115,9 @@ eta.rename('Free surface displacement')
 
 # Initialise arrays, files and dump counter
 if (mode == 'l'):
-    ufile = File('master_output/model_prob3_linear.pvd')
+    ufile = File('prob3_outputs/model_prob3_linear.pvd')
 elif (mode == 'n'):
-    ufile = File('master_output/model_prob3_nonlinear.pvd')
+    ufile = File('prob3_outputs/model_prob3_nonlinear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10
@@ -148,7 +148,7 @@ solver_obj = solver2d.FlowSolver2d(mesh, b)
 options = solver_obj.options
 options.t_export = t_export
 options.t_end = T
-options.outputdir = 'master_output'
+options.outputdir = 'prob3_outputs'
 
 # Specify integrator of choice:
 options.timestepper_type = 'backwardeuler'  # Use implicit timestepping

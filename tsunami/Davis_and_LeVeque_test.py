@@ -91,7 +91,7 @@ mu.rename('Fluid momentum')
 eta.rename('Free surface displacement')
 
 # Choose a final time and initialise arrays, files and dump counter:
-ufile = File('outputs/Davis_and_LeVeque_test.pvd')
+ufile = File('tsunami_test_outputs/Davis_and_LeVeque_test.pvd')
 t = 0.0
 ufile.write(mu, eta, time=t)
 ndump = 10

@@ -1,14 +1,19 @@
 from firedrake import *
-import numpy as np
 import scipy.interpolate
 from scipy.io.netcdf import NetCDFFile
-import GFD_basisChange_tools as gfd         # Not currently used
-import utm                                  # --------""--------
+
+# Not currently used
+import GFD_basisChange_tools as gfd 
+import utm  
+import numpy as np  
 
 ################################# USER INPUT ###################################
 
-# Specify problem parameters:
-Ts = input('Specify timescale (s) (default 10):') or 10
+# Specify time parameters:
+Ts = raw_input('Specify timescale (s) (default 10):') or 10
+dt = Ts             # Timestep, chosen small enough for stability (s)
+Dt = Constant(dt)
+ndump = 5
 # INCLUDE FUNCTIONALITY FOR MESH CHOICE
 
 ################################# FE SETUP #####################################
@@ -23,8 +28,6 @@ Lm = 1/sqrt(Lx**2 + Ly**2)  # Inverse magnitude of length scales
 nu = 1e-3           # Viscosity (kgs^{-1}m^{-1})
 g = 9.81            # Gravitational acceleration (ms^{-2})
 Cb = 0.0025         # Bottom friction coefficient (dimensionless)
-dt = Ts             # Timestep, chosen small enough for stability (s)
-Dt = Constant(dt)
 
 # Define mesh (courtesy of QMESH) and function spaces:
 mesh = Mesh("meshes/point1_point5_point5.msh")     # Japanese coastline
@@ -67,9 +70,9 @@ for i,p in enumerate(mesh_coords):
 b.assign(conditional(lt(30, b), b, 30))
 
 # Plot initial surface and bathymetry profiles:
-ufile = File('plots/init_surf.pvd')
+ufile = File('tsunami_test_outputs/init_surf.pvd')
 ufile.write(eta_)
-ufile = File('plots/tsunami_bathy.pvd')
+ufile = File('tsunami_test_outputs/tsunami_bathy.pvd')
 ufile.write(b)
 
 # Interpolate IC on fluid velocity:
@@ -123,10 +126,9 @@ eta.rename("Free surface displacement")
 
 # Choose a final time and initialise arrays, files and dump counter
 T = 1000.0*Ts
-ufile = File('plots/simulation.pvd')
+ufile = File('tsunami_test_outputs/simulation.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
-ndump = 5
 dumpn = 0
 
 while (t < T - 0.5*dt):     # Enter the timeloop

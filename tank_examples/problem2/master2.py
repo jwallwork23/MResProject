@@ -148,9 +148,9 @@ eta.rename('Free surface displacement')
 
 # Initialise arrays, files and dump counter
 if (mode == 'l'):
-    ufile = File('master_output/model_prob2_linear.pvd')
+    ufile = File('prob2_outputs/model_prob2_linear.pvd')
 elif (mode == 'n'):
-    ufile = File('master_output/model_prob2_nonlinear.pvd')
+    ufile = File('prob2_outputs/model_prob2_nonlinear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10
@@ -182,7 +182,7 @@ solver_obj = solver2d.FlowSolver2d(mesh, b)
 options = solver_obj.options
 options.t_export = t_export
 options.t_end = T
-options.outputdir = 'master_output'
+options.outputdir = 'prob2_outputs'
 
 # Specify integrator of choice:
 options.timestepper_type = 'backwardeuler'  # Use implicit timestepping

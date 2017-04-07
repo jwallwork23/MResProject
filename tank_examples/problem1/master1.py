@@ -48,9 +48,6 @@ b.assign(depth)
 u_.interpolate(Expression([0, 0]))
 eta_.interpolate(Expression('-0.01*cos(0.5*pi*x[0])'))
 
-# Apply no-slip BCs on the top and bottom edges of the domain
-#bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
-
 ########################## WEAK PROBLEM ###############################
 
 # Build the weak form of the timestepping algorithm, expressed as a 
@@ -113,9 +110,9 @@ eta.rename('Free surface displacement')
 
 # Initialise arrays, files and dump counter
 if (mode == 'l'):
-    ufile = File('master_output/model_prob1_linear.pvd')
+    ufile = File('prob1_outputs/model_prob1_linear.pvd')
 elif (mode == 'n'):
-    ufile = File('master_output/model_prob1_nonlinear.pvd')
+    ufile = File('prob1_outputs/model_prob1_nonlinear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 ndump = 10
@@ -146,7 +143,7 @@ solver_obj = solver2d.FlowSolver2d(mesh, b)
 options = solver_obj.options
 options.t_export = t_export
 options.t_end = T
-options.outputdir = 'master_output'
+options.outputdir = 'prob1_outputs'
 
 # Specify integrator of choice:
 options.timestepper_type = 'backwardeuler'  # Use implicit timestepping

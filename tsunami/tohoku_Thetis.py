@@ -44,7 +44,7 @@ solver_obj.assign_initial_conditions(elev=elev_init)
 options = solver_obj.options
 options.t_export = t_export
 options.t_end = T
-options.outputdir = 'plots'
+options.outputdir = 'tsunami_test_outputs'
 
 # Specify integrator of choice:
 options.timestepper_type = 'backwardeuler'      # Use implicit timestepping

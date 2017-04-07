@@ -91,7 +91,7 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Initialise arrays, files and dump counter
-ufile = File('prob1_outputs/model_prob1_linear.pvd')
+ufile = File('prob1_test_outputs/model_prob1_linear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
 dumpn = 0
@@ -164,7 +164,7 @@ lu.rename('Adjoint fluid velocity')
 le.rename('Adjoint free surface displacement')
 
 # Initialise arrays, files and dump counter
-ufile = File('prob1_outputs/model_prob1_linear_adjoint.pvd')
+ufile = File('prob1_test_outputs/model_prob1_linear_adjoint.pvd')
 ufile.write(lu, le, time=t)
 dumpn = 0
 

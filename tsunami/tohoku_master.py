@@ -15,7 +15,6 @@ Ts = float(raw_input('Specify timescale (s) (default 15):') or 15)
 dt = Ts             # Timestep, chosen small enough for stability (s)
 Dt = Constant(dt)
 ndump = 4
-t_export = dt*ndump
 T = float(raw_input('Specify time period (s) (default 7200):') or 7200)
 # INCLUDE FUNCTIONALITY FOR MESH CHOICE
 
@@ -75,9 +74,9 @@ for i,p in enumerate(mesh_coords):
 b.assign(conditional(lt(30, b), b, 30))
 
 # Plot initial surface and bathymetry profiles:
-ufile = File('plots/init_surf.pvd')
+ufile = File('tsunami_outputs/init_surf.pvd')
 ufile.write(eta_)
-ufile = File('plots/tsunami_bathy.pvd')
+ufile = File('tsunami_outputs/tsunami_bathy.pvd')
 ufile.write(b)
 
 ########################## WEAK PROBLEM ###############################
@@ -171,28 +170,3 @@ while (t < T - 0.5*dt):
         checks[float(int(20*t))/20.0 + 0.05] = eta
 
 print len(checks.keys())    # Sanity check
-
-############################ THETIS SETUP #############################
-
-# Construct solver:
-solver_obj = solver2d.FlowSolver2d(mesh, b)
-options = solver_obj.options
-options.t_export = t_export
-options.t_end = T
-options.timestepper_type = 'backwardeuler'  # Use implicit timestepping
-options.dt = Dt
-options.outputdir = 'tsunami_outputs'
-
-# Apply ICs:
-solver_obj.assign_initial_conditions(elev=eta_)
-
-# Run the model:
-solver_obj.iterate()
-
-# OUTPUT CHECKS FOR THETIS TOO
-
-########################### EVALUATE ERROR ############################
-
-##for keys in checks:
-    # TO DO
-

@@ -1,3 +1,5 @@
+###################### NOT CURRENTLY DO-ABLE ##########################
+
 from thetis import *
 import scipy.interpolate
 from scipy.io.netcdf import NetCDFFile

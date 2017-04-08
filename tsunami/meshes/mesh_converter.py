@@ -20,8 +20,8 @@ def lonlat2tangentxy(lon, lat, lon0, lat0):
     return x, y
 
 # Open mesh file
-mesh1 = open("Tohoku_edit.msh", "r")
-mesh2 = open("Cartesian_Tohoku.msh", "w")
+mesh1 = open("LonLatTohokuCoarse.msh", "r") # Lon-lat mesh to be converted
+mesh2 = open("CartesianTohoku.msh", "w")    # Cartesian tangent plane output
 print "Name of mesh to be edited: ", mesh1.name
 
 i = 0

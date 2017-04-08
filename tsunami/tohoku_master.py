@@ -36,11 +36,11 @@ def vectorlonlat2tangentxy(lon, lat, lon0, lat0):
         x[i], y[i] = lonlat2tangentxy(lon[i], lat[i], lon0, lat0)
     return x, y
 
-def mesh_converter(meshfile):
+def mesh_converter(meshfile, lon0, lat0):
     '''A function which reads in a .msh file in longitude-latitude
     coordinates and outputs a tangent-plane projection in
     Cartesian coordinates.'''
-    mesh1 = open(meshfile, 'r')
+    mesh1 = open(meshfile, 'r') # Lon-lat mesh to be converted
     mesh2 = open('meshes/CartesianTohoku.msh', 'w')
     i = 0
     mode = 0
@@ -56,7 +56,7 @@ def mesh_converter(meshfile):
         elif (mode == 2):
             xy = line.split()
             xy[1], xy[2] = lonlat2tangentxy(float(xy[1]), \
-                                            float(xy[2]), 143., 37.)
+                                            float(xy[2]), lon0, lat0)
             xy[1] = str(xy[1])
             xy[2] = str(xy[2])
             line = ' '.join(xy)
@@ -69,31 +69,35 @@ def mesh_converter(meshfile):
     mesh1.close()
     mesh2.close()
     
-########################### USER INPUT ################################
+########################### PARAMETERS ################################
 
-# Specify problem parameters:
+# Specify solver parameters:
 mode = raw_input('Use linear or nonlinear equations? (l/n): ') or 'l'
 if ((mode != 'l') & (mode != 'n')):
     raise ValueError('Please try again, choosing l or n.')
-
-# Specify time parameters:
+res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
+if ((res != 'f') & (res != 'm') & (res != 'c')):
+    raise ValueError('Please try again, choosing f, m or c.')
 dt = float(raw_input('Specify timestep (s) (default 15):') or 15)
 Dt = Constant(dt)
 ndump = 4
 t_export = ndump * dt
 T = float(raw_input('Specify time period (s) (default 7200):') or 7200)
-# INCLUDE FUNCTIONALITY FOR MESH CHOICE
+
+# Set physical and numerical parameters for the scheme:
+nu = 1e-3           # Viscosity (kg s^{-1} m^{-1})
+g = 9.81            # Gravitational acceleration (m s^{-2})
+Cb = 0.0025         # Bottom friction coefficient (dimensionless)
 
 ############################ FE SETUP #################################
 
-# Set physical and numerical parameters for the scheme:
-nu = 1e-3           # Viscosity
-g = 9.81            # Gravitational acceleration
-Cb = 0.0025         # Bottom friction coefficient
-depth = 0.1         # Specify tank water depth
-
 # Define mesh (courtesy of QMESH) and function spaces:
-mesh_converter('meshes/tohoku_edit.msh')
+if (res == 'f'):
+    mesh_converter('meshes/LonLatTohokuFine.msh', 143., 37.)
+elif (res == 'm'):
+    mesh_converter('meshes/LonLatTohokuMedium.msh', 143., 37.)
+elif (res == 'c'):
+    mesh_converter('meshes/LonLatTohokuCoarse.msh', 143., 37.)
 mesh = Mesh('meshes/CartesianTohoku.msh')     # Japanese coastline
 mesh_coords = mesh.coordinates.dat.data
 Vu = VectorFunctionSpace(mesh, 'CG', 2) # \ Use Taylor-Hood elements
@@ -103,7 +107,8 @@ Vq = MixedFunctionSpace((Vu, Ve))       # We have a mixed FE problem
 # Construct functions to store dependent variables and bathymetry:
 q_ = Function(Vq)  
 u_, eta_ = q_.split()
-b = Function(Vq.sub(1), name='Bathymetry')   # Bathymetry function
+eta0 = Function(Vq.sub(1), name='Initial surface')
+b = Function(Vq.sub(1), name='Bathymetry')
 
 ################## INITIAL AND BOUNDARY CONDITIONS ####################
 
@@ -114,8 +119,8 @@ lat1 = nc1.variables['y'][:]
 x1, y1 = vectorlonlat2tangentxy(lon1, lat1, 143., 37.)
 elev1 = nc1.variables['z'][:,:]
 interpolator_surf = si.RectBivariateSpline(y1, x1, elev1)
-eta_vec = eta_.dat.data
-assert mesh_coords.shape[0]==eta_vec.shape[0]
+eta0vec = eta0.dat.data
+assert mesh_coords.shape[0]==eta0vec.shape[0]
 
 # Read and interpolate bathymetry data (courtesy of GEBCO):
 nc2 = NetCDFFile('bathy_data/GEBCO_bathy.nc', mmap=False)
@@ -129,16 +134,18 @@ assert mesh_coords.shape[0]==b_vec.shape[0]
 
 # Interpolate data onto initial surface and bathymetry profiles:
 for i,p in enumerate(mesh_coords):
-    eta_vec[i] = interpolator_surf(p[1], p[0])
+    eta0vec[i] = interpolator_surf(p[1], p[0])
     b_vec[i] = - interpolator_surf(p[1], p[0]) - \
                interpolator_bath(p[1], p[0])
 
-# Post-process the bathymetry to have minimum depth of 30m:
+# Assign initial surface and post-process the bathymetry to have
+# minimum depth of 30m:
+eta_.assign(eta0)
 b.assign(conditional(lt(30, b), b, 30))
 
 # Plot initial surface and bathymetry profiles:
 ufile = File('tsunami_outputs/init_surf.pvd')
-ufile.write(eta_)
+ufile.write(eta0)
 ufile = File('tsunami_outputs/tsunami_bathy.pvd')
 ufile.write(b)
 
@@ -175,7 +182,7 @@ if (mode == 'l'):
 elif (mode == 'n'):
     L = nonlinear_form()
 
-# Set up the variational problem
+# Set up the variational problem:
 uprob = NonlinearVariationalProblem(L, q)
 usolver = NonlinearVariationalSolver(uprob,
         solver_parameters={
@@ -191,25 +198,23 @@ usolver = NonlinearVariationalSolver(uprob,
                             'pc_fieldsplit_schur_precondition': 'selfp',
                             })
 
-# The function 'split' has two forms: now use the form which splits a 
-# function in order to access its data
+# Split functions in order to access their data:
 u_, eta_ = q_.split()
 u, eta = q.split()
 
 ############################ TIMESTEPPING #############################
 
-# Store multiple functions
+# Store multiple functions:
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
-# Initialise arrays, files and dump counter
+# Initialise files and dump counter:
 if (mode == 'l'):
     ufile = File('tsunami_outputs/tohoku_linear.pvd')
 elif (mode == 'n'):
     ufile = File('tsunami_outputs/tohoku_nonlinear.pvd')
 t = 0.0
 ufile.write(u, eta, time=t)
-ndump = 10
 dumpn = 0
 
 # Create a dictionary containing checkpointed values of eta:
@@ -243,7 +248,7 @@ options.dt = dt
 options.outputdir = 'tsunami_outputs'
 
 # Specify initial surface elevation:
-solver_obj.assign_initial_conditions(elev=eta_)
+solver_obj.assign_initial_conditions(elev=eta0)
 
 # Run the model:
 solver_obj.iterate()

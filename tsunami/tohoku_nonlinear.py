@@ -50,12 +50,12 @@ ndump = 4
 ################################# FE SETUP #####################################
 
 # Set physical and numerical parameters for the scheme:
-nu = 1e-3           # Viscosity (kgs^{-1}m^{-1})
-g = 9.81            # Gravitational acceleration (ms^{-2})
+nu = 1e-3           # Viscosity (kg s^{-1} m^{-1})
+g = 9.81            # Gravitational acceleration (m s^{-2})
 Cb = 0.0025         # Bottom friction coefficient (dimensionless)
 
 # Define mesh (courtesy of QMESH) and function spaces:
-mesh = Mesh("meshes/Cartesian_Tohoku.msh")     # Japanese coastline
+mesh = Mesh("meshes/CartesianTohoku.msh")  # Japanese coastline
 mesh_coords = mesh.coordinates.dat.data
 Vu = VectorFunctionSpace(mesh, "CG", 2)     # \ Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, "CG", 1)           # /

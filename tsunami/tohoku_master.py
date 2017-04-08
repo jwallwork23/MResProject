@@ -3,9 +3,10 @@ from thetis import *
 import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
 from math import radians
-import numpy as np 
+import numpy as np
+import timeit
 
-######################## CONVERSION FUNCTIONS #########################
+########################## VARIOUS FUNCTIONS #########################
 
 def earth_radius(lat):
     '''A function which calculates the radius of the Earth for a given
@@ -68,6 +69,27 @@ def mesh_converter(meshfile, lon0, lat0):
         mesh2.write(line)
     mesh1.close()
     mesh2.close()
+
+def nonlinear_form():
+    L = (
+     (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
+      inner(u-u_, v) + Dt * inner(dot(u, nabla_grad(u)), v) + \
+      nu * inner(grad(u), grad(v)) + Dt * g * inner(grad(eta), v) + \
+      Dt * Cb * sqrt(dot(u_, u_)) * inner(u/(eta+b), v)) * dx(degree=4)   
+     )
+    return L
+
+def linear_form():
+    L = (
+    (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
+    inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
+    )
+    return L
+
+def wrapper(func, *args, **kwargs):
+    def wrapped():
+        return func(*args, **kwargs)
+    return wrapped
     
 ########################### PARAMETERS ################################
 
@@ -83,6 +105,13 @@ Dt = Constant(dt)
 ndump = 4
 t_export = ndump * dt
 T = float(raw_input('Specify time period (s) (default 7200):') or 7200)
+tmode = raw_input('Time-averaging mode? (y/n, default n): ') or 'n'
+if (tmode == 'y'):
+    tt = 10
+elif (tmode == 'n'):
+    tt = 1
+else:
+    raise ValueError('Please try again, choosing l or n.')
 
 # Set physical and numerical parameters for the scheme:
 nu = 1e-3           # Viscosity (kg s^{-1} m^{-1})
@@ -160,23 +189,6 @@ u, eta = split(q)       # \ Here split means we split up a function so
 u_, eta_ = split(q_)    # / it can be inserted into a UFL expression
 
 # Establish form:
-
-def nonlinear_form():
-    L = (
-     (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
-      inner(u-u_, v) + Dt * inner(dot(u, nabla_grad(u)), v) + \
-      nu * inner(grad(u), grad(v)) + Dt * g * inner(grad(eta), v) + \
-      Dt * Cb * sqrt(dot(u_, u_)) * inner(u/(eta+b), v)) * dx(degree=4)   
-     )
-    return L
-
-def linear_form():
-    L = (
-    (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
-    inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
-    )
-    return L
-
 if (mode == 'l'):
     L = linear_form()
 elif (mode == 'n'):
@@ -202,39 +214,43 @@ usolver = NonlinearVariationalSolver(uprob,
 u_, eta_ = q_.split()
 u, eta = q.split()
 
-############################ TIMESTEPPING #############################
-
 # Store multiple functions:
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
-# Initialise files and dump counter:
+############################ TIMESTEPPING #############################
+
+# Initialise output directory and dump counter:
 if (mode == 'l'):
     ufile = File('tsunami_outputs/tohoku_linear.pvd')
 elif (mode == 'n'):
     ufile = File('tsunami_outputs/tohoku_nonlinear.pvd')
 t = 0.0
-ufile.write(u, eta, time=t)
 dumpn = 0
+ufile.write(u, eta, time=t)
 
 # Create a dictionary containing checkpointed values of eta:
 checks ={0.0: eta}
 
-# Enter the timeloop:
-while (t < T - 0.5*dt):     
-    t += dt
-    print 't = ', t/60, ' mins'
-    ## CALCULATE log_2(eta_max) to evaluate damage at coast
-    usolver.solve()
-    q_.assign(q)
-    dumpn += 1              # Dump the data
-    if dumpn == ndump:
-        dumpn -= ndump
-        ufile.write(u, eta, time=t)
-        # TODO: MAKE THIS MORE GENERAL
-        checks[float(int(20*t))/20.0 + 0.05] = eta
+def standalone_timeloop(t, T, dt, ndump, dumpn):
+    while (t < T - 0.5*dt):     
+        t += dt
+        print 't = ', t/60, ' mins'
+## CALCULATE log_2(eta_max) to evaluate damage at coast
+        usolver.solve()
+        q_.assign(q)
+        dumpn += 1              # Dump the data
+        if dumpn == ndump:
+            dumpn -= ndump
+            ufile.write(u, eta, time=t)
+    # TODO: MAKE THIS MORE GENERAL
+            checks[float(int(20*t))/20.0 + 0.05] = eta
 
-print len(checks.keys())    # Sanity check
+# Enter the timeloop:
+wrapped = wrapper(standalone_timeloop, t, T, dt, ndump, dumpn)
+t1 = timeit.timeit(wrapped, number=tt)
+
+print 'Keys = ',len(checks.keys())    # TEMPORARY Sanity check
 
 ############################ THETIS SETUP #############################
 
@@ -250,12 +266,22 @@ options.outputdir = 'tsunami_outputs'
 # Specify initial surface elevation:
 solver_obj.assign_initial_conditions(elev=eta0)
 
-# Run the model:
-solver_obj.iterate()
-
+def thetis_timeloop():
+    solver_obj.iterate()
 # OUTPUT CHECKS FOR THETIS TOO
+
+# Run the model:
+t2 = timeit.timeit(thetis_timeloop, number=tt)
 
 ########################### EVALUATE ERROR ############################
 
 ##for keys in checks:
     # TO DO
+
+########################## DISPLAY OUTPUTS ############################
+
+if (mode == 'l'):
+    print 'Linear solver time: ', t1, ' seconds'
+elif (mode == 'n'):
+    print 'Nonlinear solver time: ', t1, ' seconds'
+print 'Thetis solver time: ', t2, ' seconds'

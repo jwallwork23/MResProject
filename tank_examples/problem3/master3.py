@@ -1,26 +1,46 @@
 from firedrake import *
 from thetis import *
 
+########################## FORM FUNCTIONS #########################
+
+def nonlinear_form():
+    '''Weak residual form of the nonlinear shallow water equations'''
+    L = (
+     (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
+      inner(u-u_, v) + Dt * inner(dot(u, nabla_grad(u)), v) + \
+      nu * inner(grad(u), grad(v)) + Dt * g * inner(grad(eta), v) + \
+      Dt * Cb * sqrt(dot(u_, u_)) * inner(u/(eta+b), v)) * dx(degree=4)   
+     )
+    return L
+
+def linear_form():
+    '''Weak residual form of the linear shallow water equations'''
+    L = (
+    (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
+    inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
+    )
+    return L
+
 ########################### USER INPUT ################################
 
 # Specify problem parameters:
 mode = raw_input('Use linear or nonlinear equations? (l/n): ') or 'l'
 if ((mode != 'l') & (mode != 'n')):
     raise ValueError('Please try again, choosing l or n.')
+n = raw_input('Specify number of cells per m (default 30): ') or 30
 dt = raw_input('Specify timestep (default 0.01): ') or 0.01
 Dt = Constant(dt)
-n = raw_input('Specify number of cells per m (default 30): ') or 30
-T = raw_input('Specify simulation duration in s (default 40): ') or 40
-
-############################ FE SETUP #################################
-
-# Set physical and numerical parameters for the scheme:
-nu = 1e-3           # Viscosity
-g = 9.81            # Gravitational acceleration
-Cb = 0.0025         # Bottom friction coefficient
-depth = 0.1         # Specify tank water depth
 ndump = 10
 t_export = dt*ndump
+T = raw_input('Specify simulation duration in s (default 40): ') or 40
+
+# Set physical parameters for the scheme:
+nu = 1e-3           # Viscosity (kg s^{-1} m^{-1})
+g = 9.81            # Gravitational acceleration (m s^{-2})
+Cb = 0.0025         # Bottom friction coefficient (dimensionless)
+depth = 0.1         # Specify tank water depth (m)
+
+############################ FE SETUP #################################
 
 # Define domain and mesh:
 lx = 4
@@ -50,9 +70,6 @@ File('../screenshots/tank_bathymetry.pvd').write(b)
 u_.interpolate(Expression([0, 0]))
 eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 
-# Apply no-slip BCs on the top and bottom edges of the domain
-#bc1 = DirichletBC(W.sub(0), (0.0,0.0), (3,4))
-
 ########################## WEAK PROBLEM ###############################
 
 # Build the weak form of the timestepping algorithm, expressed as a 
@@ -67,23 +84,6 @@ u, eta = split(q)
 u_, eta_ = split(q_)
 
 # Establish form:
-
-def nonlinear_form():
-    L = (
-        (ze*(eta-eta_) - Dt*inner((eta+b)*u, grad(ze))\
-        + inner(u-u_, v) + Dt*(inner(dot(u, nabla_grad(u)), v)\
-        + nu*inner(grad(u), grad(v)) + g*inner(grad(eta), v))\
-        + Dt*Cb*sqrt(dot(u_, u_))*inner(u/(eta+b), v))*dx(degree=4)
-    )
-    return L
-
-def linear_form():
-    L = (
-    (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
-    inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
-    )
-    return L
-
 if (mode == 'l'):
     L = linear_form()
 elif (mode == 'n'):
@@ -107,11 +107,11 @@ usolver = NonlinearVariationalSolver(uprob,
 u_, eta_ = q_.split()
 u, eta = q.split()
 
-############################ TIMESTEPPING #############################
-
 # Store multiple functions
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
+
+############################ TIMESTEPPING #############################
 
 # Initialise arrays, files and dump counter
 if (mode == 'l'):
@@ -119,9 +119,8 @@ if (mode == 'l'):
 elif (mode == 'n'):
     ufile = File('prob3_outputs/model_prob3_nonlinear.pvd')
 t = 0.0
-ufile.write(u, eta, time=t)
-ndump = 10
 dumpn = 0
+ufile.write(u, eta, time=t)
 
 # Create a dictionary containing checkpointed values of eta:
 checks ={0.0: eta}

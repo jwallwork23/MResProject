@@ -71,6 +71,7 @@ def mesh_converter(meshfile, lon0, lat0):
     mesh2.close()
 
 def nonlinear_form():
+    '''Weak residual form of the nonlinear shallow water equations'''
     L = (
      (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
       inner(u-u_, v) + Dt * inner(dot(u, nabla_grad(u)), v) + \
@@ -80,6 +81,7 @@ def nonlinear_form():
     return L
 
 def linear_form():
+    '''Weak residual form of the linear shallow water equations'''
     L = (
     (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
     inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
@@ -87,6 +89,8 @@ def linear_form():
     return L
 
 def wrapper(func, *args, **kwargs):
+    '''A wrapper function to enable timing of functions with
+    arguments'''
     def wrapped():
         return func(*args, **kwargs)
     return wrapped
@@ -113,7 +117,7 @@ elif (tmode == 'n'):
 else:
     raise ValueError('Please try again, choosing l or n.')
 
-# Set physical and numerical parameters for the scheme:
+# Set physical parameters for the scheme:
 nu = 1e-3           # Viscosity (kg s^{-1} m^{-1})
 g = 9.81            # Gravitational acceleration (m s^{-2})
 Cb = 0.0025         # Bottom friction coefficient (dimensionless)
@@ -243,14 +247,15 @@ def standalone_timeloop(t, T, dt, ndump, dumpn):
         if dumpn == ndump:
             dumpn -= ndump
             ufile.write(u, eta, time=t)
-    # TODO: MAKE THIS MORE GENERAL
-            checks[float(int(20*t))/20.0 + 0.05] = eta
+##    # TODO: Make the following checks more general:
+##            checks[float(int(20*t))/20.0 + 0.05] = eta
 
 # Enter the timeloop:
 wrapped = wrapper(standalone_timeloop, t, T, dt, ndump, dumpn)
 t1 = timeit.timeit(wrapped, number=tt)
+# TODO: Figure out how to reset variables for each run
 
-print 'Keys = ',len(checks.keys())    # TEMPORARY Sanity check
+##print 'Keys = ',len(checks.keys())    # TEMPORARY Sanity check
 
 ############################ THETIS SETUP #############################
 

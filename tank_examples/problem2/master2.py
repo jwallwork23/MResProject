@@ -1,36 +1,71 @@
 from firedrake import *
 from thetis import *
 
-########################### USER INPUT ################################
+########################## VARIOUS FUNCTIONS #########################
 
-# Specify problem parameters:
-mode = raw_input('Use linear or nonlinear equations? (l/n): ') or 'l'
-if ((mode != 'l') & (mode != 'n')):
-    raise ValueError('Please try again, choosing l or n.')
-dt = raw_input('Specify timestep (default 0.01): ') or 0.01
-Dt = Constant(dt)
-n = raw_input('Specify number of cells per m (default 30): ') or 30
-T = raw_input('Specify simulation duration in s (default 40): ') or 40
+def nonlinear_form():
+    '''Weak residual form of the nonlinear shallow water equations'''
+    # Integrate terms of the momentum equation over the interior:
+    Lu_int = (inner(u-u_, v) + Dt * (inner(dot(u, nabla_grad(u)), v)
+        + nu * inner(grad(u), grad(v)) + g * inner(grad(eta), v))
+        + Dt * Cb * sqrt(dot(u_, u_)) * inner(u / (eta + b), v)) * \
+        dx(degree=4)
+    # Integrate terms of the continuity equation over the interior:
+    Le_int = (ze * (eta-eta_) - \
+              Dt * inner((eta + b) * u, grad(ze))) * dx(degree=4)
+    # Integrate over left-hand boundary:
+    L_side1 = Dt * (-inner(dot(n, nabla_grad(u)), v)
+        + dot(u, n) * (ze * (eta + b))) * ds(1)(degree=4)
+    # Integrate over right-hand boundary:
+    L_side2 = Dt * (-inner(dot(n, nabla_grad(u)), v)
+        + dot(u, n) * (ze * (eta + b))) * ds(2)(degree=4)
+    # Establish the bilinear form using the above integrals:
+    return Lu_int + Le_int + L_side1 + L_side2
 
-######################### USEFUL FUNCTIONS ############################
+def linear_form():
+    '''Weak residual form of the linear shallow water equations'''
+    # Integrate terms of the momentum equation over the interior:
+    Lu_int = (inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
+    # Integrate terms of the continuity equation over the interior:
+    Le_int = (ze * (eta-eta_) - \
+              Dt * inner((eta + b) * u, grad(ze))) * dx
+    # Integrate over left-hand boundary:
+    L_side1 = dot(u, n) * (ze * (eta + b)) * ds(1)
+    # Integrate over right-hand boundary:
+    L_side2 = dot(u, n) * (ze * (eta + b)) * ds(2)
+    # Establish the bilinear form using the above integrals:
+    return Lu_int + Le_int + L_side1 + L_side2
 
 # For imposing time-dependent BCs:
 def wave_machine(t, A, p, in_flux):
     '''Time-dependent flux function'''
     return A * sin(2 * pi * t / p) + in_flux
 
-############################ FE SETUP #################################
+########################### PARAMETERS ################################
 
-# Set physical and numerical parameters for the scheme:
-nu = 1e-3           # Viscosity
-g = 9.81            # Gravitational acceleration
-Cb = 0.0025         # Bottom friction coefficient
-depth = 0.1         # Specify tank water depth
+# Specify problem parameters:
+mode = raw_input('Use linear or nonlinear equations? (l/n): ') or 'l'
+if ((mode != 'l') & (mode != 'n')):
+    raise ValueError('Please try again, choosing l or n.')
+n = raw_input('Specify number of cells per m (default 30): ') or 30
+dt = raw_input('Specify timestep (default 0.01): ') or 0.01
+Dt = Constant(dt)
+ndump = 10
+t_export = dt*ndump
+T = raw_input('Specify simulation duration in s (default 40): ') or 40
+
+# Set physical parameters for the scheme:
+nu = 1e-3           # Viscosity (kg s^{-1} m^{-1})
+g = 9.81            # Gravitational acceleration (m s^{-2})
+Cb = 0.0025         # Bottom friction coefficient (dimensionless)
+depth = 0.1         # Specify tank water depth (m)
+
+# 'Wave generator' parameters
 A = 0.01            # 'Tide' amplitude
 p = 0.5             # 'Tide' period
 in_flux = 0         # Flux into domain
-ndump = 10
-t_export = dt*ndump
+
+############################ FE SETUP #################################
 
 # Define domain and mesh:
 lx = 4
@@ -82,38 +117,6 @@ u_, eta_ = split(q_)
 n = FacetNormal(mesh)
 
 # Establish form:
-
-def nonlinear_form():
-    # Integrate terms of the momentum equation over the interior:
-    Lu_int = (inner(u-u_, v) + Dt * (inner(dot(u, nabla_grad(u)), v)
-        + nu * inner(grad(u), grad(v)) + g * inner(grad(eta), v))
-        + Dt * Cb * sqrt(dot(u_, u_)) * inner(u / (eta + b), v)) * \
-        dx(degree=4)
-    # Integrate terms of the continuity equation over the interior:
-    Le_int = (ze * (eta-eta_) - \
-              Dt * inner((eta + b) * u, grad(ze))) * dx(degree=4)
-    # Integrate over left-hand boundary:
-    L_side1 = Dt * (-inner(dot(n, nabla_grad(u)), v)
-        + dot(u, n) * (ze * (eta + b))) * ds(1)(degree=4)
-    # Integrate over right-hand boundary:
-    L_side2 = Dt * (-inner(dot(n, nabla_grad(u)), v)
-        + dot(u, n) * (ze * (eta + b))) * ds(2)(degree=4)
-    # Establish the bilinear form using the above integrals:
-    return Lu_int + Le_int + L_side1 + L_side2
-
-def linear_form():
-    # Integrate terms of the momentum equation over the interior:
-    Lu_int = (inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
-    # Integrate terms of the continuity equation over the interior:
-    Le_int = (ze * (eta-eta_) - \
-              Dt * inner((eta + b) * u, grad(ze))) * dx
-    # Integrate over left-hand boundary:
-    L_side1 = dot(u, n) * (ze * (eta + b)) * ds(1)
-    # Integrate over right-hand boundary:
-    L_side2 = dot(u, n) * (ze * (eta + b)) * ds(2)
-    # Establish the bilinear form using the above integrals:
-    return Lu_int + Le_int + L_side1 + L_side2
-
 if (mode == 'l'):
     L = linear_form()
 elif (mode == 'n'):
@@ -140,11 +143,11 @@ usolver = NonlinearVariationalSolver(uprob,
 u_, eta_ = q_.split()
 u, eta = q.split()
 
-############################ TIMESTEPPING #############################
-
 # Store multiple functions
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
+
+############################ TIMESTEPPING #############################
 
 # Initialise arrays, files and dump counter
 if (mode == 'l'):

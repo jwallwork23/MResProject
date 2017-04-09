@@ -232,9 +232,8 @@ elif (mode == 'n'):
 t = 0.0
 dumpn = 0
 ufile.write(u, eta, time=t)
-
-# Create a dictionary containing checkpointed values of eta:
-checks ={0.0: eta}
+eta_sols = [Function(eta)]
+u_sols = [Function(u)]
 
 def standalone_timeloop(t, T, dt, ndump, dumpn):
     while (t < T - 0.5*dt):     
@@ -243,19 +242,19 @@ def standalone_timeloop(t, T, dt, ndump, dumpn):
 ## CALCULATE log_2(eta_max) to evaluate damage at coast
         usolver.solve()
         q_.assign(q)
-        dumpn += 1              # Dump the data
+        dumpn += 1
+        # Dump vtu data:
         if dumpn == ndump:
             dumpn -= ndump
             ufile.write(u, eta, time=t)
-##    # TODO: Make the following checks more general:
-##            checks[float(int(20*t))/20.0 + 0.05] = eta
+        # Store solution data:
+        eta_sols.append(Function(eta))
+        u_sols.append(Function(u))
 
 # Enter the timeloop:
 wrapped = wrapper(standalone_timeloop, t, T, dt, ndump, dumpn)
 t1 = timeit.timeit(wrapped, number=tt)
 # TODO: Figure out how to reset variables for each run
-
-##print 'Keys = ',len(checks.keys())    # TEMPORARY Sanity check
 
 ############################ THETIS SETUP #############################
 
@@ -273,15 +272,15 @@ solver_obj.assign_initial_conditions(elev=eta0)
 
 def thetis_timeloop():
     solver_obj.iterate()
-# OUTPUT CHECKS FOR THETIS TOO
+
+# TODO: Store data for Thetis approach too
 
 # Run the model:
 t2 = timeit.timeit(thetis_timeloop, number=tt)
 
 ########################### EVALUATE ERROR ############################
 
-##for keys in checks:
-    # TO DO
+# TODO
 
 ########################## DISPLAY OUTPUTS ############################
 

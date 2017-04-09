@@ -12,6 +12,7 @@ g = 9.81    # Gravitational acceleration
 vid = raw_input('Video output? (y/n, default n)') or 'n'
 if ((vid != 'l') & (vid != 'n')):
     raise ValueError('Please try again, choosing l or n.')
+ndump = 40
 
 ############################## FE SETUP ###############################
 
@@ -55,10 +56,8 @@ b.assign(-b)
 v, ze = TestFunctions(Vq)
 q = Function(Vq)
 q.assign(q_)
-
-# Here we split up a function so it can be inserted into a UFL expression
-mu, eta = split(q)
-mu_, eta_ = split(q_)
+mu, eta = split(q)       # \ Here split means we split up a function so
+mu_, eta_ = split(q_)    # / it can be inserted into a UFL expression
 
 # Establish forms (functions of the output q), noting we only have a linear
 # equation if the stong form is written in terms of a matrix:
@@ -90,13 +89,10 @@ eta.rename('Free surface displacement')
 
 ############################ TIMESTEPPING ############################
 
-# Choose a final time and initialise arrays, files and dump counter:
-ufile = File('tsunami_test_outputs/Davis_and_LeVeque_test.pvd')
+# Initialise arrays and dump counter:
 t = 0.0
-ufile.write(mu, eta, time=t)
-ndump = 40
 dumpn = 0
-plots = [Function(eta)]
+snapshots = [Function(eta)]
 video = [Function(eta)]
 
 # Enter the timeloop:
@@ -105,55 +101,48 @@ while (t < T - 0.5*dt):
     print 't = ', t, ' seconds'
     usolver.solve()
     q_.assign(q)
-    dumpn += 1          # Dump the data
-    if (dumpn == ndump):
+    dumpn += 1
+    # Dump video data:
+    if ((vid == 'y') & (dumpn == ndump)):
         dumpn -= ndump
-        ufile.write(mu, eta, time=t)
         video.append(Function(eta))
-    if (t == 525.0):
-        plots.append(Function(eta))
-    if (t == 1365.0):
-        plots.append(Function(eta))
-    if (t == 2272.0):
-        plots.append(Function(eta))
-    if (t == 3655.0):
-        plots.append(Function(eta))
-    if (t == 4200.0):
-        plots.append(Function(eta))
+    # Dump snapshot data:
+    if (t in (525.0, 1365.0, 2772.0, 3655.0, 4200.0)):
+        snapshots.append(Function(eta))
 
 ############################## PLOTTING ##############################
 
-plot(plots[0])
+plot(snapshots[0])
 plt.title('Surface at t = 0 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.show()
 
-plot(plots[1])
+plot(snapshots[1])
 plt.title('Surface at t = 525 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.show()
 
-plot(plots[2])
+plot(snapshots[2])
 plt.title('Surface at t = 1365 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.show()
 
-plot(plots[3])
+plot(snapshots[3])
 plt.title('Surface at t = 2772 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.show()
 
-plot(plots[4])
+plot(snapshots[4])
 plt.title('Surface at t = 3255 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.show()
 
-plot(plots[5])
+plot(snapshots[5])
 plt.title('Surface at t = 4200 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')

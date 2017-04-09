@@ -77,11 +77,8 @@ eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 v, ze = TestFunctions(Vq)
 q = Function(Vq)
 q.assign(q_)
-
-# Here we split up a function so it can be inserted into a UFL
-# expression
-u, eta = split(q)      
-u_, eta_ = split(q_)
+u, eta = split(q)       # \ Here split means we split up a function so
+u_, eta_ = split(q_)    # / it can be inserted into a UFL expression
 
 # Establish form:
 if (mode == 'l'):
@@ -121,9 +118,8 @@ elif (mode == 'n'):
 t = 0.0
 dumpn = 0
 ufile.write(u, eta, time=t)
-
-# Create a dictionary containing checkpointed values of eta:
-checks ={0.0: eta}
+eta_sols = [Function(eta)]
+u_sols = [Function(u)]
 
 # Enter the timeloop:
 while (t < T - 0.5*dt):     
@@ -131,14 +127,14 @@ while (t < T - 0.5*dt):
     print 't = ', t, ' seconds'
     usolver.solve()
     q_.assign(q)
-    dumpn += 1              # Dump the data
-    if dumpn == ndump:
-        dumpn -= ndump
-        ufile.write(u, eta, time=t)
-        # TODO: MAKE THIS MORE GENERAL
-        checks[float(int(10*t))/10.0 + 0.1] = eta
-
-print len(checks.keys())    # Sanity check
+    dumpn += 1
+    # Dump vtu data:
+        if dumpn == ndump:
+            dumpn -= ndump
+            ufile.write(u, eta, time=t)
+        # Store solution data:
+        eta_sols.append(Function(eta))
+        u_sols.append(Function(u))
 
 ############################ THETIS SETUP #############################
 
@@ -162,10 +158,8 @@ solver_obj.assign_initial_conditions(elev=elev_init)
 # Run the model:
 solver_obj.iterate()
 
-# OUTPUT CHECKS FOR THETIS TOO
+# TODO: Store data for Thetis approach too
 
 ########################### EVALUATE ERROR ############################
 
-##for keys in checks:
-    # TO DO
-
+# TODO

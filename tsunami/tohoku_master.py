@@ -143,7 +143,7 @@ u_, eta_ = q_.split()
 eta0 = Function(Vq.sub(1), name='Initial surface')
 b = Function(Vq.sub(1), name='Bathymetry')
 
-################## INITIAL AND BOUNDARY CONDITIONS ####################
+################# INITIAL CONDITIONS AND BATHYMETRY ##################
 
 # Read and interpolate initial surface data (courtesy of Saito):
 nc1 = NetCDFFile('Saito_files/init_profile.nc', mmap=False)

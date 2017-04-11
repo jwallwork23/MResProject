@@ -5,6 +5,8 @@ from thetis import *
 
 def nonlinear_form():
     '''Weak residual form of the nonlinear shallow water equations'''
+    # Define the outward pointing normal to the mesh
+    n = FacetNormal(mesh)
     # Integrate terms of the momentum equation over the interior:
     Lu_int = (inner(u-u_, v) + Dt * (inner(dot(u, nabla_grad(u)), v)
         + nu * inner(grad(u), grad(v)) + g * inner(grad(eta), v))
@@ -24,6 +26,8 @@ def nonlinear_form():
 
 def linear_form():
     '''Weak residual form of the linear shallow water equations'''
+    # Define the outward pointing normal to the mesh
+    n = FacetNormal(mesh)
     # Integrate terms of the momentum equation over the interior:
     Lu_int = (inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
     # Integrate terms of the continuity equation over the interior:
@@ -190,7 +194,7 @@ options.dt = dt
 # Specify initial surface elevation:
 elev_init = Function(Ve, name = 'Initial elevation')
 x = SpatialCoordinate(mesh)
-elev_init.interpolate(-0.01*cos(0.5*pi*x[0]))
+elev_init.interpolate(0)
 solver_obj.assign_initial_conditions(elev=elev_init)
 
 # Run the model:

@@ -1,9 +1,9 @@
 from firedrake import *
 from thetis import *
 
-########################## FORM FUNCTIONS #############################
+######################### USEFUL FUNCTIONS ############################
 
-def nonlinear_form():
+def zero_boundary_nonlinear_form():
     '''Weak residual form of the nonlinear shallow water equations'''
     L = (
      (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
@@ -13,7 +13,7 @@ def nonlinear_form():
      )
     return L
 
-def linear_form():
+def zero_boundary_linear_form():
     '''Weak residual form of the linear shallow water equations'''
     L = (
     (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
@@ -21,17 +21,65 @@ def linear_form():
     )
     return L
 
+def nonzero_boundary_nonlinear_form():
+    '''Weak residual form of the nonlinear shallow water equations'''
+    # Define the outward pointing normal to the mesh
+    n = FacetNormal(mesh)
+    # Integrate terms of the momentum equation over the interior:
+    Lu_int = (inner(u-u_, v) + Dt * (inner(dot(u, nabla_grad(u)), v)
+        + nu * inner(grad(u), grad(v)) + g * inner(grad(eta), v))
+        + Dt * Cb * sqrt(dot(u_, u_)) * inner(u / (eta + b), v)) * \
+        dx(degree=4)
+    # Integrate terms of the continuity equation over the interior:
+    Le_int = (ze * (eta-eta_) - \
+              Dt * inner((eta + b) * u, grad(ze))) * dx(degree=4)
+    # Integrate over left-hand boundary:
+    L_side1 = Dt * (-inner(dot(n, nabla_grad(u)), v)
+        + dot(u, n) * (ze * (eta + b))) * ds(1)(degree=4)
+    # Integrate over right-hand boundary:
+    L_side2 = Dt * (-inner(dot(n, nabla_grad(u)), v)
+        + dot(u, n) * (ze * (eta + b))) * ds(2)(degree=4)
+    # Establish the bilinear form using the above integrals:
+    return Lu_int + Le_int + L_side1 + L_side2
+
+def nonzero_boundary_linear_form():
+    '''Weak residual form of the linear shallow water equations'''
+    # Define the outward pointing normal to the mesh
+    n = FacetNormal(mesh)
+    # Integrate terms of the momentum equation over the interior:
+    Lu_int = (inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
+    # Integrate terms of the continuity equation over the interior:
+    Le_int = (ze * (eta-eta_) - \
+              Dt * inner((eta + b) * u, grad(ze))) * dx
+    # Integrate over left-hand boundary:
+    L_side1 = dot(u, n) * (ze * (eta + b)) * ds(1)
+    # Integrate over right-hand boundary:
+    L_side2 = dot(u, n) * (ze * (eta + b)) * ds(2)
+    # Establish the bilinear form using the above integrals:
+    return Lu_int + Le_int + L_side1 + L_side2
+
+# For imposing time-dependent BCs:
+def wave_machine(t, A, p, in_flux):
+    '''Time-dependent flux function'''
+    return A * sin(2 * pi * t / p) + in_flux
+
 ########################### PARAMETERS ################################
 
 # Specify problem parameters:
-mode = raw_input('Use linear or nonlinear equations? (l/n): ') or 'l'
-if ((mode != 'l') & (mode != 'n')):
-    raise ValueError('Please try again, choosing l or n.')
+compare = raw_input('Use standalone, Thetis or both? (s/t/b): ') or 's'
+if ((compare != 's') & (compare != 't') & (compare != 'b')):
+    raise ValueError('Please try again, choosing s, t or b.')
+if (compare != 't'):
+    mode = raw_input('Use linear or nonlinear equations? (l/n): ') or 'l'
+    if ((mode != 'l') & (mode != 'n')):
+        raise ValueError('Please try again, choosing l or n.')
+else:
+    mode = 'n/a'
 bath = raw_input('Consider non-trivial bathymetry? (y/n): ') or 'n'
 if ((bath != 'y') & (bath != 'n')):
     raise ValueError('Please try again, choosing y or n.')
 waves = raw_input('Consider a wave generator? (y/n): ') or 'n'
-if ((mode != 'y') & (mode != 'n')):
+if ((waves != 'y') & (waves != 'n')):
     raise ValueError('Please try again, choosing y or n.')
 n = raw_input('Specify number of cells per m (default 30): ') or 30
 dt = raw_input('Specify timestep (default 0.01): ') or 0.01
@@ -45,6 +93,11 @@ nu = 1e-3           # Viscosity (kg s^{-1} m^{-1})
 g = 9.81            # Gravitational acceleration (m s^{-2})
 Cb = 0.0025         # Bottom friction coefficient (dimensionless)
 depth = 0.1         # Specify tank water depth (m)
+
+# 'Wave generator' parameters
+A = 0.01            # 'Tide' amplitude (m)
+p = 0.5             # 'Tide' period (s)
+in_flux = 0         # Flux into domain
 
 ############################ FE SETUP #################################
 
@@ -78,7 +131,15 @@ elif (bath == 'y'):
 
 # Interpolate ICs:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
+if (waves == 'n'):
+    eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
+else:
+    eta_.interpolate(Expression(0))
+    # Establish a BC object for the oscillating inflow condition
+    bcval = Constant(0.0)
+    bc1 = DirichletBC(Vq.sub(1), bcval, 1)
+    # Apply no-slip BC to eta on the right end of the domain
+    bc2 = DirichletBC(Vq.sub(1), (0.0), 2)
 
 ########################## WEAK PROBLEM ###############################
 
@@ -92,13 +153,20 @@ u_, eta_ = split(q_)    # / it can be inserted into a UFL expression
 
 # Establish form:
 if (mode == 'l'):
-    L = linear_form()
-elif (mode == 'n'):
-    L = nonlinear_form()
+    if (waves == 'n'):
+        L = zero_boundary_linear_form()
+    else:
+        L = nonzero_boundary_linear_form()
+else:
+    if (waves == 'n'):
+        L = zero_boundary_nonlinear_form()
+    else:
+        L = nonzero_boundary_nonlinear_form()
 
 # Set up the variational problem
-uprob = NonlinearVariationalProblem(L, q)
-usolver = NonlinearVariationalSolver(uprob,
+if (waves == 'n'):
+    uprob = NonlinearVariationalProblem(L, q)
+    usolver = NonlinearVariationalSolver(uprob,
         solver_parameters={
                             'mat_type': 'matfree',
                             'snes_type': 'ksponly',
@@ -107,6 +175,21 @@ usolver = NonlinearVariationalSolver(uprob,
                             'assembled_pc_type': 'lu',
                             'snes_lag_preconditioner': -1, 
                             'snes_lag_preconditioner_persists': True,
+                            })
+else:
+    uprob = NonlinearVariationalProblem(L, q, bcs=[bc1, bc2])
+    usolver = NonlinearVariationalSolver(uprob,
+        solver_parameters={
+                            'ksp_type': 'gmres',
+                            'ksp_rtol': '1e-8',
+                            'pc_type': 'fieldsplit',
+                            'pc_fieldsplit_type': 'schur',
+                            'pc_fieldsplit_schur_fact_type': 'full',
+                            'fieldsplit_0_ksp_type': 'cg',
+                            'fieldsplit_0_pc_type': 'lu',
+                            'fieldsplit_1_ksp_type': 'cg',
+                            'fieldsplit_1_pc_type': 'hypre',
+                            'pc_fieldsplit_schur_precondition': 'selfp',
                             })
 
 # Split functions in order to access their data:
@@ -120,55 +203,107 @@ eta.rename('Free surface displacement')
 ############################ TIMESTEPPING #############################
 
 # Initialise output directory and dump counter
-if (mode == 'l'):
-    ufile = File('prob1_outputs/model_prob1_linear.pvd')
-elif (mode == 'n'):
-    ufile = File('prob1_outputs/model_prob1_nonlinear.pvd')
+if (bath == 'n'):
+    if (waves == 'n'):
+        if (mode == 'l'):
+            ufile = File('tank_outputs/model_prob1_linear.pvd')
+        else:
+            ufile = File('tank_outputs/model_prob1_nonlinear.pvd')
+    else:
+        if (mode == 'l'):
+            ufile = File('tank_outputs/model_prob2_linear.pvd')
+        else:
+            ufile = File('tank_outputs/model_prob2_nonlinear.pvd')
+elif (bath == 'y'):
+    if (waves == 'n'):
+        if (mode == 'l'):
+            ufile = File('tank_outputs/model_prob3_linear.pvd')
+        else:
+            ufile = File('tank_outputs/model_prob3_nonlinear.pvd')
+    else:
+        if (mode == 'l'):
+            ufile = File('tank_outputs/model_prob4_linear.pvd')
+        else:
+            ufile = File('tank_outputs/model_prob4_nonlinear.pvd')
 t = 0.0
 dumpn = 0
 ufile.write(u, eta, time=t)
 eta_sols = [Function(eta)]
 u_sols = [Function(u)]
 
-# Enter the timeloop:
-while (t < T - 0.5*dt):     
-    t += dt
-    print 't = ', t, ' seconds'
-    usolver.solve()
-    q_.assign(q)
-    dumpn += 1
-    # Dump vtu data:
-    if (dumpn == ndump):
-        dumpn -= ndump
-        ufile.write(u, eta, time=t)
-    # Store solution data:
-    eta_sols.append(Function(eta))
-    u_sols.append(Function(u))
+if (compare != 't'):
+    # Enter the timeloop:
+    while (t < T - 0.5*dt):     
+        t += dt
+        print 't = ', t, ' seconds'
+        if (waves == 'y'):
+            bcval.assign(wave_machine(t, A, p, in_flux))    # Update BC
+        usolver.solve()
+        q_.assign(q)
+        dumpn += 1
+        # Dump vtu data:
+        if (dumpn == ndump):
+            dumpn -= ndump
+            ufile.write(u, eta, time=t)
+        # Store solution data:
+        eta_sols.append(Function(eta))
+        u_sols.append(Function(u))
 
 ############################ THETIS SETUP #############################
 
-# Construct solver:
-solver_obj = solver2d.FlowSolver2d(mesh, b)
-options = solver_obj.options
-options.t_export = t_export
-options.t_end = T
-if (bath == 'n'):
-    options.outputdir = 'prob1_outputs'
-elif (bath == 'y'):
-    options.outputdir = 'prob3_outputs'
+if (compare != 's'):
+    # Construct solver:
+    solver_obj = solver2d.FlowSolver2d(mesh, b)
+    options = solver_obj.options
+    options.t_export = t_export
+    options.t_end = T
+    options.outputdir = 'tank_outputs'
 
-# Specify integrator of choice:
-options.timestepper_type = 'backwardeuler'  # Use implicit timestepping
-options.dt = dt
+    # Specify integrator of choice:
+    options.timestepper_type = 'backwardeuler'  # Implicit timestepping
+    options.dt = dt
 
-# Specify initial surface elevation:
-elev_init = Function(Ve, name = 'Initial elevation')
-x = SpatialCoordinate(mesh)
-elev_init.interpolate(-0.01*cos(0.5*pi*x[0]))
-solver_obj.assign_initial_conditions(elev=elev_init)
+    # Specify initial surface elevation:
+    elev_init = Function(Ve, name = 'Initial elevation')
+    x = SpatialCoordinate(mesh)
+    if (waves == 'n'):
+        elev_init.interpolate(-0.01*cos(0.5*pi*x[0]))
+        solver_obj.assign_initial_conditions(elev=elev_init)
+        
+    else:
+        # Define boundary IDs of the domain, for convenience:
+        left_bnd_id = 1
+        right_bnd_id = 2
 
-# Run the model:
-solver_obj.iterate()
+        # Specify BCs as a dictionary:
+        swe_bnd = {}
+        in_flux = 0
+        swe_bnd[right_bnd_id] = {'elev': Constant(0.0), \
+                                 'flux': Constant(-in_flux)}
+        # NOTE: -ve value => flow into domain. ( Defined as outward
+        # normal flux)
+
+        # Initialise BCs:
+        tide_flux_const = Constant(wave_machine(0, A, p, in_flux))
+        swe_bnd[left_bnd_id] = {'flux': tide_flux_const}
+
+        # Assign BCs to solver object
+        solver_obj.bnd_functions['shallow_water'] = swe_bnd
+        # NOTE: If BCs are not assigned for some boundaries (the
+        # lateral boundaries 3 and 4 in this case), Thetis assumes
+        # impermeable land conditions.
+        
+        # Re-evaluate the BCs as the simulation progresses
+        def update_forcings(t_new):
+            """Callback function that updates all time dependent
+            forcing fields"""
+            tide_flux_const.assign(wave_machine(t_new, A, p, in_flux))
+
+    # Run the model:
+    if (waves == 'y'):
+        solver_obj.iterate(update_forcings=update_forcings)
+    else:
+        solver_obj.iterate()
 
 # OUTPUT CHECKS FOR THETIS TOO
 

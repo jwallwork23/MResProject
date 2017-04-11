@@ -32,7 +32,7 @@ mu_, eta_ = q_.split()
 
 # Construct functions to store adjoint problem variables:
 lam_ = Function(Vq)
-lm_, le_ = lam_.split
+lm_, le_ = lam_.split()
 
 ################# INITIAL CONDITIONS AND BATHYMETRY ###################
 
@@ -65,7 +65,7 @@ mu_, eta_ = split(q_)    # / it can be inserted into a UFL expression
 # linear equation if the stong form is written in terms of a matrix:
 L1 = (
     (ze * (eta-eta_) - Dt * mu * ze.dx(0) + \
-    inner(mu-mu_, nu) + Dt * g * b * eta.dx(0) * nu) * dx
+    (mu-mu_) * nu + Dt * g * b * eta.dx(0) * nu) * dx
     )
 
 # Set up the problem
@@ -98,7 +98,6 @@ snapshots1 = [Function(eta)]
 video1 = [Function(eta)]
 
 # Enter the timeloop:
-raw_input('ENTERING THE FORWARD TIMELOOP!')
 while (t < T - 0.5*dt):
     t += dt
     print 't = ', t, ' seconds'
@@ -171,18 +170,18 @@ le_.interpolate(Expression( '(x[0] >= 1e4) & (x[0] <= 2.5e4) ? \
 v, w = TestFunctions(Vq)
 lam = Function(Vq)
 lam.assign(lam_)
-v, w = split(lam)       # \ Here split means we split up a function so
-v_, w_ = split(lam_)    # / it can be inserted into a UFL expression
+lm, le = split(lam)       # \ Here split means we split up a function so
+lm_, le_ = split(lam_)    # / it can be inserted into a UFL expression
 
 # Establish forms (functions of the output q), noting we only have a 
 # linear equation if the stong form is written in terms of a matrix:
 L2 = (
-    (w * (le-le_) - Dt * g * b * lm * w.dx(0) + \
-    inner(lm-lm_, v) + Dt * le.dx(0) * v) * dx
+    (w * (le-le_) + Dt * g * b * lm * w.dx(0) + \
+    (lm-lm_) * v - Dt * le.dx(0) * v) * dx
     )
 
 # Set up the problem
-uprob2 = NonlinearVariationalProblem(L2, q)
+uprob2 = NonlinearVariationalProblem(L2, lam)
 usolver2 = NonlinearVariationalSolver(uprob2, solver_parameters={
                             'mat_type': 'matfree',
                             'snes_type': 'ksponly',
@@ -209,8 +208,7 @@ snapshots2 = [Function(le)]
 video2 = [Function(le)]
 
 # Enter the timeloop:
-raw_input('ENTERING THE BACKWARD TIMELOOP!')
-while (t > 0.5*dt):
+while (t > 0):
     t -= dt
     print 't = ', t, ' seconds'
     usolver2.solve()
@@ -221,7 +219,7 @@ while (t > 0.5*dt):
         dumpn += ndump
         video2.append(Function(le))
     # Dump snapshot data:
-    if (t in (525.0, 1365.0, 2772.0, 3655.0, 4200.0)):
+    if (t in (0.0, 525.0, 1365.0, 2772.0, 3655.0)):
         snapshots2.append(Function(le))
 
 ######################## BACKWARD PLOTTING ############################

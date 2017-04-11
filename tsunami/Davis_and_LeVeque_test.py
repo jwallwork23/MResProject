@@ -1,5 +1,6 @@
 from firedrake import *
 import matplotlib.pyplot as plt
+import numpy as np
 
 ############################ PARAMETERS ###############################
 
@@ -44,13 +45,13 @@ eta_.interpolate(Expression( '(x[0] >= 1e5) & (x[0] <= 1.5e5) ? \
 # Interpolate and plot bathymetry:
 b = Function(Vq.sub(1), name = 'Bathymetry')
 b.interpolate(Expression('x[0] <= 50000.0 ? -200.0 : -4000.0'))
-fig1 = plt.figure(1)
-plot(b)
-plt.xlabel('Location in ocean domain (m)')
-plt.ylabel('Bathymetry profile (m)')
-plt.ylim([-5000.0, 0.0])
-fig1.savefig('tsunami_outputs/screenshots/Davis_and_LeVeque_bathy.png')
-plt.close(fig1)
+##fig1 = plt.figure(1)
+##plot(b)
+##plt.xlabel('Location in ocean domain (m)')
+##plt.ylabel('Bathymetry profile (m)')
+##plt.ylim([-5000.0, 0.0])
+##fig1.savefig('tsunami_outputs/screenshots/Davis_and_LeVeque_bathy.png')
+##plt.close(fig1)
 b.assign(-b)
 
 ###################### FORWARD WEAK PROBLEM ###########################
@@ -99,6 +100,13 @@ dumpn = 0
 snapshots1 = [Function(eta)]
 video1 = [Function(eta)]
 
+# Establish a function and array to indicate significant eta values:
+s = Function(Vq.sub(1)) 
+s.assign(conditional(lt(eta, 0.1), 0.0, 1.0))
+sig1 = np.zeros((int(T*dt/ndump) + 1, len(s.dat.data)))
+i = 0
+sig1[i,:] = s.dat.data
+
 # Enter the timeloop:
 while (t < T - 0.5*dt):
     t += dt
@@ -107,12 +115,17 @@ while (t < T - 0.5*dt):
     q_.assign(q)
     dumpn += 1
     # Dump video data:
-    if ((vid == 'y') & (dumpn == ndump)):
+    if (dumpn == ndump):
         dumpn -= ndump
-        video1.append(Function(eta))
+        i += 1
+        s.assign(conditional(lt(eta, 0.1), 0.0, 1.0))
+        sig1[i,:] = s.dat.data
+        if (vid == 'y'):
+            video1.append(Function(eta))
     # Dump snapshot data:
     if (t in (525.0, 1365.0, 2772.0, 3655.0, 4200.0)):
         snapshots1.append(Function(eta))
+
 print 'Forward problem solved.... now for the adjoint problem.'
 
 ######################## FORWARD PLOTTING #############################
@@ -223,6 +236,10 @@ snapshots2 = [Function(le)]
 video2 = [Function(le)]
 if (dumpn == 0):
     dumpn = 10
+i = 105                 # TODO : make more general
+s.assign(conditional(lt(le, 0.1), 0.0, 1.0))
+sig2 = np.zeros((int(T*dt/ndump) + 1, len(s.dat.data)))
+sig2[i,:] = s.dat.data
 
 # Enter the timeloop:
 while (t > 0):
@@ -232,9 +249,13 @@ while (t > 0):
     lam_.assign(lam)
     dumpn -= 1
     # Dump video data:
-    if ((vid == 'y') & (dumpn == 0)):
+    if (dumpn == 0):
         dumpn += ndump
-        video2.append(Function(le))
+        i -= 1
+        s.assign(conditional(lt(le, 0.1), 0.0, 1.0))
+        sig2[i,:] = s.dat.data
+        if (vid == 'y'):
+            video2.append(Function(le))
     # Dump snapshot data:
     if (t in (0.0, 525.0, 1365.0, 2772.0, 3655.0)):
         snapshots2.append(Function(le))
@@ -295,9 +316,29 @@ plt.ylim([-0.4, 0.5])
 fig13.savefig('tsunami_outputs/screenshots/adjoint_t=0.png')
 plt.close(fig13)
 
+fig14 = plt.figure(14)
+plt.pcolor(sig1)
+plt.title('Forward problem')
+plt.xlabel('Regions of significant free surface')
+plt.ylabel('Time (mins)')
+plt.axis([0, 397, 0, 105])      # TODO : make more general
+plt.show()
+fig14.savefig('tsunami_outputs/screenshots/significant_forward.png')
+plt.close(fig14)
+
+fig15 = plt.figure(15)
+plt.pcolor(sig2)
+plt.title('Adjoint problem')
+plt.xlabel('Regions of significant free surface')
+plt.ylabel('Time (mins)')
+plt.axis([0, 397, 0, 105])      # TODO : make more general
+plt.show()
+fig15.savefig('tsunami_outputs/screenshots/significant_adjoint.png')
+plt.close(fig15)
+
 ######################### VIDEO PLOTTING ##############################
 
-fig14 = plt.figure(14)
+plt.figure(16)
 if (vid == 'y'):
     plot(video1)
     plt.xlabel('Location in ocean domain (m)')
@@ -305,7 +346,7 @@ if (vid == 'y'):
     plt.ylim([-0.4, 0.5])
     plt.show()
 
-fig15 = plt.figure(15)
+plt.figure(17)
 if (vid == 'y'):
     plot(video2)
     plt.xlabel('Location in ocean domain (m)')

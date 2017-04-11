@@ -13,12 +13,12 @@ tol = raw_input('Specify significant tolerance (default 0.1): ') or 0.1
 vid = raw_input('Video output? (y/n, default n): ') or 'n'
 if ((vid != 'y') & (vid != 'n')):
     raise ValueError('Please try again, choosing y or n.')
-g = 9.81    # Gravitational acceleration
+g = 9.81                    # Gravitational acceleration (m s^{-2})
 ndump = 40
 
 ############################## FE SETUP ###############################
 
-# Define domain and mesh
+# Define domain and mesh:
 lx = 4e5                    # 400 km ocean domain
 nx = int(lx*n)
 mesh = IntervalMesh(nx, lx)
@@ -28,13 +28,11 @@ Vmu = FunctionSpace(mesh, 'CG', 2)      # \ Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, 'CG', 1)       # /
 Vq = MixedFunctionSpace((Vmu, Ve))      # We have a mixed FE problem
 
-# Construct functions to store forward problem variables:
-q_ = Function(Vq)
-mu_, eta_ = q_.split()
-
-# Construct functions to store adjoint problem variables:
+# Construct functions to store forward and adjoint variables:
+q_ = Function(Vq) 
 lam_ = Function(Vq)
-lm_, le_ = lam_.split()
+mu_, eta_ = q_.split()  # \ Split means we can interpolate the
+lm_, le_ = lam_.split() # / initial condition into the two components
 
 ################# INITIAL CONDITIONS AND BATHYMETRY ###################
 
@@ -58,21 +56,22 @@ b.assign(-b)
 ###################### FORWARD WEAK PROBLEM ###########################
 
 # Build the weak form of the timestepping algorithm, expressed as a 
-# mixed nonlinear problem
+# mixed nonlinear problem:
 nu, ze = TestFunctions(Vq)
 q = Function(Vq)
 q.assign(q_)
 mu, eta = split(q)       # \ Here split means we split up a function so
 mu_, eta_ = split(q_)    # / it can be inserted into a UFL expression
 
-# Establish forms (functions of the output q), noting we only have a 
-# linear equation if the stong form is written in terms of a matrix:
+# Establish forms (functions of the forward variable q), noting we only
+# have a linear equation if the stong form is written in terms of a
+# matrix:
 L1 = (
     (ze * (eta-eta_) - Dt * mu * ze.dx(0) + \
     (mu-mu_) * nu + Dt * g * b * eta.dx(0) * nu) * dx
     )
 
-# Set up the problem
+# Set up the variational problem:
 uprob1 = NonlinearVariationalProblem(L1, q)
 usolver1 = NonlinearVariationalSolver(uprob1, solver_parameters={
                             'mat_type': 'matfree',
@@ -85,7 +84,7 @@ usolver1 = NonlinearVariationalSolver(uprob1, solver_parameters={
                             })
 
 # The function 'split' has two forms: now use the form which splits a 
-# function in order to access its data
+# function in order to access its data:
 mu_, eta_ = q_.split()
 mu, eta = q.split()
 
@@ -112,7 +111,7 @@ sig_eta[i,:] = s.dat.data
 mu_vals[i,:] = mu.dat.data
 eta_vals[i,:] = eta.dat.data
 
-# Enter the timeloop:
+# Enter the forward timeloop:
 while (t < T - 0.5*dt):
     t += dt
     print 't = ', t, ' seconds'
@@ -200,22 +199,20 @@ le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) ? \
 
 ###################### ADJOINT WEAK PROBLEM ###########################
 
-# Build the weak form of the timestepping algorithm, expressed as a 
-# mixed nonlinear problem
+# Establish test functions:
 v, w = TestFunctions(Vq)
 lam = Function(Vq)
 lam.assign(lam_)
-lm, le = split(lam)       # \ Here split means we split up a function so
-lm_, le_ = split(lam_)    # / it can be inserted into a UFL expression
+lm, le = split(lam)
+lm_, le_ = split(lam_)
 
-# Establish forms (functions of the output q), noting we only have a 
-# linear equation if the stong form is written in terms of a matrix:
+# Establish forms (functions of the adjoint variable lam):
 L2 = (
     (w * (le-le_) + Dt * g * b * lm * w.dx(0) + \
     (lm-lm_) * v - Dt * le.dx(0) * v) * dx
     )
 
-# Set up the problem
+# Set up the variational problem:
 uprob2 = NonlinearVariationalProblem(L2, lam)
 usolver2 = NonlinearVariationalSolver(uprob2, solver_parameters={
                             'mat_type': 'matfree',
@@ -227,8 +224,7 @@ usolver2 = NonlinearVariationalSolver(uprob2, solver_parameters={
                             'snes_lag_preconditioner_persists': True,
                             })
 
-# The function 'split' has two forms: now use the form which splits a 
-# function in order to access its data
+# Split functions in order to access their data:
 lm_, le_ = lam_.split()
 lm, le = lam.split()
 
@@ -254,7 +250,7 @@ le_vals[i,:] = eta.dat.data
 q_dot_lam[i,:] = mu_vals[i,0::2] * lm_vals[i,0::2] + \
                  eta_vals[i,:] * le_vals[i,:]
 
-# Enter the timeloop:
+# Enter the backward timeloop:
 while (t > 0):
     t -= dt
     print 't = ', t, ' seconds'
@@ -269,7 +265,7 @@ while (t > 0):
         lm_vals[i,:] = mu.dat.data
         le_vals[i,:] = eta.dat.data
         # Evaluate forward-adjoint inner products (noting mu is in
-        # CG2, while eta is in CG1, so we need to evaluate at nodes):
+        # P2, while eta is in P1, so we need to evaluate at nodes):
         q_dot_lam[i,:] = mu_vals[i,0::2] * lm_vals[i,0::2] + \
                          eta_vals[i,:] * le_vals[i,:]
         # Dump video data:

@@ -189,8 +189,8 @@ ufile.write(b)
 v, ze = TestFunctions(Vq)
 q = Function(Vq)
 q.assign(q_)
-u, eta = split(q)       # \ Here split means we split up a function so
-u_, eta_ = split(q_)    # / it can be inserted into a UFL expression
+u, eta = split(q)
+u_, eta_ = split(q_)
 
 # Establish form:
 if (mode == 'l'):
@@ -232,8 +232,11 @@ elif (mode == 'n'):
 t = 0.0
 dumpn = 0
 ufile.write(u, eta, time=t)
-eta_sols = [Function(eta)]
-u_sols = [Function(u)]
+eta_vals = np.zeros((int(T*dt/ndump+1, nx+1))
+u_vals = np.zeros((int(T*dt/ndump+1, 2*nx+1))   # TODO : what form is dat.data?
+i = 0
+eta_vals[i,:] = eta.dat.data
+u_vals[i,:] = u.dat.data
 
 def standalone_timeloop(t, T, dt, ndump, dumpn):
     while (t < T - 0.5*dt):     
@@ -243,13 +246,13 @@ def standalone_timeloop(t, T, dt, ndump, dumpn):
         usolver.solve()
         q_.assign(q)
         dumpn += 1
-        # Dump vtu data:
+        # Dump data:
         if dumpn == ndump:
             dumpn -= ndump
+            i += 1
             ufile.write(u, eta, time=t)
-        # Store solution data:
-        eta_sols.append(Function(eta))
-        u_sols.append(Function(u))
+            eta_vals[i,:] = eta.dat.data
+            u_vals[i,:] = u.dat.data        # TODO : this will need changing
 
 # Enter the timeloop:
 wrapped = wrapper(standalone_timeloop, t, T, dt, ndump, dumpn)

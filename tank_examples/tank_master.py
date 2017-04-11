@@ -1,5 +1,6 @@
 from firedrake import *
 from thetis import *
+import numpy as np
 
 ######################### USEFUL FUNCTIONS ############################
 
@@ -115,8 +116,8 @@ Ve = FunctionSpace(mesh, 'CG', 1)
 Vq = MixedFunctionSpace((Vu, Ve))            
 
 # Construct a function to store our two variables at time n:
-q_ = Function(Vq)       # \ Split means we can interpolate the 
-u_, eta_ = q_.split()   # / initial condition into the two components
+q_ = Function(Vq)       
+u_, eta_ = q_.split()
 
 # Interpolate bathymetry:
 b = Function(Ve, name = 'Bathymetry')
@@ -148,8 +149,8 @@ else:
 v, ze = TestFunctions(Vq)
 q = Function(Vq)
 q.assign(q_)
-u, eta = split(q)       # \ Here split means we split up a function so
-u_, eta_ = split(q_)    # / it can be inserted into a UFL expression
+u, eta = split(q)
+u_, eta_ = split(q_)
 
 # Establish form:
 if (mode == 'l'):
@@ -163,7 +164,7 @@ else:
     else:
         L = nonzero_boundary_nonlinear_form()
 
-# Set up the variational problem
+# Set up the variational problem:
 if (waves == 'n'):
     uprob = NonlinearVariationalProblem(L, q)
     usolver = NonlinearVariationalSolver(uprob,
@@ -202,7 +203,7 @@ eta.rename('Free surface displacement')
 
 ############################ TIMESTEPPING #############################
 
-# Initialise output directory and dump counter
+# Initialise output directory:
 if (bath == 'n'):
     if (waves == 'n'):
         if (mode == 'l'):
@@ -225,11 +226,16 @@ elif (bath == 'y'):
             ufile = File('tank_outputs/model_prob4_linear.pvd')
         else:
             ufile = File('tank_outputs/model_prob4_nonlinear.pvd')
+
+# Initialise time, arrays and dump counter:
 t = 0.0
 dumpn = 0
 ufile.write(u, eta, time=t)
-eta_sols = [Function(eta)]
-u_sols = [Function(u)]
+eta_vals = np.zeros((int(T*dt/ndump+1, nx+1))
+u_vals = np.zeros((int(T*dt/ndump+1, 2*nx+1))   # TODO : what form is dat.data?
+i = 0
+eta_vals[i,:] = eta.dat.data
+u_vals[i,:] = u.dat.data
 
 if (compare != 't'):
     # Enter the timeloop:
@@ -241,13 +247,13 @@ if (compare != 't'):
         usolver.solve()
         q_.assign(q)
         dumpn += 1
-        # Dump vtu data:
+        # Dump data:
         if (dumpn == ndump):
             dumpn -= ndump
+            i += 1
             ufile.write(u, eta, time=t)
-        # Store solution data:
-        eta_sols.append(Function(eta))
-        u_sols.append(Function(u))
+            eta_vals[i,:] = eta.dat.data
+            u_vals[i,:] = u.dat.data            # TODO : this will need changing
 
 ############################ THETIS SETUP #############################
 
@@ -305,7 +311,7 @@ if (compare != 's'):
     else:
         solver_obj.iterate()
 
-# OUTPUT CHECKS FOR THETIS TOO
+# Output data for Thetis solver, too
 
 ########################### EVALUATE ERROR ############################
 

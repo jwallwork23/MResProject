@@ -9,9 +9,9 @@ Dt = Constant(dt)
 n = raw_input('Specify no. of cells per m (default 1e-3): ') or 1e-3
 T = raw_input('Specify duration in s (default 4200): ') or 4200
 g = 9.81    # Gravitational acceleration
-vid = raw_input('Video output? (y/n, default n)') or 'n'
-if ((vid != 'l') & (vid != 'n')):
-    raise ValueError('Please try again, choosing l or n.')
+vid = raw_input('Video output? (y/n, default n): ') or 'n'
+if ((vid != 'y') & (vid != 'n')):
+    raise ValueError('Please try again, choosing y or n.')
 ndump = 40
 
 ############################## FE SETUP ###############################
@@ -41,14 +41,16 @@ mu_.interpolate(Expression(0.))
 eta_.interpolate(Expression( '(x[0] >= 1e5) & (x[0] <= 1.5e5) ? \
                              0.4*sin(pi*(x[0]-1e5)*2e-5) : 0.0'))
 
-# Interpolate bathymetry:
+# Interpolate and plot bathymetry:
 b = Function(Vq.sub(1), name = 'Bathymetry')
 b.interpolate(Expression('x[0] <= 50000.0 ? -200.0 : -4000.0'))
+fig1 = plt.figure(1)
 plot(b)
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Bathymetry profile (m)')
 plt.ylim([-5000.0, 0.0])
-plt.show()
+fig1.savefig('tsunami_outputs/screenshots/Davis_and_LeVeque_bathy.png')
+plt.close(fig1)
 b.assign(-b)
 
 ###################### FORWARD WEAK PROBLEM ###########################
@@ -111,50 +113,63 @@ while (t < T - 0.5*dt):
     # Dump snapshot data:
     if (t in (525.0, 1365.0, 2772.0, 3655.0, 4200.0)):
         snapshots1.append(Function(eta))
+print 'Forward problem solved.... now for the adjoint problem.'
 
 ######################## FORWARD PLOTTING #############################
 
+fig2 = plt.figure(2)
 plot(snapshots1[0])
 plt.title('Surface at t = 0 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.show()
+plt.ylim([-0.4, 0.5])
+fig2.savefig('tsunami_outputs/screenshots/forward_t=0.png')
+plt.close(fig2)
 
+fig3 = plt.figure(3)
 plot(snapshots1[1])
 plt.title('Surface at t = 525 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.show()
+plt.ylim([-0.4, 0.5])
+fig3.savefig('tsunami_outputs/screenshots/forward_t=525.png')
+plt.close(fig3)
 
+fig4 = plt.figure(4)
 plot(snapshots1[2])
 plt.title('Surface at t = 1365 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.show()
+plt.ylim([-0.4, 0.5])
+fig4.savefig('tsunami_outputs/screenshots/forward_t=1365.png')
+plt.close(fig4)
 
+fig5 = plt.figure(5)
 plot(snapshots1[3])
 plt.title('Surface at t = 2772 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.show()
+plt.ylim([-0.4, 0.5])
+fig5.savefig('tsunami_outputs/screenshots/forward_t=2772.png')
+plt.close(fig5)
 
+fig6 = plt.figure(6)
 plot(snapshots1[4])
 plt.title('Surface at t = 3255 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.show()
+plt.ylim([-0.4, 0.5])
+fig6.savefig('tsunami_outputs/screenshots/forward_t=3255.png')
+plt.close(fig6)
 
+fig7 = plt.figure(7)
 plot(snapshots1[5])
 plt.title('Surface at t = 4200 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.show()
-
-if (vid == 'y'):
-    plot(video1)
-    plt.xlabel('Location in ocean domain (m)')
-    plt.ylabel('Free surface displacement (m)')
-    plt.show()
+plt.ylim([-0.4, 0.5])
+fig7.savefig('tsunami_outputs/screenshots/forward_t=4200.png')
+plt.close(fig7)
 
 ################### ADJOINT 'INITIAL' CONDITIONS ######################
 
@@ -206,6 +221,8 @@ le.rename('Adjoint free surface displacement')
 # Initialise arrays:
 snapshots2 = [Function(le)]
 video2 = [Function(le)]
+if (dumpn == 0):
+    dumpn = 10
 
 # Enter the timeloop:
 while (t > 0):
@@ -224,44 +241,74 @@ while (t > 0):
 
 ######################## BACKWARD PLOTTING ############################
 
+fig8 = plt.figure(8)
 plot(snapshots2[0])
 plt.title('Adjoint at t = 4200 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.show()
+plt.ylim([-0.4, 0.5])
+fig8.savefig('tsunami_outputs/screenshots/adjoint_t=4200.png')
+plt.close(fig8)
 
+fig9 = plt.figure(9)
 plot(snapshots2[1])
 plt.title('Adjoint at t = 3255 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.show()
+plt.ylim([-0.4, 0.5])
+fig9.savefig('tsunami_outputs/screenshots/adjoint_t=3255.png')
+plt.close(fig9)
 
+fig10 = plt.figure(10)
 plot(snapshots2[2])
 plt.title('Adjoint at t = 2772 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.show()
+plt.ylim([-0.4, 0.5])
+fig10.savefig('tsunami_outputs/screenshots/adjoint_t=2772.png')
+plt.close(fig10)
 
+fig11 = plt.figure(11)
 plot(snapshots2[3])
 plt.title('Adjoint at t = 1365 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.show()
+plt.ylim([-0.4, 0.5])
+fig11.savefig('tsunami_outputs/screenshots/adjoint_t=1365.png')
+plt.close(fig11)
 
+fig12 = plt.figure(12)
 plot(snapshots2[4])
 plt.title('Adjoint at t = 525 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.show()
+plt.ylim([-0.4, 0.5])
+fig12.savefig('tsunami_outputs/screenshots/adjoint_t=525.png')
+plt.close(fig12)
 
+fig13 = plt.figure(13)
 plot(snapshots2[5])
 plt.title('Adjoint at t = 0 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.show()
+plt.ylim([-0.4, 0.5])
+fig13.savefig('tsunami_outputs/screenshots/adjoint_t=0.png')
+plt.close(fig13)
 
+######################### VIDEO PLOTTING ##############################
+
+fig14 = plt.figure(14)
+if (vid == 'y'):
+    plot(video1)
+    plt.xlabel('Location in ocean domain (m)')
+    plt.ylabel('Free surface displacement (m)')
+    plt.ylim([-0.4, 0.5])
+    plt.show()
+
+fig15 = plt.figure(15)
 if (vid == 'y'):
     plot(video2)
     plt.xlabel('Location in ocean domain (m)')
     plt.ylabel('Free surface displacement (m)')
+    plt.ylim([-0.4, 0.5])
     plt.show()

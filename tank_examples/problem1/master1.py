@@ -1,7 +1,7 @@
 from firedrake import *
 from thetis import *
 
-########################## FORM FUNCTIONS #########################
+########################## FORM FUNCTIONS #############################
 
 def nonlinear_form():
     '''Weak residual form of the nonlinear shallow water equations'''

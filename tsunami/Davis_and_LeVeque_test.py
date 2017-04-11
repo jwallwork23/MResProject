@@ -21,26 +21,28 @@ lx = 4e5                    # 400 km ocean domain
 nx = int(lx*n)
 mesh = IntervalMesh(nx, lx)
 
-# Define function spaces
+# Define function spaces:
 Vmu = FunctionSpace(mesh, 'CG', 2)      # \ Use Taylor-Hood elements
 Ve = FunctionSpace(mesh, 'CG', 1)       # /
 Vq = MixedFunctionSpace((Vmu, Ve))      # We have a mixed FE problem
 
-# Construct function to store dependent variables and bathymetry:
+# Construct functions to store forward problem variables:
 q_ = Function(Vq)
 mu_, eta_ = q_.split()
-b = Function(Vq.sub(1), name = 'Bathymetry')
+
+# Construct functions to store adjoint problem variables:
+lam_ = Function(Vq)
+lm_, le_ = lam_.split
 
 ################# INITIAL CONDITIONS AND BATHYMETRY ###################
 
 # Interpolate ICs:
 mu_.interpolate(Expression(0.))
-l = 1.2e5
-u = 1.3e5
 eta_.interpolate(Expression( '(x[0] >= 1e5) & (x[0] <= 1.5e5) ? \
                              0.4*sin(pi*(x[0]-1e5)*2e-5) : 0.0'))
 
 # Interpolate bathymetry:
+b = Function(Vq.sub(1), name = 'Bathymetry')
 b.interpolate(Expression('x[0] <= 50000.0 ? -200.0 : -4000.0'))
 plot(b)
 plt.xlabel('Location in ocean domain (m)')
@@ -49,26 +51,26 @@ plt.ylim([-5000.0, 0.0])
 plt.show()
 b.assign(-b)
 
-########################### WEAK PROBLEM ##############################
+###################### FORWARD WEAK PROBLEM ###########################
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem
-v, ze = TestFunctions(Vq)
+nu, ze = TestFunctions(Vq)
 q = Function(Vq)
 q.assign(q_)
 mu, eta = split(q)       # \ Here split means we split up a function so
 mu_, eta_ = split(q_)    # / it can be inserted into a UFL expression
 
-# Establish forms (functions of the output q), noting we only have a linear
-# equation if the stong form is written in terms of a matrix:
-L = (
+# Establish forms (functions of the output q), noting we only have a 
+# linear equation if the stong form is written in terms of a matrix:
+L1 = (
     (ze * (eta-eta_) - Dt * mu * ze.dx(0) + \
-    inner(mu-mu_, v) + Dt * g * b * eta.dx(0) * v) * dx
+    inner(mu-mu_, nu) + Dt * g * b * eta.dx(0) * nu) * dx
     )
 
 # Set up the problem
-uprob = NonlinearVariationalProblem(L, q)
-usolver = NonlinearVariationalSolver(uprob, solver_parameters={
+uprob1 = NonlinearVariationalProblem(L1, q)
+usolver1 = NonlinearVariationalSolver(uprob1, solver_parameters={
                             'mat_type': 'matfree',
                             'snes_type': 'ksponly',
                             'pc_type': 'python',
@@ -87,69 +89,181 @@ mu, eta = q.split()
 mu.rename('Fluid momentum')
 eta.rename('Free surface displacement')
 
-############################ TIMESTEPPING ############################
+######################## FORWARD TIMESTEPPING #########################
 
-# Initialise arrays and dump counter:
+# Initialise time, arrays and dump counter:
 t = 0.0
 dumpn = 0
-snapshots = [Function(eta)]
-video = [Function(eta)]
+snapshots1 = [Function(eta)]
+video1 = [Function(eta)]
 
 # Enter the timeloop:
+raw_input('ENTERING THE FORWARD TIMELOOP!')
 while (t < T - 0.5*dt):
     t += dt
     print 't = ', t, ' seconds'
-    usolver.solve()
+    usolver1.solve()
     q_.assign(q)
     dumpn += 1
     # Dump video data:
     if ((vid == 'y') & (dumpn == ndump)):
         dumpn -= ndump
-        video.append(Function(eta))
+        video1.append(Function(eta))
     # Dump snapshot data:
     if (t in (525.0, 1365.0, 2772.0, 3655.0, 4200.0)):
-        snapshots.append(Function(eta))
+        snapshots1.append(Function(eta))
 
-############################## PLOTTING ##############################
+######################## FORWARD PLOTTING #############################
 
-plot(snapshots[0])
+plot(snapshots1[0])
 plt.title('Surface at t = 0 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.show()
 
-plot(snapshots[1])
+plot(snapshots1[1])
 plt.title('Surface at t = 525 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.show()
 
-plot(snapshots[2])
+plot(snapshots1[2])
 plt.title('Surface at t = 1365 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.show()
 
-plot(snapshots[3])
+plot(snapshots1[3])
 plt.title('Surface at t = 2772 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.show()
 
-plot(snapshots[4])
+plot(snapshots1[4])
 plt.title('Surface at t = 3255 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.show()
 
-plot(snapshots[5])
+plot(snapshots1[5])
 plt.title('Surface at t = 4200 seconds')
 plt.xlabel('Location in ocean domain (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.show()
 
 if (vid == 'y'):
-    plot(plots)
+    plot(video1)
+    plt.xlabel('Location in ocean domain (m)')
+    plt.ylabel('Free surface displacement (m)')
+    plt.show()
+
+################### ADJOINT 'INITIAL' CONDITIONS ######################
+
+# Interpolate final-time conditions:
+lm_.interpolate(Expression(0.))
+le_.interpolate(Expression( '(x[0] >= 1e4) & (x[0] <= 2.5e4) ? \
+                             0.4 : 0.0'))
+
+###################### ADJOINT WEAK PROBLEM ###########################
+
+# Build the weak form of the timestepping algorithm, expressed as a 
+# mixed nonlinear problem
+v, w = TestFunctions(Vq)
+lam = Function(Vq)
+lam.assign(lam_)
+v, w = split(lam)       # \ Here split means we split up a function so
+v_, w_ = split(lam_)    # / it can be inserted into a UFL expression
+
+# Establish forms (functions of the output q), noting we only have a 
+# linear equation if the stong form is written in terms of a matrix:
+L2 = (
+    (w * (le-le_) - Dt * g * b * lm * w.dx(0) + \
+    inner(lm-lm_, v) + Dt * le.dx(0) * v) * dx
+    )
+
+# Set up the problem
+uprob2 = NonlinearVariationalProblem(L2, q)
+usolver2 = NonlinearVariationalSolver(uprob2, solver_parameters={
+                            'mat_type': 'matfree',
+                            'snes_type': 'ksponly',
+                            'pc_type': 'python',
+                            'pc_python_type': 'firedrake.AssembledPC',
+                            'assembled_pc_type': 'lu',
+                            'snes_lag_preconditioner': -1, 
+                            'snes_lag_preconditioner_persists': True,
+                            })
+
+# The function 'split' has two forms: now use the form which splits a 
+# function in order to access its data
+lm_, le_ = lam_.split()
+lm, le = lam.split()
+
+# Store multiple functions:
+lm.rename('Adjoint fluid momentum')
+le.rename('Adjoint free surface displacement')
+
+######################## BACKWARD TIMESTEPPING ########################
+
+# Initialise arrays:
+snapshots2 = [Function(le)]
+video2 = [Function(le)]
+
+# Enter the timeloop:
+raw_input('ENTERING THE BACKWARD TIMELOOP!')
+while (t > 0.5*dt):
+    t -= dt
+    print 't = ', t, ' seconds'
+    usolver2.solve()
+    lam_.assign(lam)
+    dumpn -= 1
+    # Dump video data:
+    if ((vid == 'y') & (dumpn == 0)):
+        dumpn += ndump
+        video2.append(Function(le))
+    # Dump snapshot data:
+    if (t in (525.0, 1365.0, 2772.0, 3655.0, 4200.0)):
+        snapshots2.append(Function(le))
+
+######################## BACKWARD PLOTTING ############################
+
+plot(snapshots2[0])
+plt.title('Adjoint at t = 4200 seconds')
+plt.xlabel('Location in ocean domain (m)')
+plt.ylabel('Free surface displacement (m)')
+plt.show()
+
+plot(snapshots2[1])
+plt.title('Adjoint at t = 3255 seconds')
+plt.xlabel('Location in ocean domain (m)')
+plt.ylabel('Free surface displacement (m)')
+plt.show()
+
+plot(snapshots2[2])
+plt.title('Adjoint at t = 2772 seconds')
+plt.xlabel('Location in ocean domain (m)')
+plt.ylabel('Free surface displacement (m)')
+plt.show()
+
+plot(snapshots2[3])
+plt.title('Adjoint at t = 1365 seconds')
+plt.xlabel('Location in ocean domain (m)')
+plt.ylabel('Free surface displacement (m)')
+plt.show()
+
+plot(snapshots2[4])
+plt.title('Adjoint at t = 525 seconds')
+plt.xlabel('Location in ocean domain (m)')
+plt.ylabel('Free surface displacement (m)')
+plt.show()
+
+plot(snapshots2[5])
+plt.title('Adjoint at t = 0 seconds')
+plt.xlabel('Location in ocean domain (m)')
+plt.ylabel('Free surface displacement (m)')
+plt.show()
+
+if (vid == 'y'):
+    plot(video2)
     plt.xlabel('Location in ocean domain (m)')
     plt.ylabel('Free surface displacement (m)')
     plt.show()

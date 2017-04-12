@@ -9,8 +9,9 @@ dt = raw_input('Specify timestep (default 1): ') or 1
 Dt = Constant(dt)
 n = raw_input('Specify no. of cells per m (default 1e-3): ') or 1e-3
 T = raw_input('Specify duration in s (default 4200): ') or 4200
-tol = raw_input('Specify significant tolerance (default 0.1): ') or 0.1
-vid = raw_input('Video output? (y/n, default n): ') or 'n'
+tol = float(raw_input( \
+    'Specify significance tolerance (default 0.1): ') or 0.1)
+vid = raw_input('Show video output? (y/n, default n): ') or 'n'
 if ((vid != 'y') & (vid != 'n')):
     raise ValueError('Please try again, choosing y or n.')
 g = 9.81                    # Gravitational acceleration (m s^{-2})
@@ -94,22 +95,24 @@ eta.rename('Free surface displacement')
 
 ######################## FORWARD TIMESTEPPING #########################
 
-# Initialise time, arrays and dump counter:
+# Initialise time, counters and function arrays:
 t = 0.0
+i = 0
 dumpn = 0
 eta_snapshots = [Function(eta)]
 eta_vid = [Function(eta)]
 
-# Establish a function and array to indicate significant eta values:
-s = Function(Vq.sub(1)) 
-s.assign(conditional(lt(eta, tol), 0.0, 1.0))       # TODO : use abs
+# Initialise arrays for storage:
 sig_eta = np.zeros((int(T*dt/ndump)+1, nx+1))       # \ Dimension
 mu_vals = np.zeros((int(T*dt/ndump)+1, 2*nx+1))     # | pre-allocated
 eta_vals = np.zeros((int(T*dt/ndump)+1, nx+1))      # / for speed
-i = 0
-sig_eta[i,:] = s.dat.data
 mu_vals[i,:] = mu.dat.data
 eta_vals[i,:] = eta.dat.data
+
+# Determine signifiant values (for domain of dependence plot):
+for j in range(nx+1):
+    if ((eta_vals[i,j] >= tol) | (eta_vals[i,j] <= -tol)):
+        sig_eta[i,j] = 1
 
 # Enter the forward timeloop:
 while (t < T - 0.5*dt):
@@ -121,10 +124,11 @@ while (t < T - 0.5*dt):
     if (dumpn == ndump):
         dumpn -= ndump
         i += 1
-        s.assign(conditional(lt(eta, tol), 0.0, 1.0))
-        sig_eta[i,:] = s.dat.data
         mu_vals[i,:] = mu.dat.data
         eta_vals[i,:] = eta.dat.data
+        for j in range(nx+1):
+            if ((eta_vals[i,j] >= tol) | (eta_vals[i,j] <= -tol)):
+                sig_eta[i,j] = 1
         # Dump video data:
         if (vid == 'y'):
             eta_vid.append(Function(eta))
@@ -234,21 +238,33 @@ le.rename('Adjoint free surface displacement')
 
 ######################## BACKWARD TIMESTEPPING ########################
 
-# Initialise arrays:
-le_snapshots = [Function(le)]
-le_vid = [Function(le)]
+# Initialise dump counter and function arrays:
 if (dumpn == 0):
     dumpn = 10
-s.assign(conditional(lt(le, tol), 0.0, 1.0))        # TODO : use abs
+le_snapshots = [Function(le)]
+le_vid = [Function(le)]
+
+# Initialise arrays for storage
 sig_le = np.zeros((int(T*dt/ndump)+1, nx+1))        # \ Dimension
 lm_vals = np.zeros((int(T*dt/ndump)+1, 2*nx+1))     # | pre-allocated
 le_vals = np.zeros((int(T*dt/ndump)+1, nx+1))       # | for speed
 q_dot_lam = np.zeros((int(T*dt/ndump)+1, nx+1))     # /
-sig_le[i,:] = s.dat.data
-lm_vals[i,:] = mu.dat.data
-le_vals[i,:] = eta.dat.data
+lm_vals[i,:] = lm.dat.data
+le_vals[i,:] = le.dat.data
+
+# Evaluate forward-adjoint inner products (noting mu and lm are in P2,
+# while eta and le are in P1, so we need to evaluate at nodes):
 q_dot_lam[i,:] = mu_vals[i,0::2] * lm_vals[i,0::2] + \
                  eta_vals[i,:] * le_vals[i,:]
+
+# Determine significant values:
+for j in range(nx+1):
+    if ((le_vals[i,j] >= tol) | (le_vals[i,j] <= -tol)):
+        sig_le[i,j] = 1
+    if ((q_dot_lam[i,j] >= tol) | (q_dot_lam[i,j] <= -tol)):
+        q_dot_lam[i,j] = 1
+    else:
+        q_dot_lam[i,j] = 0
 
 # Enter the backward timeloop:
 while (t > 0):
@@ -260,14 +276,18 @@ while (t > 0):
     if (dumpn == 0):
         dumpn += ndump
         i -= 1
-        s.assign(conditional(lt(le, tol), 0.0, 1.0))
-        sig_le[i,:] = s.dat.data
-        lm_vals[i,:] = mu.dat.data
-        le_vals[i,:] = eta.dat.data
-        # Evaluate forward-adjoint inner products (noting mu is in
-        # P2, while eta is in P1, so we need to evaluate at nodes):
+        lm_vals[i,:] = lm.dat.data
+        le_vals[i,:] = le.dat.data
         q_dot_lam[i,:] = mu_vals[i,0::2] * lm_vals[i,0::2] + \
                          eta_vals[i,:] * le_vals[i,:]
+        # Determine significant values:
+        for j in range(nx+1):
+            if ((le_vals[i,j] >= tol) | (le_vals[i,j] <= -tol)):
+               sig_le[i,j] = 1
+            if ((q_dot_lam[i,j] >= tol) | (q_dot_lam[i,j] <= -tol)):
+                q_dot_lam[i,j] = 1
+            else:
+                q_dot_lam[i,j] = 0
         # Dump video data:
         if (vid == 'y'):
             le_vid.append(Function(le))
@@ -351,7 +371,6 @@ plt.show()
 fig15.savefig('tsunami_outputs/screenshots/significant_adjoint.png')
 plt.close(fig15)
 
-# TODO : Make this into a significance plot
 fig16 = plt.figure(16)
 plt.pcolor(q_dot_lam)
 plt.title('Domain of dependence')

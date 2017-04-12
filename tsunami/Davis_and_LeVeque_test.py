@@ -45,13 +45,11 @@ eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? \
 # Interpolate and plot bathymetry:
 b = Function(Vq.sub(1), name = 'Bathymetry')
 b.interpolate(Expression('x[0] <= 50000.0 ? -200.0 : -4000.0'))
-fig1 = plt.figure(1)
 plot(b)
 plt.xlabel('Distance offshore (m)')
 plt.ylabel('Bathymetry profile (m)')
 plt.ylim([-5000.0, 0.0])
-fig1.savefig('tsunami_outputs/screenshots/bathy.png')
-plt.close(fig1)
+plt.savefig('tsunami_outputs/screenshots/bathy.png')
 b.assign(-b)
 
 ###################### FORWARD WEAK PROBLEM ###########################
@@ -101,6 +99,7 @@ i = 0
 dumpn = 0
 eta_snapshots = [Function(eta)]
 eta_vid = [Function(eta)]
+snaps = {0: 0.0, 1: 525.0, 2: 1365.0, 3: 2772.0, 4: 3255.0, 5: 4200.0}
 
 # Initialise arrays for storage:
 sig_eta = np.zeros((int(T*dt/ndump)+1, nx+1))       # \ Dimension
@@ -133,66 +132,21 @@ while (t < T - 0.5*dt):
         if (vid == 'y'):
             eta_vid.append(Function(eta))
     # Dump snapshot data:
-    if (t in (525.0, 1365.0, 2772.0, 3655.0, 4200.0)):
+    if (t in snaps.values()):
         eta_snapshots.append(Function(eta))
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
 ######################## FORWARD PLOTTING #############################
 
-fig2 = plt.figure(2)
-plot(eta_snapshots[0])
-plt.title('Surface at t = 0 seconds')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
-plt.ylim([-0.4, 0.5])
-fig2.savefig('tsunami_outputs/screenshots/forward_t=0.png')
-plt.close(fig2)
-
-fig3 = plt.figure(3)
-plot(eta_snapshots[1])
-plt.title('Surface at t = 525 seconds')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
-plt.ylim([-0.4, 0.5])
-fig3.savefig('tsunami_outputs/screenshots/forward_t=525.png')
-plt.close(fig3)
-
-fig4 = plt.figure(4)
-plot(eta_snapshots[2])
-plt.title('Surface at t = 1365 seconds')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
-plt.ylim([-0.4, 0.5])
-fig4.savefig('tsunami_outputs/screenshots/forward_t=1365.png')
-plt.close(fig4)
-
-fig5 = plt.figure(5)
-plot(eta_snapshots[3])
-plt.title('Surface at t = 2772 seconds')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
-plt.ylim([-0.4, 0.5])
-fig5.savefig('tsunami_outputs/screenshots/forward_t=2772.png')
-plt.close(fig5)
-
-fig6 = plt.figure(6)
-plot(eta_snapshots[4])
-plt.title('Surface at t = 3255 seconds')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
-plt.ylim([-0.4, 0.5])
-fig6.savefig('tsunami_outputs/screenshots/forward_t=3255.png')
-plt.close(fig6)
-
-fig7 = plt.figure(7)
-plot(eta_snapshots[5])
-plt.title('Surface at t = 4200 seconds')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
-plt.ylim([-0.4, 0.5])
-fig7.savefig('tsunami_outputs/screenshots/forward_t=4200.png')
-plt.close(fig7)
+for k in snaps:
+    plot(eta_snapshots[k])
+    plt.title('Surface at t = {y} seconds'.format(y=snaps[k]))
+    plt.xlabel('Distance offshore (m)')
+    plt.ylabel('Free surface displacement (m)')
+    plt.ylim([-0.4, 0.5])
+    plt.savefig('tsunami_outputs/screenshots/forward_t={y}.png'\
+                .format(y=int(snaps[k])))
 
 ################### ADJOINT 'INITIAL' CONDITIONS ######################
 
@@ -292,98 +246,44 @@ while (t > 0):
         if (vid == 'y'):
             le_vid.append(Function(le))
     # Dump snapshot data:
-    if (t in (0.0, 525.0, 1365.0, 2772.0, 3655.0)):
+    if (t in snaps.values()):
         le_snapshots.append(Function(le))
 
 ######################## BACKWARD PLOTTING ############################
 
-fig8 = plt.figure(8)
-plot(le_snapshots[0])
-plt.title('Adjoint at t = 4200 seconds')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
-plt.ylim([-0.4, 0.5])
-fig8.savefig('tsunami_outputs/screenshots/adjoint_t=4200.png')
-plt.close(fig8)
+for k in snaps:
+    plot(le_snapshots[k])
+    plt.title('Surface at t = {y} seconds'.format(y=snaps[k]))
+    plt.xlabel('Distance offshore (m)')
+    plt.ylabel('Free surface displacement (m)')
+    plt.ylim([-0.4, 0.5])
+    plt.savefig('tsunami_outputs/screenshots/adjoint_t={y}.png' \
+                .format(y=int(snaps[k])))
 
-fig9 = plt.figure(9)
-plot(le_snapshots[1])
-plt.title('Adjoint at t = 3255 seconds')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
-plt.ylim([-0.4, 0.5])
-fig9.savefig('tsunami_outputs/screenshots/adjoint_t=3255.png')
-plt.close(fig9)
-
-fig10 = plt.figure(10)
-plot(le_snapshots[2])
-plt.title('Adjoint at t = 2772 seconds')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
-plt.ylim([-0.4, 0.5])
-fig10.savefig('tsunami_outputs/screenshots/adjoint_t=2772.png')
-plt.close(fig10)
-
-fig11 = plt.figure(11)
-plot(le_snapshots[3])
-plt.title('Adjoint at t = 1365 seconds')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
-plt.ylim([-0.4, 0.5])
-fig11.savefig('tsunami_outputs/screenshots/adjoint_t=1365.png')
-plt.close(fig11)
-
-fig12 = plt.figure(12)
-plot(le_snapshots[4])
-plt.title('Adjoint at t = 525 seconds')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
-plt.ylim([-0.4, 0.5])
-fig12.savefig('tsunami_outputs/screenshots/adjoint_t=525.png')
-plt.close(fig12)
-
-fig13 = plt.figure(13)
-plot(le_snapshots[5])
-plt.title('Adjoint at t = 0 seconds')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
-plt.ylim([-0.4, 0.5])
-fig13.savefig('tsunami_outputs/screenshots/adjoint_t=0.png')
-plt.close(fig13)
-
-fig14 = plt.figure(14)
+fig = plt.figure()
 plt.pcolor(sig_eta)
 plt.title('Forward problem')
 plt.xlabel('Distance offshore (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.axis([0, nx+1, 0, int(T*dt/ndump)])
-plt.show()
-fig14.savefig('tsunami_outputs/screenshots/significant_forward.png')
-plt.close(fig14)
+fig.savefig('tsunami_outputs/screenshots/significant_forward.png')
 
-fig15 = plt.figure(15)
 plt.pcolor(sig_le)
 plt.title('Adjoint problem')
 plt.xlabel('Distance offshore (m)')
 plt.ylabel('Free surface displacement (m)')
 plt.axis([0, nx+1, 0, int(T*dt/ndump)])
-plt.show()
-fig15.savefig('tsunami_outputs/screenshots/significant_adjoint.png')
-plt.close(fig15)
+fig.savefig('tsunami_outputs/screenshots/significant_adjoint.png')
 
-fig16 = plt.figure(16)
 plt.pcolor(q_dot_lam)
 plt.title('Domain of dependence')
 plt.xlabel('Distance offshore (m)')
 plt.ylabel('Forward-adjoint inner product (m^2)')
 plt.axis([0, nx+1, 0, int(T*dt/ndump)])
-plt.show()
-fig16.savefig('tsunami_outputs/screenshots/domain_of_dependence.png')
-plt.close(fig16)
+fig.savefig('tsunami_outputs/screenshots/domain_of_dependence.png')
 
 ######################### VIDEO PLOTTING ##############################
 
-plt.figure(17)
 if (vid == 'y'):
     plot(eta_vid)
     plt.xlabel('Distance offshore (m)')
@@ -391,7 +291,6 @@ if (vid == 'y'):
     plt.ylim([-0.4, 0.5])
     plt.show()
 
-plt.figure(18)
 if (vid == 'y'):
     plot(le_vid)
     plt.xlabel('Distance offshore (m)')

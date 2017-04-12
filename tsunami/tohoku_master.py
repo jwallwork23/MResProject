@@ -232,17 +232,16 @@ elif (mode == 'n'):
 t = 0.0
 dumpn = 0
 ufile.write(u, eta, time=t)
-eta_vals = np.zeros((int(T*dt/ndump+1, nx+1))
-u_vals = np.zeros((int(T*dt/ndump+1, 2*nx+1))   # TODO : what form is dat.data?
+##eta_vals = np.zeros((int(T*dt/ndump+1, nx+1))
+##u_vals = np.zeros((int(T*dt/ndump+1, 2*nx+1))  # TODO : what form is dat.data?
 i = 0
-eta_vals[i,:] = eta.dat.data
-u_vals[i,:] = u.dat.data
+##eta_vals[i,:] = eta.dat.data
+##u_vals[i,:] = u.dat.data
 
 def standalone_timeloop(t, T, dt, ndump, dumpn):
     while (t < T - 0.5*dt):     
         t += dt
         print 't = ', t/60, ' mins'
-## CALCULATE log_2(eta_max) to evaluate damage at coast
         usolver.solve()
         q_.assign(q)
         dumpn += 1
@@ -251,8 +250,9 @@ def standalone_timeloop(t, T, dt, ndump, dumpn):
             dumpn -= ndump
             i += 1
             ufile.write(u, eta, time=t)
-            eta_vals[i,:] = eta.dat.data
-            u_vals[i,:] = u.dat.data        # TODO : this will need changing
+##            eta_vals[i,:] = eta.dat.data
+##            u_vals[i,:] = u.dat.data        # TODO : this will need changing
+## TODO: Use eta_vals to calculate log_2(eta_max) ~ evaluate damage at coast
 
 # Enter the timeloop:
 wrapped = wrapper(standalone_timeloop, t, T, dt, ndump, dumpn)

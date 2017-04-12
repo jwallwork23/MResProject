@@ -231,11 +231,11 @@ elif (bath == 'y'):
 t = 0.0
 dumpn = 0
 ufile.write(u, eta, time=t)
-eta_vals = np.zeros((int(T*dt/ndump+1, nx+1))
-u_vals = np.zeros((int(T*dt/ndump+1, 2*nx+1))   # TODO : what form is dat.data?
+#eta_vals = np.zeros((int(T*dt/ndump+1, nx+1)))
+##u_vals = np.zeros((int(T*dt/ndump+1, 14701, 2))   # TODO : what form is dat.data?
 i = 0
-eta_vals[i,:] = eta.dat.data
-u_vals[i,:] = u.dat.data
+##eta_vals[i,:] = eta.dat.data
+##u_vals[i,:,:] = u.dat.data
 
 if (compare != 't'):
     # Enter the timeloop:
@@ -252,8 +252,8 @@ if (compare != 't'):
             dumpn -= ndump
             i += 1
             ufile.write(u, eta, time=t)
-            eta_vals[i,:] = eta.dat.data
-            u_vals[i,:] = u.dat.data            # TODO : this will need changing
+##            eta_vals[i,:] = eta.dat.data
+##            u_vals[i,:] = u.dat.data      # TODO : this will need changing
 
 ############################ THETIS SETUP #############################
 
@@ -311,7 +311,7 @@ if (compare != 's'):
     else:
         solver_obj.iterate()
 
-# Output data for Thetis solver, too
+# TODO: Output data for Thetis solver, too
 
 ########################### EVALUATE ERROR ############################
 

@@ -260,7 +260,21 @@ for k in snaps:
     plt.savefig('tsunami_outputs/screenshots/adjoint_t={y}.png' \
                 .format(y=int(snaps[k])))
 
-fig = plt.figure()
+##plt.figure()
+##fig, axes = plt.subplots(6, 2)
+##k = 0
+##for row in axes:
+##    row[0].plot(eta_snapshots[k])
+##    row[0].set_title('Surface at t = {y} seconds'.format(y=snaps[k]))
+##    row[1].plot(le_snapshots[k])
+##    row[1].set_title('Surface at t = {y} seconds'.format(y=snaps[k]))
+##    plt.xlabel('Distance offshore (m)')
+##    plt.ylabel('Free surface displacement (m)')
+##    plt.ylim([-0.4, 0.5])
+##    k += 1
+##plt.savefig('tsunami_outputs/screenshots/subplots.png')
+
+plt.clf()
 plt.pcolor(sig_eta)
 plt.title('Forward problem')
 plt.xlabel('Distance offshore (m)')
@@ -268,6 +282,7 @@ plt.ylabel('Free surface displacement (m)')
 plt.axis([0, nx+1, 0, int(T*dt/ndump)])
 fig.savefig('tsunami_outputs/screenshots/significant_forward.png')
 
+plt.clf()
 plt.pcolor(sig_le)
 plt.title('Adjoint problem')
 plt.xlabel('Distance offshore (m)')
@@ -275,6 +290,7 @@ plt.ylabel('Free surface displacement (m)')
 plt.axis([0, nx+1, 0, int(T*dt/ndump)])
 fig.savefig('tsunami_outputs/screenshots/significant_adjoint.png')
 
+plt.clf()
 plt.pcolor(q_dot_lam)
 plt.title('Domain of dependence')
 plt.xlabel('Distance offshore (m)')

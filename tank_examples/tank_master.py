@@ -235,11 +235,13 @@ elif (bath == 'y'):
 t = 0.0
 dumpn = 0
 ufile.write(u, eta, time=t)
-#eta_vals = np.zeros((int(T*dt/ndump+1), nx+1)))
-##u_vals = np.zeros((int(T*dt/ndump+1), 14701, 2))   # TODO : what form is dat.data?
+
+# Initialise arrays for storage:
+eta_vals = np.zeros((int(T/(ndump*dt))+1, 3751))      # \ TODO: Make these
+u_vals = np.zeros((int(T/(ndump*dt))+1, 14701, 2))    # / more general
 i = 0
-##eta_vals[i,:] = eta.dat.data
-##u_vals[i,:,:] = u.dat.data
+eta_vals[i,:] = eta.dat.data
+u_vals[i,:,:] = u.dat.data
 
 if (compare != 't'):
     # Enter the timeloop:
@@ -256,8 +258,8 @@ if (compare != 't'):
             dumpn -= ndump
             i += 1
             ufile.write(u, eta, time=t)
-##            eta_vals[i,:] = eta.dat.data
-##            u_vals[i,:] = u.dat.data      # TODO : this will need changing
+            eta_vals[i,:] = eta.dat.data
+            u_vals[i,:,:] = u.dat.data
 
 ############################ THETIS SETUP #############################
 
@@ -318,7 +320,7 @@ if (compare != 's'):
     t_eta_vals[i,:] = eta_out.dat.data
     t_u_vals[i,:] = u_out.dat.data
 
-    # TODO : make this work properly. Note function spaces are not P2-P1
+    # TODO : make this work properly
     print 'i = ',i, ' dumpn = ',dumpn
     def save_thetis():
         '''A function which saves raw solution data to matrix format
@@ -354,6 +356,10 @@ if (compare != 's'):
     
 ########################### EVALUATE ERROR ############################
 
-# TODO: Get save_thetis function to work properly and figure out the
-#       formats of u_vals.dat.data and eta_vals.dat.data in the 2D case
+# TODO: Get save_thetis function to work properly. One forseeable issue
+#       is the difference in formats of u_vals.dat.data and
+#       eta_vals.dat.data for the standalone and Thetis cases. This is
+#       due to the differences in function spaces used. Two options are
+#       interpolating Thetis solutions onto the P2-P1 space, or
+#       changing the function space of the standalone solver.
 

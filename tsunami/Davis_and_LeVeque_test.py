@@ -5,11 +5,11 @@ import numpy as np
 ############################ PARAMETERS ###############################
 
 # Specify problem parameters:
-dt = float(raw_input('Specify timestep (default 1): ')) or 1.
+dt = float(raw_input('Specify timestep (default 1): ') or 1.)
 Dt = Constant(dt)
-n = float(raw_input('Specify no. of cells per m (default 1e-3): ')) \
-    or 1e-3
-T = int(raw_input('Specify duration in s (default 4200): ')) or 4200
+n = float(raw_input('Specify no. of cells per m (default 1e-3): ') \
+    or 1e-3)
+T = float(raw_input('Specify duration in s (default 4200): ') or 4200.)
 tol = float(raw_input( \
     'Specify significance tolerance (default 0.1): ') or 0.1)
 vid = raw_input('Show video output? (y/n, default n): ') or 'n'

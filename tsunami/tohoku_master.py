@@ -98,17 +98,25 @@ def wrapper(func, *args, **kwargs):
 ########################### PARAMETERS ################################
 
 # Specify solver parameters:
-mode = raw_input('Use linear or nonlinear equations? (l/n): ') or 'l'
-if ((mode != 'l') & (mode != 'n')):
-    raise ValueError('Please try again, choosing l or n.')
+compare = raw_input('Use standalone, Thetis or both? (s/t/b): ') or 's'
+if ((compare != 's') & (compare != 't') & (compare != 'b')):
+    raise ValueError('Please try again, choosing s, t or b.')
+if (compare != 't'):
+    mode = raw_input('Use linear or nonlinear equations? (l/n): ') \
+           or 'l'
+    if ((mode != 'l') & (mode != 'n')):
+        raise ValueError('Please try again, choosing l or n.')
+else:
+    mode = 'n/a'
 res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
 if ((res != 'f') & (res != 'm') & (res != 'c')):
     raise ValueError('Please try again, choosing f, m or c.')
-dt = float(raw_input('Specify timestep (s) (default 15):')) or 15.
+dt = float(raw_input('Specify timestep (s) (default 15):') or 15.)
 Dt = Constant(dt)
 ndump = 4
 t_export = ndump * dt
-T = float(raw_input('Specify time period (s) (default 7200):')) or 7200.
+T = float(raw_input('Specify time period (s) (default 7200):') \
+          or 7200.)
 tmode = raw_input('Time-averaging mode? (y/n, default n): ') or 'n'
 if (tmode == 'y'):
     tt = 10
@@ -231,14 +239,17 @@ elif (mode == 'n'):
     ufile = File('tsunami_outputs/tohoku_nonlinear.pvd')
 t = 0.0
 dumpn = 0
-ufile.write(u, eta, time=t)
-##eta_vals = np.zeros((int(T*dt/ndump+1, nx+1))
-##u_vals = np.zeros((int(T*dt/ndump+1, 2*nx+1))  # TODO : what form is dat.data?
 i = 0
-##eta_vals[i,:] = eta.dat.data
-##u_vals[i,:] = u.dat.data
+ufile.write(u, eta, time=t)
+
+# Initialise arrays for storage:
+eta_vals = np.zeros((int(T/(ndump*dt)+1, 1099))   # \ TODO: Make these 
+u_vals = np.zeros((int(T/(ndump*dt)+1, 4067, 2))  # / more general
+eta_vals[i,:] = eta.dat.data
+u_vals[i,:,:] = u.dat.data
 
 def standalone_timeloop(t, T, dt, ndump, dumpn):
+    # Enter the timeloop:
     while (t < T - 0.5*dt):     
         t += dt
         print 't = ', t/60, ' mins'
@@ -250,14 +261,14 @@ def standalone_timeloop(t, T, dt, ndump, dumpn):
             dumpn -= ndump
             i += 1
             ufile.write(u, eta, time=t)
-##            eta_vals[i,:] = eta.dat.data
-##            u_vals[i,:] = u.dat.data        # TODO : this will need changing
+            eta_vals[i,:] = eta.dat.data
+            u_vals[i,:,:] = u.dat.data
 ## TODO: Use eta_vals to calculate log_2(eta_max) ~ evaluate damage at coast
 
-# Enter the timeloop:
-wrapped = wrapper(standalone_timeloop, t, T, dt, ndump, dumpn)
-t1 = timeit.timeit(wrapped, number=tt)
-# TODO: Figure out how to reset variables for each run
+if (compare != 't'):
+    wrapped = wrapper(standalone_timeloop, t, T, dt, ndump, dumpn)
+    t1 = timeit.timeit(wrapped, number=tt)
+    # TODO: Figure out how to reset variables for each run
 
 ############################ THETIS SETUP #############################
 
@@ -276,10 +287,11 @@ solver_obj.assign_initial_conditions(elev=eta0)
 def thetis_timeloop():
     solver_obj.iterate()
 
-# TODO: Store data for Thetis approach too
-
 # Run the model:
-t2 = timeit.timeit(thetis_timeloop, number=tt)
+if (compare != 's'):
+    t2 = timeit.timeit(thetis_timeloop, number=tt)
+
+# TODO: Store data for Thetis approach too
 
 ########################### EVALUATE ERROR ############################
 

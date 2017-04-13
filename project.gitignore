@@ -1,0 +1,12 @@
+# Mesh files
+*.msh
+
+# Output files
+*.pvd
+*.vtu
+
+# Weblinks
+*.html
+
+# History files
+*.history

@@ -5,10 +5,11 @@ import numpy as np
 ############################ PARAMETERS ###############################
 
 # Specify problem parameters:
-dt = raw_input('Specify timestep (default 1): ') or 1
+dt = float(raw_input('Specify timestep (default 1): ')) or 1.
 Dt = Constant(dt)
-n = raw_input('Specify no. of cells per m (default 1e-3): ') or 1e-3
-T = raw_input('Specify duration in s (default 4200): ') or 4200
+n = float(raw_input('Specify no. of cells per m (default 1e-3): ')) \
+    or 1e-3
+T = int(raw_input('Specify duration in s (default 4200): ')) or 4200
 tol = float(raw_input( \
     'Specify significance tolerance (default 0.1): ') or 0.1)
 vid = raw_input('Show video output? (y/n, default n): ') or 'n'
@@ -46,6 +47,7 @@ eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? \
 b = Function(Vq.sub(1), name = 'Bathymetry')
 b.interpolate(Expression('x[0] <= 50000.0 ? -200.0 : -4000.0'))
 plot(b)
+plt.gcf().subplots_adjust(bottom=0.15)
 plt.xlabel('Distance offshore (m)')
 plt.ylabel('Bathymetry profile (m)')
 plt.ylim([-5000.0, 0.0])
@@ -102,9 +104,9 @@ eta_vid = [Function(eta)]
 snaps = {0: 0.0, 1: 525.0, 2: 1365.0, 3: 2772.0, 4: 3255.0, 5: 4200.0}
 
 # Initialise arrays for storage:
-sig_eta = np.zeros((int(T*dt/ndump)+1, nx+1))       # \ Dimension
-mu_vals = np.zeros((int(T*dt/ndump)+1, 2*nx+1))     # | pre-allocated
-eta_vals = np.zeros((int(T*dt/ndump)+1, nx+1))      # / for speed
+sig_eta = np.zeros((int(T/(ndump*dt))+1, nx+1))     # \ Dimension
+mu_vals = np.zeros((int(T/(ndump*dt))+1, 2*nx+1))   # | pre-allocated
+eta_vals = np.zeros((int(T/(ndump*dt))+1, nx+1))    # / for speed
 mu_vals[i,:] = mu.dat.data
 eta_vals[i,:] = eta.dat.data
 
@@ -141,6 +143,7 @@ print 'Forward problem solved.... now for the adjoint problem.'
 
 for k in snaps:
     plot(eta_snapshots[k])
+    plt.gcf().subplots_adjust(bottom=0.15)
     plt.title('Surface at t = {y} seconds'.format(y=snaps[k]))
     plt.xlabel('Distance offshore (m)')
     plt.ylabel('Free surface displacement (m)')
@@ -199,10 +202,10 @@ le_snapshots = [Function(le)]
 le_vid = [Function(le)]
 
 # Initialise arrays for storage
-sig_le = np.zeros((int(T*dt/ndump)+1, nx+1))        # \ Dimension
-lm_vals = np.zeros((int(T*dt/ndump)+1, 2*nx+1))     # | pre-allocated
-le_vals = np.zeros((int(T*dt/ndump)+1, nx+1))       # | for speed
-q_dot_lam = np.zeros((int(T*dt/ndump)+1, nx+1))     # /
+sig_le = np.zeros((int(T/(ndump*dt))+1, nx+1))      # \ Dimension
+lm_vals = np.zeros((int(T/(ndump*dt))+1, 2*nx+1))   # | pre-allocated
+le_vals = np.zeros((int(T/(ndump*dt))+1, nx+1))     # | for speed
+q_dot_lam = np.zeros((int(T/(ndump*dt))+1, nx+1))   # /
 lm_vals[i,:] = lm.dat.data
 le_vals[i,:] = le.dat.data
 
@@ -253,6 +256,7 @@ while (t > 0):
 
 for k in snaps:
     plot(le_snapshots[k])
+    plt.gcf().subplots_adjust(bottom=0.15)
     plt.title('Surface at t = {y} seconds'.format(y=snaps[k]))
     plt.xlabel('Distance offshore (m)')
     plt.ylabel('Free surface displacement (m)')
@@ -260,7 +264,6 @@ for k in snaps:
     plt.savefig('tsunami_outputs/screenshots/adjoint_t={y}.png' \
                 .format(y=int(snaps[k])))
 
-##plt.figure()
 ##fig, axes = plt.subplots(6, 2)
 ##k = 0
 ##for row in axes:
@@ -274,28 +277,32 @@ for k in snaps:
 ##    k += 1
 ##plt.savefig('tsunami_outputs/screenshots/subplots.png')
 
+fig = plt.figure()
 plt.clf()
-plt.pcolor(sig_eta)
+plt.pcolor(sig_eta, cmap='gray')
+plt.gcf().subplots_adjust(bottom=0.15)
 plt.title('Forward problem')
 plt.xlabel('Distance offshore (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.axis([0, nx+1, 0, int(T*dt/ndump)])
+plt.axis([0, nx+1, 0, int(T/(ndump*dt))])
 fig.savefig('tsunami_outputs/screenshots/significant_forward.png')
 
 plt.clf()
-plt.pcolor(sig_le)
+plt.pcolor(sig_le, cmap='gray')
+plt.gcf().subplots_adjust(bottom=0.15)
 plt.title('Adjoint problem')
 plt.xlabel('Distance offshore (m)')
 plt.ylabel('Free surface displacement (m)')
-plt.axis([0, nx+1, 0, int(T*dt/ndump)])
+plt.axis([0, nx+1, 0, int(T/(ndump*dt))])
 fig.savefig('tsunami_outputs/screenshots/significant_adjoint.png')
 
 plt.clf()
-plt.pcolor(q_dot_lam)
+plt.pcolor(q_dot_lam, cmap='gray')
+plt.gcf().subplots_adjust(bottom=0.15)
 plt.title('Domain of dependence')
 plt.xlabel('Distance offshore (m)')
 plt.ylabel('Forward-adjoint inner product (m^2)')
-plt.axis([0, nx+1, 0, int(T*dt/ndump)])
+plt.axis([0, nx+1, 0, int(T/(ndump*dt))])
 fig.savefig('tsunami_outputs/screenshots/domain_of_dependence.png')
 
 ######################### VIDEO PLOTTING ##############################

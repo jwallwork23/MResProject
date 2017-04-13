@@ -104,11 +104,11 @@ if ((mode != 'l') & (mode != 'n')):
 res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
 if ((res != 'f') & (res != 'm') & (res != 'c')):
     raise ValueError('Please try again, choosing f, m or c.')
-dt = float(raw_input('Specify timestep (s) (default 15):') or 15)
+dt = float(raw_input('Specify timestep (s) (default 15):')) or 15.
 Dt = Constant(dt)
 ndump = 4
 t_export = ndump * dt
-T = float(raw_input('Specify time period (s) (default 7200):') or 7200)
+T = float(raw_input('Specify time period (s) (default 7200):')) or 7200.
 tmode = raw_input('Time-averaging mode? (y/n, default n): ') or 'n'
 if (tmode == 'y'):
     tt = 10
@@ -131,11 +131,11 @@ elif (res == 'm'):
     mesh_converter('meshes/LonLatTohokuMedium.msh', 143., 37.)
 elif (res == 'c'):
     mesh_converter('meshes/LonLatTohokuCoarse.msh', 143., 37.)
-mesh = Mesh('meshes/CartesianTohoku.msh')     # Japanese coastline
+mesh = Mesh('meshes/CartesianTohoku.msh')       # Japanese coastline
 mesh_coords = mesh.coordinates.dat.data
-Vu = VectorFunctionSpace(mesh, 'CG', 2) # \ Use Taylor-Hood elements
-Ve = FunctionSpace(mesh, 'CG', 1)       # /
-Vq = MixedFunctionSpace((Vu, Ve))       # We have a mixed FE problem
+Vu = VectorFunctionSpace(mesh, 'CG', 2)         # \ Use Taylor-Hood 
+Ve = FunctionSpace(mesh, 'CG', 1)               # / elements
+Vq = MixedFunctionSpace((Vu, Ve))               # Mixed FE problem
 
 # Construct functions to store dependent variables and bathymetry:
 q_ = Function(Vq)  

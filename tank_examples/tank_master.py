@@ -1,6 +1,7 @@
 from firedrake import *
 from thetis import *
 import numpy as np
+import matplotlib.pyplot as plt
 
 ######################### USEFUL FUNCTIONS ############################
 
@@ -71,7 +72,8 @@ compare = raw_input('Use standalone, Thetis or both? (s/t/b): ') or 's'
 if ((compare != 's') & (compare != 't') & (compare != 'b')):
     raise ValueError('Please try again, choosing s, t or b.')
 if (compare != 't'):
-    mode = raw_input('Use linear or nonlinear equations? (l/n): ') or 'l'
+    mode = raw_input('Use linear or nonlinear equations? (l/n): ') \
+           or 'l'
     if ((mode != 'l') & (mode != 'n')):
         raise ValueError('Please try again, choosing l or n.')
 else:
@@ -82,12 +84,14 @@ if ((bath != 'y') & (bath != 'n')):
 waves = raw_input('Consider a wave generator? (y/n): ') or 'n'
 if ((waves != 'y') & (waves != 'n')):
     raise ValueError('Please try again, choosing y or n.')
-n = raw_input('Specify number of cells per m (default 30): ') or 30
-dt = raw_input('Specify timestep (default 0.01): ') or 0.01
+n = int(raw_input('Specify number of cells per m (default 30): ') \
+        or 30)
+dt = float(raw_input('Specify timestep (default 0.01): ') or 0.01)
 Dt = Constant(dt)
 ndump = 10
 t_export = dt*ndump
-T = raw_input('Specify simulation duration in s (default 40): ') or 40
+T = float(raw_input('Specify simulation duration in s (default 40): ') \
+    or 40.)
 
 # Set physical parameters for the scheme:
 nu = 1e-3           # Viscosity (kg s^{-1} m^{-1})
@@ -111,9 +115,9 @@ mesh = RectangleMesh(nx, ny, lx, ly)
 x = SpatialCoordinate(mesh)
 
 # Define function spaces:
-Vu  = VectorFunctionSpace(mesh, 'CG', 2)    # Use Taylor-Hood elements
-Ve = FunctionSpace(mesh, 'CG', 1)           
-Vq = MixedFunctionSpace((Vu, Ve))            
+Vu  = VectorFunctionSpace(mesh, 'CG', 2)    # \ Use Taylor-Hood
+Ve = FunctionSpace(mesh, 'CG', 1)           # / elements
+Vq = MixedFunctionSpace((Vu, Ve))
 
 # Construct a function to store our two variables at time n:
 q_ = Function(Vq)       
@@ -231,8 +235,8 @@ elif (bath == 'y'):
 t = 0.0
 dumpn = 0
 ufile.write(u, eta, time=t)
-#eta_vals = np.zeros((int(T*dt/ndump+1, nx+1)))
-##u_vals = np.zeros((int(T*dt/ndump+1, 14701, 2))   # TODO : what form is dat.data?
+#eta_vals = np.zeros((int(T*dt/ndump+1), nx+1)))
+##u_vals = np.zeros((int(T*dt/ndump+1), 14701, 2))   # TODO : what form is dat.data?
 i = 0
 ##eta_vals[i,:] = eta.dat.data
 ##u_vals[i,:,:] = u.dat.data
@@ -305,15 +309,51 @@ if (compare != 's'):
             forcing fields"""
             tide_flux_const.assign(wave_machine(t_new, A, p, in_flux))
 
+    dumpn = 0
+    i = 0
+    t_eta_vals = np.zeros((int(T/(ndump*dt))+1, 21600))   # \ TODO: make
+    t_u_vals = np.zeros((int(T/(ndump*dt))+1, 36300))     # / more general
+    eta_out = solver_obj.fields.solution_2d.split()[1]
+    u_out = solver_obj.fields.solution_2d.split()[0]
+    t_eta_vals[i,:] = eta_out.dat.data
+    t_u_vals[i,:] = u_out.dat.data
+
+    # TODO : make this work properly. Note function spaces are not P2-P1
+    print 'i = ',i, ' dumpn = ',dumpn
+    def save_thetis():
+        '''A function which saves raw solution data to matrix format
+        for error analysis purposes'''
+        global dumpn
+        global ndump
+        global i
+        dumpn += 1
+        print 'i = ',i, ' dumpn = ',dumpn
+        if (dumpn == ndump):
+            dumpn -= ndump
+            i += 1
+            eta_out = solver_obj.fields.solution_2d.split()[1]
+            u_out = solver_obj.fields.solution_2d.split()[0]
+            t_eta_vals[i,:] = eta_out.dat.data
+            t_u_vals[i,:] = u_out.dat.data
+
     # Run the model:
     if (waves == 'y'):
-        solver_obj.iterate(update_forcings=update_forcings)
+        solver_obj.iterate(update_forcings=update_forcings, \
+                           export_func=save_thetis())
     else:
-        solver_obj.iterate()
+        solver_obj.iterate(export_func=save_thetis())
 
-# TODO: Output data for Thetis solver, too
-
+    # For testing/visualisation purposes
+    plt.pcolor(t_eta_vals)
+    plt.axis([0, 21600, 0, int(T/(ndump*dt))])
+    plt.show()
+    plt.clf()
+    plt.pcolor(t_u_vals)
+    plt.axis([0, 36300, 0, int(T/(ndump*dt))])
+    plt.show()
+    
 ########################### EVALUATE ERROR ############################
 
-# TODO
+# TODO: Get save_thetis function to work properly and figure out the
+#       formats of u_vals.dat.data and eta_vals.dat.data in the 2D case
 

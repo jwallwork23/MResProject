@@ -1,6 +1,9 @@
 from firedrake import *
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import rc
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+rc('text', usetex=True)
 
 ############################ PARAMETERS ###############################
 
@@ -46,11 +49,15 @@ eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? \
 # Interpolate and plot bathymetry:
 b = Function(Vq.sub(1), name = 'Bathymetry')
 b.interpolate(Expression('x[0] <= 50000.0 ? -200.0 : -4000.0'))
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
 plot(b)
+plt.axvline(5e4, linestyle=':', color='black')
 plt.gcf().subplots_adjust(bottom=0.15)
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Bathymetry profile (m)')
+plt.xlabel(r'Distance offshore (m)')
+plt.ylabel(r'Bathymetry profile (m)')
 plt.ylim([-5000.0, 0.0])
+plt.xlim(plt.xlim()[::-1])
 plt.savefig('tsunami_outputs/screenshots/bathy.png')
 b.assign(-b)
 
@@ -142,12 +149,16 @@ print 'Forward problem solved.... now for the adjoint problem.'
 ######################## FORWARD PLOTTING #############################
 
 for k in snaps:
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
     plot(eta_snapshots[k])
+    plt.axvline(5e4, linestyle=':', color='black')
     plt.gcf().subplots_adjust(bottom=0.15)
-    plt.title('Surface at t = {y} seconds'.format(y=snaps[k]))
-    plt.xlabel('Distance offshore (m)')
-    plt.ylabel('Free surface displacement (m)')
+    plt.title(r'Surface at t = {y} seconds'.format(y=snaps[k]))
+    plt.xlabel(r'Distance offshore (m)')
+    plt.ylabel(r'Free surface displacement (m)')
     plt.ylim([-0.4, 0.5])
+    plt.xlim(plt.xlim()[::-1])
     plt.savefig('tsunami_outputs/screenshots/forward_t={y}.png'\
                 .format(y=int(snaps[k])))
 
@@ -255,12 +266,16 @@ while (t > 0):
 ######################## BACKWARD PLOTTING ############################
 
 for k in snaps:
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
     plot(le_snapshots[k])
+    plt.axvline(5e4, linestyle=':', color='black')
     plt.gcf().subplots_adjust(bottom=0.15)
-    plt.title('Surface at t = {y} seconds'.format(y=snaps[k]))
-    plt.xlabel('Distance offshore (m)')
-    plt.ylabel('Free surface displacement (m)')
+    plt.title(r'Surface at t = {y} seconds'.format(y=snaps[k]))
+    plt.xlabel(r'Distance offshore (m)')
+    plt.ylabel(r'Free surface displacement (m)')
     plt.ylim([-0.4, 0.5])
+    plt.xlim(plt.xlim()[::-1])
     plt.savefig('tsunami_outputs/screenshots/adjoint_t={y}.png' \
                 .format(y=int(snaps[k])))
 
@@ -274,49 +289,70 @@ for k in snaps:
 ##    plt.xlabel('Distance offshore (m)')
 ##    plt.ylabel('Free surface displacement (m)')
 ##    plt.ylim([-0.4, 0.5])
+##    plt.xlim(plt.xlim()[::-1])
 ##    k += 1
 ##plt.savefig('tsunami_outputs/screenshots/subplots.png')
 
 fig = plt.figure()
 plt.clf()
-plt.pcolor(sig_eta, cmap='gray')
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.pcolor(sig_eta, cmap='gray_r')
+plt.axvline(50, linestyle=':', color='black')
 plt.gcf().subplots_adjust(bottom=0.15)
-plt.title('Forward problem')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
+plt.title(r'Forward problem')
+plt.xlabel(r'Distance offshore (km)')
+plt.ylabel(r'Free surface displacement (m)')
 plt.axis([0, nx+1, 0, int(T/(ndump*dt))])
+plt.xlim(plt.xlim()[::-1])
 fig.savefig('tsunami_outputs/screenshots/significant_forward.png')
 
 plt.clf()
-plt.pcolor(sig_le, cmap='gray')
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.pcolor(sig_le, cmap='gray_r')
+plt.axvline(50, linestyle=':', color='black')
 plt.gcf().subplots_adjust(bottom=0.15)
-plt.title('Adjoint problem')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Free surface displacement (m)')
+plt.title(r'Adjoint problem')
+plt.xlabel(r'Distance offshore (km)')
+plt.ylabel(r'Free surface displacement (m)')
 plt.axis([0, nx+1, 0, int(T/(ndump*dt))])
+plt.xlim(plt.xlim()[::-1])
 fig.savefig('tsunami_outputs/screenshots/significant_adjoint.png')
 
 plt.clf()
-plt.pcolor(q_dot_lam, cmap='gray')
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.pcolor(q_dot_lam, cmap='gray_r')
+plt.axvline(50, linestyle=':', color='black')
 plt.gcf().subplots_adjust(bottom=0.15)
-plt.title('Domain of dependence')
-plt.xlabel('Distance offshore (m)')
-plt.ylabel('Forward-adjoint inner product (m^2)')
-plt.axis([0, nx+1, 0, int(T/(ndump*dt))])
+plt.title(r'Domain of dependence')
+plt.xlabel(r'Distance offshore (km)')  
+plt.ylabel(r'Forward-adjoint inner product ($\displaystyle m^2$)')
+plt.axis([0, nx+1, 0, int(T/(ndump*dt))])   # TODO: would be ^^^ nice
+plt.xlim(plt.xlim()[::-1])                  #       to format this...
 fig.savefig('tsunami_outputs/screenshots/domain_of_dependence.png')
 
 ######################### VIDEO PLOTTING ##############################
 
 if (vid == 'y'):
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
     plot(eta_vid)
-    plt.xlabel('Distance offshore (m)')
-    plt.ylabel('Free surface displacement (m)')
+    plt.axvline(5e4, linestyle=':', color='black')
+    plt.xlabel(r'Distance offshore (m)')
+    plt.ylabel(r'Free surface displacement (m)')
     plt.ylim([-0.4, 0.5])
+    plt.xlim(plt.xlim()[::-1])
     plt.show()
 
 if (vid == 'y'):
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
     plot(le_vid)
-    plt.xlabel('Distance offshore (m)')
-    plt.ylabel('Free surface displacement (m)')
+    plt.axvline(5e4, linestyle=':', color='black')
+    plt.xlabel(r'Distance offshore (m)')
+    plt.ylabel(r'Free surface displacement (m)')
     plt.ylim([-0.4, 0.5])
+    plt.xlim(plt.xlim()[::-1])
     plt.show()

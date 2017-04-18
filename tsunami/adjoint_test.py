@@ -9,7 +9,7 @@ dt = float(raw_input('Specify timestep (default 10): ') or 10.)
 Dt = Constant(dt)
 n = float(raw_input('Specify number of cells per m (default 5e-4): ') \
         or 5e-4)
-T = float(raw_input('Simulation duration in s (default 42000): ') \
+T = float(raw_input('Simulation duration in s (default 4200): ') \
           or 4200.)
 
 # Set physical and numerical parameters for the scheme:
@@ -42,7 +42,8 @@ lm_, le_ = lam_.split()
 # Interpolate ICs:
 mu_.interpolate(Expression([0, 0]))
 eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? \
-                             0.4*sin(pi*(x[0]-1e5)*2e-5) : 0.0'))
+                             2*sin(pi*(x[0]-1e5)*2e-5) : 0.0'))
+# NOTE higher magnitude wave ^
 
 # Interpolate bathymetry:
 b = Function(Ve, name = 'Bathymetry')
@@ -197,13 +198,25 @@ while (t > 0):
 # Plot damage measures:
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-plt.plot(m, color='black')
-plt.axis([0, int(T/(ndump*dt)), -1.5, 4.5])
-plt.axhline(0, linestyle='--', color='blue')
-plt.axhline(1, linestyle='--', color='green')
-plt.axhline(2, linestyle='--', color='yellow')
-plt.axhline(3, linestyle='--', color='orange')
-plt.axhline(4, linestyle='--', color='red')
+plt.plot(range(0, int(T)+1, int(ndump*dt)), m, color='black')
+plt.axis([0, T, -1.5, 3.5])
+plt.axhline(-1, linestyle='--', color='blue')
+plt.axhline(0, linestyle='--', color='green')
+plt.axhline(1, linestyle='--', color='yellow')
+plt.axhline(2, linestyle='--', color='orange')
+plt.axhline(3, linestyle='--', color='red')
+plt.annotate('Severe damage', xy=(0.7*T, 3), xytext=(0.72*T, 3.2),
+             arrowprops=dict(facecolor='red', shrink=0.05))
+plt.annotate('Some inland damage', xy=(0.7*T, 2),
+             xytext=(0.72*T, 2.2),
+             arrowprops=dict(facecolor='orange', shrink=0.05))
+plt.annotate('Shore damage', xy=(0.7*T, 1), xytext=(0.72*T, 1.2),
+             arrowprops=dict(facecolor='yellow', shrink=0.05))
+plt.annotate('Very little damage', xy=(0.7*T, 0),
+             xytext=(0.72*T, 0.2),
+             arrowprops=dict(facecolor='green', shrink=0.05))
+plt.annotate('No damage', xy=(0.7*T, -1), xytext=(0.72*T, -0.8),
+             arrowprops=dict(facecolor='blue', shrink=0.05))
 plt.xlabel(r'Time (s)')
 plt.ylabel(r'm (dimensionless)')
 plt.title(r'Damage measures')

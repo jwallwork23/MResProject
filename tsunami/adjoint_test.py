@@ -90,17 +90,17 @@ i = 0
 dumpn = 0
 ufile1.write(mu, eta, time=t)
 
-# Initialise arrays for storage:
-eta_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
-mu_vals = np.zeros((int(T/(ndump*dt))+1, (2*nx+1)*(2*ny+1), 2))
-m = np.zeros((int(T/(ndump*dt))+1, 1))
-eta_vals[i,:] = eta.dat.data
-mu_vals[i,:,:] = mu.dat.data
-m[i] = np.log(max(eta_vals[i, b_nodes]), 2)
-
 # Establish a BC object to get 'coastline'
 bc = DirichletBC(Ve, 0, 1)
 b_nodes = bc.nodes
+
+# Initialise arrays for storage:
+eta_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
+mu_vals = np.zeros((int(T/(ndump*dt))+1, (2*nx+1)*(2*ny+1), 2))
+m = np.zeros((int(T/(ndump*dt))+1))
+eta_vals[i,:] = eta.dat.data
+mu_vals[i,:,:] = mu.dat.data
+m[i] = np.log2(max(max(eta_vals[i, b_nodes]), 0.5))
 
 # Enter the forward timeloop:
 while (t < T - 0.5*dt):     
@@ -117,7 +117,7 @@ while (t < T - 0.5*dt):
         eta_vals[i,:] = eta.dat.data
         
         # Implement damage measures:
-        m[i] = np.log(max(eta_vals[i, b_nodes]), 2)
+        m[i] = np.log2(max(max(eta_vals[i, b_nodes]), 0.5))
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
@@ -194,3 +194,17 @@ while (t > 0):
 
 ############################ PLOTTING ###############################
 
+# Plot damage measures:
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.plot(m, color='black')
+plt.axis([0, int(T/(ndump*dt)), -1.5, 4.5])
+plt.axhline(0, linestyle='--', color='blue')
+plt.axhline(1, linestyle='--', color='green')
+plt.axhline(2, linestyle='--', color='yellow')
+plt.axhline(3, linestyle='--', color='orange')
+plt.axhline(4, linestyle='--', color='red')
+plt.xlabel(r'Time (s)')
+plt.ylabel(r'm (dimensionless)')
+plt.title(r'Damage measures')
+plt.savefig('tsunami_outputs/screenshots/2Ddamage_measures.png')

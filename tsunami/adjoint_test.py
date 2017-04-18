@@ -93,14 +93,14 @@ ufile1.write(mu, eta, time=t)
 # Initialise arrays for storage:
 eta_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
 mu_vals = np.zeros((int(T/(ndump*dt))+1, (2*nx+1)*(2*ny+1), 2))
+m = np.zeros((int(T/(ndump*dt))+1, 1))
 eta_vals[i,:] = eta.dat.data
 mu_vals[i,:,:] = mu.dat.data
+m[i] = np.log(max(eta_vals[i, b_nodes]), 2)
 
-# TODO : what format is this??
-plt.pcolor(eta_vals)
-plt.axis([0,10251,0,1])
-plt.colorbar()
-plt.show()
+# Establish a BC object to get 'coastline'
+bc = DirichletBC(Ve, 0, 1)
+b_nodes = bc.nodes
 
 # Enter the forward timeloop:
 while (t < T - 0.5*dt):     
@@ -108,13 +108,16 @@ while (t < T - 0.5*dt):
     print 't = ', t, ' seconds'
     usolver1.solve()
     q_.assign(q)
-    dumpn += 1              # Dump the data
+    dumpn += 1
     if (dumpn == ndump):
         dumpn -= ndump
         i += 1
         ufile1.write(mu, eta, time=t)
         mu_vals[i,:,:] = mu.dat.data 
-        eta_vals[i,:] = eta.dat.data       
+        eta_vals[i,:] = eta.dat.data
+        
+        # Implement damage measures:
+        m[i] = np.log(max(eta_vals[i, b_nodes]), 2)
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
@@ -188,3 +191,6 @@ while (t > 0):
 ##                         mu_vals[i,0::2,1] * lm_vals[i,0::2,1] + \
 ##                         eta_vals[i,:] * le_vals[i,:]
         ufile2.write(lm, le, time=T-t)   # Note time inversion
+
+############################ PLOTTING ###############################
+

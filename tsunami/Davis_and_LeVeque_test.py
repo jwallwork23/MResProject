@@ -105,9 +105,11 @@ snaps = {0: 0.0, 1: 525.0, 2: 1365.0, 3: 2772.0, 4: 3255.0, 5: 4200.0}
 # Initialise arrays for storage:
 sig_eta = np.zeros((int(T/(ndump*dt))+1, nx+1))     # \ Dimension
 mu_vals = np.zeros((int(T/(ndump*dt))+1, 2*nx+1))   # | pre-allocated
-eta_vals = np.zeros((int(T/(ndump*dt))+1, nx+1))    # / for speed
+eta_vals = np.zeros((int(T/(ndump*dt))+1, nx+1))    # | for speed
+m = np.zeros((int(T/(ndump*dt))+1))                 # /
 mu_vals[i,:] = mu.dat.data
 eta_vals[i,:] = eta.dat.data
+m[i] = np.log2(max(eta_vals[i, 0], 0.5))
 
 # Determine signifiant values (for domain of dependence plot):
 for j in range(nx+1):
@@ -129,9 +131,14 @@ while (t < T - 0.5*dt):
         for j in range(nx+1):
             if ((eta_vals[i,j] >= tol) | (eta_vals[i,j] <= -tol)):
                 sig_eta[i,j] = 1
+                
+        # Implement damage measures:
+        m[i] = np.log2(max(eta_vals[i, 0], 0.5))
+        
         # Dump video data:
         if (vid == 'y'):
             eta_vid.append(Function(eta))
+            
     # Dump snapshot data:
     if (t in snaps.values()):
         eta_snapshots.append(Function(eta))
@@ -240,6 +247,7 @@ while (t > 0):
 ############################ PLOTTING ###############################
 
 if (vid == 'y'):
+    # Plot solution videos:
     for k in (eta_vid, le_vid):
         plt.rc('text', usetex=True)
         plt.rc('font', family='serif')
@@ -251,6 +259,7 @@ if (vid == 'y'):
         plt.xlim(plt.xlim()[::-1])
         plt.show()
 else:
+    # Plot bathymetry profile:
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
     b.assign(-b)
@@ -264,6 +273,7 @@ else:
     plt.savefig('tsunami_outputs/screenshots/bathy.png')
 
     for k in snaps:
+        # Plot forward solutions:
         plt.rc('text', usetex=True)
         plt.rc('font', family='serif')
         plot(eta_snapshots[k])
@@ -276,6 +286,7 @@ else:
         plt.xlim(plt.xlim()[::-1])
         plt.savefig('tsunami_outputs/screenshots/forward_t={y}.png'\
                 .format(y=int(snaps[k])))
+        # Plot adjoint solutions:
         plt.clf()
         plt.rc('text', usetex=True)
         plt.rc('font', family='serif')
@@ -293,6 +304,7 @@ else:
     plots = {'Forward' : sig_eta, 'Adjoint' : sig_le, \
              'Domain of dependence' : q_dot_lam}
 
+    # Make significance and domain-of-dependence plots:
     for k in plots:
         plt.rc('text', usetex=True)
         plt.rc('font', family='serif')
@@ -313,3 +325,14 @@ else:
             plt.title(r'{y} problem'.format(y=k))
             plt.savefig('tsunami_outputs/screenshots/sig_{y}.png' \
                     .format(y=k))
+
+    # Plot damage measures:
+    plt.clf()
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    plt.plot(m)
+    plt.xlabel(r'Time (s)')
+    plt.ylabel(r'm (dimensionless)')
+    plt.title(r'Damage measures')
+    plt.savefig('tsunami_outputs/screenshots/damage_measures.png')
+    # TODO : include threshold values

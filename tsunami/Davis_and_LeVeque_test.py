@@ -186,7 +186,7 @@ if (dumpn == 0):
 le_snapshots = [Function(le)]
 le_vid = [Function(le)]
 
-# Initialise arrays for storage
+# Initialise arrays for storage:
 sig_le = np.zeros((int(T/(ndump*dt))+1, nx+1))      # \ Dimension
 lm_vals = np.zeros((int(T/(ndump*dt))+1, 2*nx+1))   # | pre-allocated
 le_vals = np.zeros((int(T/(ndump*dt))+1, nx+1))     # | for speed

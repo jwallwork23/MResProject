@@ -10,11 +10,10 @@ n = float(raw_input('Specify number of cells per m (default 5e-4): ') \
         or 5e-4)
 T = float(raw_input('Simulation duration in s (default 42000): ') \
           or 4200.)
-ndump = int(raw_input('Data dump freq. in timesteps (default 1): ') \
-            or 1)
 
 # Set physical and numerical parameters for the scheme:
 g = 9.81            # Gravitational acceleration
+ndump = 40
 
 ############################## FE SETUP ###############################
 
@@ -90,11 +89,11 @@ i = 0
 dumpn = 0
 ufile1.write(mu, eta, time=t)
 
-### Initialise arrays for storage:
-##eta_vals = np.zeros((int(T/(ndump*dt))+1, 10251))      # \ TODO: Make these
-##mu_vals = np.zeros((int(T/(ndump*dt))+1, 40501, 2))    # / more general
-##eta_vals[i,:] = eta.dat.data
-##mu_vals[i,:,:] = mu.dat.data
+# Initialise arrays for storage:
+eta_vals = np.zeros((int(T/(ndump*dt))+1, 10251))      # \ TODO: Make these
+mu_vals = np.zeros((int(T/(ndump*dt))+1, 40501, 2))    # / more general
+eta_vals[i,:] = eta.dat.data
+mu_vals[i,:,:] = mu.dat.data
 
 # Enter the forward timeloop:
 while (t < T - 0.5*dt):     
@@ -107,8 +106,8 @@ while (t < T - 0.5*dt):
         dumpn -= ndump
         i += 1
         ufile1.write(mu, eta, time=t)
-##        mu_vals[i,:,:] = mu.dat.data 
-##        eta_vals[i,:] = eta.dat.data       
+        mu_vals[i,:,:] = mu.dat.data 
+        eta_vals[i,:] = eta.dat.data       
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
@@ -152,9 +151,22 @@ if (dumpn == 0):
 ufile2 = File('adjoint_test_outputs/linear_adjoint.pvd')
 ufile2.write(lm, le, time=0)
 
+# Initialise arrays for storage:
+le_vals = np.zeros((int(T/(ndump*dt))+1, 10251))        # \ TODO: Make 
+lm_vals = np.zeros((int(T/(ndump*dt))+1, 40501, 2))     # | these more 
+##q_dot_lam = np.zeros((int(T/(ndump*dt))+1, 10251))      # / general
+le_vals[i,:] = le.dat.data
+lm_vals[i,:,:] = lm.dat.data
+
+### Evaluate forward-adjoint inner products (noting mu and lm are in P2,
+### while eta and le are in P1, so we need to evaluate at nodes):
+##q_dot_lam[i,:] = mu_vals[i,0::2,0] * lm_vals[i,0::2,0] + \
+##                 mu_vals[i,0::2,1] * lm_vals[i,0::2,1] + \
+##                 eta_vals[i,:] * le_vals[i,:]
+
 # Enter the backward timeloop:
 while (t > 0):
-    t -= dt*ndump               # Longer timestep due to data dumping
+    t -= dt
     print 't = ', t, ' seconds'
     usolver2.solve()
     lam_.assign(lam)
@@ -163,4 +175,9 @@ while (t > 0):
     if (dumpn == 0):
         dumpn += ndump
         i -= 1
+        lm_vals[i,:] = lm.dat.data
+        le_vals[i,:] = le.dat.data
+##        q_dot_lam[i,:] = mu_vals[i,0::2,0] * lm_vals[i,0::2,0] + \
+##                         mu_vals[i,0::2,1] * lm_vals[i,0::2,1] + \
+##                         eta_vals[i,:] * le_vals[i,:]
         ufile2.write(lm, le, time=T-t)   # Note time inversion

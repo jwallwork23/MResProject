@@ -4,14 +4,14 @@ import numpy as np
 ############################ PARAMETERS ###############################
 
 # Specify problem parameters:
-dt = float(raw_input('Specify timestep (default 1): ') or 1.)
+dt = float(raw_input('Specify timestep (default 10): ') or 10.)
 Dt = Constant(dt)
 n = float(raw_input('Specify number of cells per m (default 5e-4): ') \
         or 5e-4)
 T = float(raw_input('Simulation duration in s (default 42000): ') \
           or 4200.)
-ndump = int(raw_input('Data dump freq. in timesteps (default 40): ') \
-            or 40)
+ndump = int(raw_input('Data dump freq. in timesteps (default 1): ') \
+            or 1)
 
 # Set physical and numerical parameters for the scheme:
 g = 9.81            # Gravitational acceleration
@@ -90,11 +90,11 @@ i = 0
 dumpn = 0
 ufile1.write(mu, eta, time=t)
 
-# Initialise arrays for storage:
-eta_vals = np.zeros((int(T/(ndump*dt))+1, 10251))      # \ TODO: Make these
-mu_vals = np.zeros((int(T/(ndump*dt))+1, 40501, 2))    # / more general
-eta_vals[i,:] = eta.dat.data
-mu_vals[i,:,:] = mu.dat.data
+### Initialise arrays for storage:
+##eta_vals = np.zeros((int(T/(ndump*dt))+1, 10251))      # \ TODO: Make these
+##mu_vals = np.zeros((int(T/(ndump*dt))+1, 40501, 2))    # / more general
+##eta_vals[i,:] = eta.dat.data
+##mu_vals[i,:,:] = mu.dat.data
 
 # Enter the forward timeloop:
 while (t < T - 0.5*dt):     
@@ -107,8 +107,8 @@ while (t < T - 0.5*dt):
         dumpn -= ndump
         i += 1
         ufile1.write(mu, eta, time=t)
-        mu_vals[i,:,:] = mu.dat.data 
-        eta_vals[i,:] = eta.dat.data       
+##        mu_vals[i,:,:] = mu.dat.data 
+##        eta_vals[i,:] = eta.dat.data       
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
@@ -150,22 +150,17 @@ le.rename('Adjoint free surface displacement')
 if (dumpn == 0):
     dumpn = ndump
 ufile2 = File('adjoint_test_outputs/linear_adjoint.pvd')
-ufile2.write(lm, le, time=t)
+ufile2.write(lm, le, time=0)
 
 # Enter the backward timeloop:
 while (t > 0):
-
-    # Update counters:
     t -= dt*ndump               # Longer timestep due to data dumping
-    i -= 1
-    dumpn -= 1
     print 't = ', t, ' seconds'
-
-    # Solve adjoint problem at current timestep:
     usolver2.solve()
     lam_.assign(lam)
-
+    dumpn -= 1
     # Dump data:
-    if (dumpn == ndump):
-        dumpn -= ndump
+    if (dumpn == 0):
+        dumpn += ndump
+        i -= 1
         ufile2.write(lm, le, time=T-t)   # Note time inversion

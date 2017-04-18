@@ -1,13 +1,16 @@
+# Import required libraries:
 from firedrake import *
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rc
+
+# Font formatting:
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 rc('text', usetex=True)
 
 ############################ PARAMETERS ###############################
 
-# Specify problem parameters:
+# User input:
 dt = float(raw_input('Specify timestep (default 1): ') or 1.)
 Dt = Constant(dt)
 n = float(raw_input('Specify no. of cells per m (default 1e-3): ') \
@@ -18,6 +21,8 @@ tol = float(raw_input( \
 vid = raw_input('Show video output? (y/n, default n): ') or 'n'
 if ((vid != 'y') & (vid != 'n')):
     raise ValueError('Please try again, choosing y or n.')
+
+# Set problem parameters:
 g = 9.81                    # Gravitational acceleration (m s^{-2})
 ndump = 40
 
@@ -47,7 +52,7 @@ eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? \
                              0.4*sin(pi*(x[0]-1e5)*2e-5) : 0.0'))
 
 # Interpolate bathymetry:
-b = Function(Vq.sub(1), name = 'Bathymetry')
+b = Function(Ve, name = 'Bathymetry')
 b.interpolate(Expression('x[0] <= 50000.0 ? 200.0 : 4000.0'))
 
 ###################### FORWARD WEAK PROBLEM ###########################
@@ -63,10 +68,8 @@ mu_, eta_ = split(q_)    # / it can be inserted into a UFL expression
 # Establish forms (functions of the forward variable q), noting we only
 # have a linear equation if the stong form is written in terms of a
 # matrix:
-L1 = (
-    (ze * (eta-eta_) - Dt * mu * ze.dx(0) + \
-    (mu-mu_) * nu + Dt * g * b * eta.dx(0) * nu) * dx
-    )
+L1 = (ze * (eta-eta_) - Dt * mu * ze.dx(0) + \
+      (mu-mu_) * nu + Dt * g * b * eta.dx(0) * nu) * dx
 
 # Set up the variational problem:
 uprob1 = NonlinearVariationalProblem(L1, q)
@@ -144,7 +147,7 @@ le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) ? \
 
 ###################### ADJOINT WEAK PROBLEM ###########################
 
-# Establish test functions:
+# Establish test functions and split adjoint variables:
 v, w = TestFunctions(Vq)
 lam = Function(Vq)
 lam.assign(lam_)
@@ -152,10 +155,8 @@ lm, le = split(lam)
 lm_, le_ = split(lam_)
 
 # Establish forms (functions of the adjoint variable lam):
-L2 = (
-    (w * (le-le_) + Dt * g * b * lm * w.dx(0) + \
-    (lm-lm_) * v - Dt * le.dx(0) * v) * dx
-    )
+L2 = (w * (le-le_) + Dt * g * b * lm * w.dx(0) + \
+      (lm-lm_) * v - Dt * le.dx(0) * v) * dx
 
 # Set up the variational problem:
 uprob2 = NonlinearVariationalProblem(L2, lam)
@@ -181,7 +182,7 @@ le.rename('Adjoint free surface displacement')
 
 # Initialise dump counter and function arrays:
 if (dumpn == 0):
-    dumpn = 10
+    dumpn = ndump
 le_snapshots = [Function(le)]
 le_vid = [Function(le)]
 
@@ -238,76 +239,6 @@ while (t > 0):
 
 ############################ PLOTTING ###############################
 
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
-b.assign(-b)
-plot(b)
-plt.axvline(5e4, linestyle='--', color='black')
-plt.gcf().subplots_adjust(bottom=0.15)
-plt.xlabel(r'Distance offshore (m)')
-plt.ylabel(r'Bathymetry profile (m)')
-plt.ylim([-5000.0, 0.0])
-plt.xlim(plt.xlim()[::-1])
-plt.savefig('tsunami_outputs/screenshots/bathy.png')
-
-for k in snaps:
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-    plot(eta_snapshots[k])
-    plt.axvline(5e4, linestyle='--', color='black')
-    plt.gcf().subplots_adjust(bottom=0.15)
-    plt.title(r'Surface at t = {y} seconds'.format(y=snaps[k]))
-    plt.xlabel(r'Distance offshore (m)')
-    plt.ylabel(r'Free surface displacement (m)')
-    plt.ylim([-0.4, 0.5])
-    plt.xlim(plt.xlim()[::-1])
-    plt.savefig('tsunami_outputs/screenshots/forward_t={y}.png'\
-                .format(y=int(snaps[k])))
-    plt.clf()
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-    plot(le_snapshots[k])
-    plt.axvline(5e4, linestyle=':', color='black')
-    plt.gcf().subplots_adjust(bottom=0.15)
-    plt.title(r'Surface at t = {y} seconds'.format(y=snaps[k]))
-    plt.xlabel(r'Distance offshore (m)')
-    plt.ylabel(r'Free surface displacement (m)')
-    plt.ylim([-0.4, 0.5])
-    plt.xlim(plt.xlim()[::-1])
-    plt.savefig('tsunami_outputs/screenshots/adjoint_t={y}.png' \
-                .format(y=int(snaps[k])))
-
-plots = {'Forward' : sig_eta,
-         'Adjoint' : sig_le}
-
-for k in plots:
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-    plt.pcolor(plots[k], cmap='gray_r')
-    plt.axvline(50, linestyle='--', color='black')
-    plt.gcf().subplots_adjust(bottom=0.15)
-    plt.title(r'{y} problem'.format(y=k))
-    plt.xlabel(r'Distance offshore (km)')
-    plt.ylabel(r'Free surface displacement (m)')
-    plt.axis([0, nx+1, 0, int(T/(ndump*dt))])
-    plt.xlim(plt.xlim()[::-1])
-    plt.savefig('tsunami_outputs/screenshots/significant_{y}.png' \
-                .format(y=k))
-
-# TODO: pop this in the above loop
-plt.clf()
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
-plt.pcolor(q_dot_lam, cmap='gray_r')
-plt.axvline(50, linestyle='--', color='black')
-plt.gcf().subplots_adjust(bottom=0.15)
-plt.title(r'Domain of dependence')
-plt.xlabel(r'Distance offshore (km)')  
-plt.ylabel(r'Forward-adjoint inner product ($\displaystyle m^2$)')
-plt.axis([0, nx+1, 0, int(T/(ndump*dt))])   # TODO: would be ^^^ nice
-plt.xlim(plt.xlim()[::-1])                  #       to format this...
-plt.savefig('tsunami_outputs/screenshots/domain_of_dependence.png')
-
 if (vid == 'y'):
     for k in (eta_vid, le_vid):
         plt.rc('text', usetex=True)
@@ -319,3 +250,66 @@ if (vid == 'y'):
         plt.ylim([-0.4, 0.5])
         plt.xlim(plt.xlim()[::-1])
         plt.show()
+else:
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    b.assign(-b)
+    plot(b)
+    plt.axvline(5e4, linestyle='--', color='black')
+    plt.gcf().subplots_adjust(bottom=0.15)
+    plt.xlabel(r'Distance offshore (m)')
+    plt.ylabel(r'Bathymetry profile (m)')
+    plt.ylim([-5000.0, 0.0])
+    plt.xlim(plt.xlim()[::-1])
+    plt.savefig('tsunami_outputs/screenshots/bathy.png')
+
+    for k in snaps:
+        plt.rc('text', usetex=True)
+        plt.rc('font', family='serif')
+        plot(eta_snapshots[k])
+        plt.axvline(5e4, linestyle='--', color='black')
+        plt.gcf().subplots_adjust(bottom=0.15)
+        plt.title(r'Surface at t = {y} seconds'.format(y=snaps[k]))
+        plt.xlabel(r'Distance offshore (m)')
+        plt.ylabel(r'Free surface displacement (m)')
+        plt.ylim([-0.4, 0.5])
+        plt.xlim(plt.xlim()[::-1])
+        plt.savefig('tsunami_outputs/screenshots/forward_t={y}.png'\
+                .format(y=int(snaps[k])))
+        plt.clf()
+        plt.rc('text', usetex=True)
+        plt.rc('font', family='serif')
+        plot(le_snapshots[k])
+        plt.axvline(5e4, linestyle=':', color='black')
+        plt.gcf().subplots_adjust(bottom=0.15)
+        plt.title(r'Surface at t = {y} seconds'.format(y=snaps[k]))
+        plt.xlabel(r'Distance offshore (m)')
+        plt.ylabel(r'Free surface displacement (m)')
+        plt.ylim([-0.4, 0.5])
+        plt.xlim(plt.xlim()[::-1])
+        plt.savefig('tsunami_outputs/screenshots/adjoint_t={y}.png' \
+                    .format(y=int(snaps[k])))
+
+    plots = {'Forward' : sig_eta, 'Adjoint' : sig_le, \
+             'Domain of dependence' : q_dot_lam}
+
+    for k in plots:
+        plt.rc('text', usetex=True)
+        plt.rc('font', family='serif')
+        plt.pcolor(plots[k], cmap='gray_r')
+        plt.axvline(50, linestyle='--', color='black')
+        plt.gcf().subplots_adjust(bottom=0.15)
+        plt.xlabel(r'Distance offshore (km)')
+        plt.axis([0, nx+1, 0, int(T/(ndump*dt))])
+        plt.xlim(plt.xlim()[::-1])
+        if (k == 'Domain of dependence'):
+            plt.ylabel( \
+                r'Forward-adjoint inner product ($\displaystyle m^2$)')
+            plt.title(r'{y}'.format(y=k))
+            plt.savefig( \
+                'tsunami_outputs/screenshots/domain_of_dependence.png')
+        else:
+            plt.ylabel(r'Free surface displacement (m)')
+            plt.title(r'{y} problem'.format(y=k))
+            plt.savefig('tsunami_outputs/screenshots/sig_{y}.png' \
+                    .format(y=k))

@@ -68,7 +68,7 @@ mu_, eta_ = split(q_)    # / it can be inserted into a UFL expression
 # Establish forms (functions of the forward variable q), noting we only
 # have a linear equation if the stong form is written in terms of a
 # matrix:
-L1 = (ze * (eta-eta_) - Dt * mu * ze.dx(0) + \
+L1 = ((eta-eta_) * ze - Dt * mu * ze.dx(0) + \
       (mu-mu_) * nu + Dt * g * b * eta.dx(0) * nu) * dx
 
 # Set up the variational problem:
@@ -155,7 +155,7 @@ lm, le = split(lam)
 lm_, le_ = split(lam_)
 
 # Establish forms (functions of the adjoint variable lam):
-L2 = (w * (le-le_) + Dt * g * b * lm * w.dx(0) + \
+L2 = ((le-le_) * w + Dt * g * b * lm * w.dx(0) + \
       (lm-lm_) * v - Dt * le.dx(0) * v) * dx
 
 # Set up the variational problem:

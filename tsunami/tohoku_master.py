@@ -5,6 +5,7 @@ from scipy.io.netcdf import NetCDFFile
 from math import radians
 import numpy as np
 import timeit
+import matplotlib.pyplot as plt
 
 ########################## VARIOUS FUNCTIONS #########################
 
@@ -107,7 +108,7 @@ if (compare != 't'):
     if ((mode != 'l') & (mode != 'n')):
         raise ValueError('Please try again, choosing l or n.')
 else:
-    mode = 'n/a'
+    mode = 't'
 res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
 if ((res != 'f') & (res != 'm') & (res != 'c')):
     raise ValueError('Please try again, choosing f, m or c.')
@@ -117,13 +118,13 @@ ndump = 4
 t_export = ndump * dt
 T = float(raw_input('Specify time period (s) (default 7200):') \
           or 7200.)
-tmode = raw_input('Time-averaging mode? (y/n, default n): ') or 'n'
-if (tmode == 'y'):
-    tt = 10
-elif (tmode == 'n'):
-    tt = 1
-else:
-    raise ValueError('Please try again, choosing l or n.')
+##tmode = raw_input('Time-averaging mode? (y/n, default n): ') or 'n'
+##if (tmode == 'y'):
+##    tt = 10
+##elif (tmode == 'n'):
+##    tt = 1
+##else:
+##    raise ValueError('Please try again, choosing y or n.')
 
 # Set physical parameters for the scheme:
 nu = 1e-3           # Viscosity (kg s^{-1} m^{-1})
@@ -243,64 +244,110 @@ i = 0
 ufile.write(u, eta, time=t)
 
 # Initialise arrays for storage:
-eta_vals = np.zeros((int(T/(ndump*dt)+1, 1099))   # \ TODO: Make these 
-u_vals = np.zeros((int(T/(ndump*dt)+1, 4067, 2))  # / more general
+eta_vals = np.zeros((int(T/(ndump*dt))+1, 1099))   # \ TODO: Make these 
+u_vals = np.zeros((int(T/(ndump*dt))+1, 4067, 2))  # / more general
 eta_vals[i,:] = eta.dat.data
 u_vals[i,:,:] = u.dat.data
 
-def standalone_timeloop(t, T, dt, ndump, dumpn):
+if (compare != 't'):
     # Enter the timeloop:
     while (t < T - 0.5*dt):     
         t += dt
-        print 't = ', t/60, ' mins'
         usolver.solve()
         q_.assign(q)
         dumpn += 1
         # Dump data:
-        if dumpn == ndump:
+        if (dumpn == ndump):
+            print 't = ', t/60, ' mins'
             dumpn -= ndump
             i += 1
             ufile.write(u, eta, time=t)
             eta_vals[i,:] = eta.dat.data
             u_vals[i,:,:] = u.dat.data
-## TODO: Use eta_vals to calculate log_2(eta_max) ~ evaluate damage at coast
+                  
+# TODO: Implement damage measures
 
-if (compare != 't'):
-    wrapped = wrapper(standalone_timeloop, t, T, dt, ndump, dumpn)
-    t1 = timeit.timeit(wrapped, number=tt)
-    # TODO: Figure out how to reset variables for each run
+##    wrapped = wrapper(standalone_timeloop, t, T, dt, ndump, dumpn)
+##    t1 = timeit.timeit(wrapped, number=tt)
 
 ############################ THETIS SETUP #############################
 
-# Construct solver:
-solver_obj = solver2d.FlowSolver2d(mesh, b)
-options = solver_obj.options
-options.t_export = t_export
-options.t_end = T
-options.timestepper_type = 'backwardeuler'  # Use implicit timestepping
-options.dt = dt
-options.outputdir = 'tsunami_outputs'
-
-# Specify initial surface elevation:
-solver_obj.assign_initial_conditions(elev=eta0)
-
-def thetis_timeloop():
-    solver_obj.iterate()
-
-# Run the model:
 if (compare != 's'):
-    t2 = timeit.timeit(thetis_timeloop, number=tt)
+    # Construct solver:
+    solver_obj = solver2d.FlowSolver2d(mesh, b)
+    options = solver_obj.options
+    options.t_export = t_export
+    options.t_end = T
+    options.outputdir = 'tsunami_outputs'
 
-# TODO: Store data for Thetis approach too
+    # Specify integrator of choice:
+    options.timestepper_type = 'backwardeuler'  # Implicit timestepping
+    options.dt = dt
 
-########################### EVALUATE ERROR ############################
+    # Specify initial surface elevation:
+    solver_obj.assign_initial_conditions(elev=eta0)
 
-# TODO
+    if (compare == 'b'):
+
+        # Re-initialise counters and set up error arrays:
+        dumpn = 0
+        i = 0
+        u_err = np.zeros((int(T/(ndump*dt))+1))
+        eta_err = np.zeros((int(T/(ndump*dt))+1)) 
+
+        # Initialise Taylor-Hood versions of eta and u:
+        eta_t = Function(Ve)
+        u_t = Function(Vu)
+
+        def plot_error():
+            '''A function which approximates the error made by the
+            standalone solver, as compared against Thetis' solution.
+            '''
+            global i
+            # Interpolate functions onto the same spaces:
+            eta_t.interpolate( \
+                solver_obj.fields.solution_2d.split()[1])
+            u_t.interpolate( \
+                solver_obj.fields.solution_2d.split()[0])
+            eta.dat.data[:] = eta_vals[i,:]
+            u.dat.data[:] = u_vals[i,:,:]
+            # Calculate (relative) errors:
+            if ((norm(u_t) > 1e-4) & (norm(eta_t) > 1e-4)):
+                u_err[i] = errornorm(u, u_t)/norm(u_t)
+                eta_err[i] = errornorm(eta, eta_t)/norm(eta_t)
+            else:
+                u_err[i] = errornorm(u, u_t)
+                eta_err[i] = errornorm(eta, eta_t)
+            i += 1
+
+        # Run the model:
+        solver_obj.iterate(export_func=plot_error)
+    else:
+        solver_obj.iterate()
+
+##    t2 = timeit.timeit(thetis_timeloop, number=tt)
+
+############################# PLOT ERROR ##############################
+
+if (compare == 'b'):
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    plt.plot(np.linspace(0, T, int(T/(ndump*dt))+1), u_err,
+             label='Fluid velocity error')
+    plt.plot(np.linspace(0, T, int(T/(ndump*dt))+1), eta_err,
+             label='Free surface error')
+    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+               borderaxespad=0.)
+    plt.xlim([0, 7200])
+    plt.xlabel(r'Time (s)')
+    plt.ylabel(r'Relative L2 error')
+    plt.savefig('tsunami_outputs/screenshots/error_{y1}_{y2}.png'\
+                    .format(y1=mode, y2=res))
 
 ########################## DISPLAY OUTPUTS ############################
-
-if (mode == 'l'):
-    print 'Linear solver time: ', t1, ' seconds'
-elif (mode == 'n'):
-    print 'Nonlinear solver time: ', t1, ' seconds'
-print 'Thetis solver time: ', t2, ' seconds'
+##
+##if (mode == 'l'):
+##    print 'Linear solver time: ', t1, ' seconds'
+##elif (mode == 'n'):
+##    print 'Nonlinear solver time: ', t1, ' seconds'
+##print 'Thetis solver time: ', t2, ' seconds'

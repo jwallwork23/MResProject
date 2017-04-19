@@ -77,7 +77,7 @@ if (compare != 't'):
     if ((mode != 'l') & (mode != 'n')):
         raise ValueError('Please try again, choosing l or n.')
 else:
-    mode = 'n/a'
+    mode = 't'
 bath = raw_input('Consider non-trivial bathymetry? (y/n): ') or 'n'
 if ((bath != 'y') & (bath != 'n')):
     raise ValueError('Please try again, choosing y or n.')
@@ -237,8 +237,8 @@ dumpn = 0
 ufile.write(u, eta, time=t)
 
 # Initialise arrays for storage:
-eta_vals = np.zeros((int(T/(ndump*dt))+1, 3751))      # \ TODO: Make these
-u_vals = np.zeros((int(T/(ndump*dt))+1, 14701, 2))    # / more general
+eta_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
+u_vals = np.zeros((int(T/(ndump*dt))+1, (2*nx+1)*(2*ny+1), 2))
 i = 0
 eta_vals[i,:] = eta.dat.data
 u_vals[i,:,:] = u.dat.data
@@ -262,8 +262,6 @@ if (compare != 't'):
             u_vals[i,:,:] = u.dat.data
 
 ############################ THETIS SETUP #############################
-
-# TODO: Need to change so that case of Thetis alone is accounted for.
 
 if (compare != 's'):
     # Construct solver:
@@ -327,7 +325,8 @@ if (compare != 's'):
 
         def plot_error():
             '''A function which approximates the error made by the
-            standalone, as compared against the Thetis solver.'''
+            standalone solver, as compared against Thetis' solution.
+            '''
             global i
             # Interpolate functions onto the same spaces:
             eta_t.interpolate( \
@@ -336,7 +335,7 @@ if (compare != 's'):
                 solver_obj.fields.solution_2d.split()[0])
             eta.dat.data[:] = eta_vals[i,:]
             u.dat.data[:] = u_vals[i,:,:]
-            # Calculate errors:
+            # Calculate (absolute) errors:
             u_err[i] = errornorm(u, u_t)
             eta_err[i] = errornorm(eta, eta_t)
             i += 1
@@ -364,6 +363,7 @@ if (compare == 'b'):
              label='Free surface error')
     plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
                borderaxespad=0.)
+    plt.xlim([0, 7200])
     plt.xlabel(r'Time (s)')
     plt.ylabel(r'L2 error')
     plt.savefig('tank_outputs/graphs/error_{y1}_{y2}_{y3}.png'\

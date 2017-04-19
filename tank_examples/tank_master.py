@@ -324,14 +324,6 @@ if (compare != 's'):
         # Initialise Taylor-Hood versions of eta and u:
         eta_t = Function(Ve)
         u_t = Function(Vu)
-##        eta_t.interpolate(solver_obj.fields.solution_2d.split()[1])
-##        u_t.interpolate(solver_obj.fields.solution_2d.split()[0])
-##
-##        # Evaluate initial errors:
-##        eta.dat.data[:] = eta_vals[i,:]
-##        u.dat.data[:] = u_vals[i,:,:]
-##        u_err[i] = errornorm(u, u_t)
-##        eta_err[i] = errornorm(eta, eta_t)
 
         def plot_error():
             '''A function which approximates the error made by the
@@ -364,13 +356,15 @@ if (compare != 's'):
 ############################# PLOT ERROR #############################
 
 if (compare == 'b'):
-    Q = {'u' : u_err, 'eta' : eta_err}  
-    for k in Q:
-        plt.rc('text', usetex=True)
-        plt.rc('font', family='serif')
-        plt.plot(np.linspace(0, T, int(T/(ndump*dt))+1), Q[k])
-        plt.title(r'Error plot of {y}'.format(y=k))
-        plt.xlabel(r'Time (s)')
-        plt.ylabel(r'L2 error')
-        plt.savefig('tank_outputs/graphs/{y}_error_{z}.png'.format(y=k,
-                                                               z=mode))
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    plt.plot(np.linspace(0, T, int(T/(ndump*dt))+1), u_err,
+             label='Fluid velocity error')
+    plt.plot(np.linspace(0, T, int(T/(ndump*dt))+1), eta_err,
+             label='Free surface error')
+    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+               borderaxespad=0.)
+    plt.xlabel(r'Time (s)')
+    plt.ylabel(r'L2 error')
+    plt.savefig('tank_outputs/graphs/error_{y1}_{y2}_{y3}.png'\
+                    .format(y1=mode, y2=bath, y3=waves))

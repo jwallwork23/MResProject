@@ -20,10 +20,8 @@ ndump = 5           # Timesteps per data dump
 
 # Define domain and mesh:
 lx = 4e5
-ly = 1e5
 nx = int(lx*n)
-ny = int(ly*n)
-mesh = RectangleMesh(nx, ny, lx, ly)
+mesh = SquareMesh(nx, nx, lx, lx)
 x = SpatialCoordinate(mesh)
 
 # Define function spaces:
@@ -41,9 +39,10 @@ lm_, le_ = lam_.split()
 
 # Interpolate ICs:
 mu_.interpolate(Expression([0, 0]))
-eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? \
-                             2*sin(pi*(x[0]-1e5)*2e-5) : 0.0'))
-# NOTE higher magnitude wave ^
+eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 15e4) \
+                                & (x[1] >= 18e4) & (x[1] <= 22e4) ? \
+                                4 * sin(pi*(x[0]-1e5)/5e4) \
+                                * sin(pi*(x[1]-18e4)/4e4) : 0.0'))
 
 # Interpolate bathymetry:
 b = Function(Ve, name = 'Bathymetry')
@@ -99,8 +98,8 @@ b_nodes = bc.nodes
 V1 = VectorFunctionSpace(mesh, 'CG', 1)
 mu_cg1 = Function(V1)
 mu_cg1.interpolate(mu)
-eta_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
-mu_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1), 2))
+eta_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)**2))
+mu_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)**2, 2))
 m = np.zeros((int(T/(ndump*dt))+1))
 eta_vals[i,:] = eta.dat.data
 mu_vals[i,:,:] = mu_cg1.dat.data
@@ -130,7 +129,8 @@ print 'Forward problem solved.... now for the adjoint problem.'
 
 # Interpolate ICs:
 lm_.interpolate(Expression([0, 0]))
-le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) ? \
+le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) \
+                            & (x[1] >= 18e4) & (x[1] <= 22e4) ? \
                             0.4 : 0.0'))
 
 ###################### ADJOINT WEAK PROBLEM ###########################
@@ -163,9 +163,9 @@ le.rename('Adjoint free surface displacement')
 # Initialise a CG1 version of lm and some arrays for storage:
 lm_cg1 = Function(V1)
 lm_cg1.interpolate(lm)
-le_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
-lm_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1), 2))
-ql_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
+le_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)**2))
+lm_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)**2, 2))
+ql_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)**2))
 q_dot_lam = Function(Ve)
 q_dot_lam.rename('Forward-adjoint inner product')
 le_vals[i,:] = le.dat.data
@@ -235,4 +235,4 @@ plt.annotate('No damage', xy=(0.7*T, -1), xytext=(0.72*T, -0.8),
 plt.xlabel(r'Time (s)')
 plt.ylabel(r'm (dimensionless)')
 plt.title(r'Damage measures')
-plt.savefig('tsunami_outputs/screenshots/2Ddamage_measures.png')
+plt.savefig('adjoint_test_outputs/2Ddamage_measures.png')

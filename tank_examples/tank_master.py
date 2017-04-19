@@ -247,7 +247,6 @@ if (compare != 't'):
     # Enter the timeloop:
     while (t < T - 0.5*dt):     
         t += dt
-        print 't = ', t, ' seconds'
         if (waves == 'y'):
             bcval.assign(wave_machine(t, A, p, in_flux))    # Update BC
         usolver.solve()
@@ -255,6 +254,7 @@ if (compare != 't'):
         dumpn += 1
         # Dump data:
         if (dumpn == ndump):
+            print 't = ', t, ' seconds'
             dumpn -= ndump
             i += 1
             ufile.write(u, eta, time=t)
@@ -262,6 +262,8 @@ if (compare != 't'):
             u_vals[i,:,:] = u.dat.data
 
 ############################ THETIS SETUP #############################
+
+# TODO: Need to change so that case of Thetis alone is accounted for.
 
 if (compare != 's'):
     # Construct solver:
@@ -311,55 +313,70 @@ if (compare != 's'):
             forcing fields"""
             tide_flux_const.assign(wave_machine(t_new, A, p, in_flux))
 
-    dumpn = 0
-    i = 0
-    t_eta_vals = np.zeros((int(T/(ndump*dt))+1, 21600))   # \ TODO: make
-    t_u_vals = np.zeros((int(T/(ndump*dt))+1, 36300))     # / more general
-    eta_out = solver_obj.fields.solution_2d.split()[1]
-    u_out = solver_obj.fields.solution_2d.split()[0]
-    t_eta_vals[i,:] = eta_out.dat.data
-    t_u_vals[i,:] = u_out.dat.data
+    if (compare == 'b'):
 
-    # TODO : make this work properly
-    print 'i = ',i, ' dumpn = ',dumpn
-    def save_thetis():
-        '''A function which saves raw solution data to matrix format
-        for error analysis purposes'''
-        global dumpn
-        global ndump
-        global i
-        dumpn += 1
-        print 'i = ',i, ' dumpn = ',dumpn
-        if (dumpn == ndump):
-            dumpn -= ndump
-            i += 1
-            eta_out = solver_obj.fields.solution_2d.split()[1]
-            u_out = solver_obj.fields.solution_2d.split()[0]
-            t_eta_vals[i,:] = eta_out.dat.data
-            t_u_vals[i,:] = u_out.dat.data
+        # Re-initialise counters and set up error arrays:
+        dumpn = 0
+        i = 0
+        u_err = np.zeros((int(T/(ndump*dt))+1))
+        eta_err = np.zeros((int(T/(ndump*dt))+1)) 
 
-    # Run the model:
-    if (waves == 'y'):
-        solver_obj.iterate(update_forcings=update_forcings, \
-                           export_func=save_thetis())
-    else:
-        solver_obj.iterate(export_func=save_thetis())
+        # Initialise Taylor-Hood versions of eta and u:
+        eta_t = Function(Ve)
+        u_t = Function(Vu)
+        eta_t.interpolate(solver_obj.fields.solution_2d.split()[1])
+        u_t.interpolate(solver_obj.fields.solution_2d.split()[0])
 
-    # For testing/visualisation purposes
-    plt.pcolor(t_eta_vals)
-    plt.axis([0, 21600, 0, int(T/(ndump*dt))])
-    plt.show()
-    plt.clf()
-    plt.pcolor(t_u_vals)
-    plt.axis([0, 36300, 0, int(T/(ndump*dt))])
-    plt.show()
+        # Evaluate initial errors:
+        eta.dat.data[:] = eta_vals[i,:]
+        u.dat.data[:] = u_vals[i,:,:]
+        u_err[i] = errornorm(u, u_t)
+        eta_err[i] = errornorm(eta, eta_t)
+
+        # TODO : make this work properly
+        def plot_error():
+            '''A function which compares '''
+            global dumpn
+            global ndump
+            global i
+            dumpn += 1
+            if (dumpn == ndump):
+                dumpn -= ndump
+                i += 1
+                print 'i = ',i,'dumpn = ',dumpn
+                # Interpolate functions onto the same spaces:
+                eta_t.interpolate( \
+                    solver_obj.fields.solution_2d.split()[1])
+                u_t.interpolate( \
+                    solver_obj.fields.solution_2d.split()[0])
+                eta.dat.data[:] = eta_vals[i,:]
+                u.dat.data[:] = u_vals[i,:,:]
+                # Calculate errors:
+                u_err[i] = errornorm(u, u_t)
+                eta_err[i] = errornorm(eta, eta_t)
     
-########################### EVALUATE ERROR ############################
+        # Run the model:
+        if (waves == 'y'):
+            solver_obj.iterate(update_forcings=update_forcings, \
+                           export_func=plot_error())
+        else:
+            solver_obj.iterate(export_func=plot_error())
+    else:
+        if (waves == 'y'):
+            solver_obj.iterate(update_forcings=update_forcings)
+        else:
+            solver_obj.iterate()
+    
+############################# PLOT ERROR #############################
 
-# TODO: Get save_thetis function to work properly. One forseeable issue
-#       is the difference in formats of u_vals.dat.data and
-#       eta_vals.dat.data for the standalone and Thetis cases. This is
-#       due to the differences in function spaces used. Two options are
-#       interpolating Thetis solutions onto the P2-P1 space, or
-#       changing the function space of the standalone solver.
-
+if (compare == 'b'):
+    Q = {'u' : u_err, 'eta' : eta_err}  
+    for k in Q:
+        plt.rc('text', usetex=True)
+        plt.rc('font', family='serif')
+        plt.plot(np.linspace(0, T, int(T/(ndump*dt))+1), Q[k])
+        plt.title(r'Error plot of {y}'.format(y=k))
+        plt.xlabel(r'Time (s)')
+        plt.ylabel(r'L2 error')
+        plt.savefig('tank_outputs/graphs/{y}_error_{z}.png'.format(y=k,
+                                                               z=mode))

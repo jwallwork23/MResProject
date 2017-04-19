@@ -73,21 +73,31 @@ def mesh_converter(meshfile, lon0, lat0):
 
 def nonlinear_form():
     '''Weak residual form of the nonlinear shallow water equations'''
-    L = (
-     (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
+    L = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
       inner(u-u_, v) + Dt * inner(dot(u, nabla_grad(u)), v) + \
       nu * inner(grad(u), grad(v)) + Dt * g * inner(grad(eta), v) + \
       Dt * Cb * sqrt(dot(u_, u_)) * inner(u/(eta+b), v)) * dx(degree=4)   
-     )
     return L
 
 def linear_form():
     '''Weak residual form of the linear shallow water equations'''
-    L = (
-    (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
+    L = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
     inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
-    )
     return L
+
+def adj_nonlinear_form():   # TODO: Needs changing!
+    '''Weak residual form of the nonlinear adjoint shallow water
+    equations'''
+    L = ((le-le_) * xi - Dt * g * b * inner(lm, grad(xi)) + \
+      inner(lm-lm_, w) + Dt * inner(grad(le), w)) * dx
+    return L                                    # + J derivative term?
+
+def adj_linear_form():
+    '''Weak residual form of the linear adjoint shallow water
+    equations'''
+    L = ((le-le_) * xi - Dt * g * b * inner(lm, grad(xi)) + \
+      inner(lm-lm_, w) + Dt * inner(grad(le), w)) * dx
+    return L                                    # + J derivative term?
 
 def wrapper(func, *args, **kwargs):
     '''A wrapper function to enable timing of functions with
@@ -146,9 +156,12 @@ Vu = VectorFunctionSpace(mesh, 'CG', 2)         # \ Use Taylor-Hood
 Ve = FunctionSpace(mesh, 'CG', 1)               # / elements
 Vq = MixedFunctionSpace((Vu, Ve))               # Mixed FE problem
 
-# Construct functions to store dependent variables and bathymetry:
-q_ = Function(Vq)  
+# Construct functions to store forward and adjoint variables, along
+# with bathymetry:
+q_ = Function(Vq)
+lam_ = Function(Vq)
 u_, eta_ = q_.split()
+lm_, le_ = lam_.split()
 eta0 = Function(Vq.sub(1), name='Initial surface')
 b = Function(Vq.sub(1), name='Bathymetry')
 
@@ -191,7 +204,7 @@ ufile.write(eta0)
 ufile = File('tsunami_outputs/tsunami_bathy.pvd')
 ufile.write(b)
 
-########################## WEAK PROBLEM ###############################
+###################### FORWARD WEAK PROBLEM ###########################
 
 # Build the weak form of the timestepping algorithm, expressed as a 
 # mixed nonlinear problem:
@@ -203,25 +216,20 @@ u_, eta_ = split(q_)
 
 # Establish form:
 if (mode == 'l'):
-    L = linear_form()
+    L1 = linear_form()
 elif (mode == 'n'):
-    L = nonlinear_form()
+    L1 = nonlinear_form()
 
 # Set up the variational problem:
-uprob = NonlinearVariationalProblem(L, q)
-usolver = NonlinearVariationalSolver(uprob,
-        solver_parameters={
-                            'ksp_type': 'gmres',
-                            'ksp_rtol': '1e-8',
-                            'pc_type': 'fieldsplit',
-                            'pc_fieldsplit_type': 'schur',
-                            'pc_fieldsplit_schur_fact_type': 'full',
-                            'fieldsplit_0_ksp_type': 'cg',
-                            'fieldsplit_0_pc_type': 'ilu',
-                            'fieldsplit_1_ksp_type': 'cg',
-                            'fieldsplit_1_pc_type': 'hypre',
-                            'pc_fieldsplit_schur_precondition': 'selfp',
-                            })
+params = {
+    'ksp_type': 'gmres', 'ksp_rtol': '1e-8',
+    'pc_type': 'fieldsplit', 'pc_fieldsplit_type': 'schur',
+    'pc_fieldsplit_schur_fact_type': 'full',
+    'fieldsplit_0_ksp_type': 'cg', 'fieldsplit_0_pc_type': 'ilu',
+    'fieldsplit_1_ksp_type': 'cg', 'fieldsplit_1_pc_type': 'hypre',
+    'pc_fieldsplit_schur_precondition': 'selfp',}
+uprob = NonlinearVariationalProblem(L1, q)
+usolver = NonlinearVariationalSolver(uprob, solver_parameters=params)
 
 # Split functions in order to access their data:
 u_, eta_ = q_.split()
@@ -231,7 +239,7 @@ u, eta = q.split()
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
-############################ TIMESTEPPING #############################
+######################## FORWARD TIMESTEPPING #########################
 
 # Initialise output directory and dump counter:
 if (mode == 'l'):
@@ -239,15 +247,15 @@ if (mode == 'l'):
 elif (mode == 'n'):
     ufile = File('tsunami_outputs/tohoku_nonlinear.pvd')
 t = 0.0
-dumpn = 0
 i = 0
+dumpn = 0
 ufile.write(u, eta, time=t)
 
 # Initialise arrays for storage:
-eta_vals = np.zeros((int(T/(ndump*dt))+1, 1099))   # \ TODO: Make these 
-u_vals = np.zeros((int(T/(ndump*dt))+1, 4067, 2))  # / more general
-eta_vals[i,:] = eta.dat.data
-u_vals[i,:,:] = u.dat.data
+eta_vals = np.zeros((int(T/(ndump*dt))+1, 1099))    # \ TODO: Make  
+u_vals = np.zeros((int(T/(ndump*dt))+1, 4067, 2))   # \ more general to
+eta_vals[i,:] = eta.dat.data                        #   apply in fine
+u_vals[i,:,:] = u.dat.data                          #   and med cases
 
 if (compare != 't'):
     # Enter the timeloop:
@@ -270,7 +278,7 @@ if (compare != 't'):
 ##    wrapped = wrapper(standalone_timeloop, t, T, dt, ndump, dumpn)
 ##    t1 = timeit.timeit(wrapped, number=tt)
 
-############################ THETIS SETUP #############################
+######################## FORWARD THETIS SETUP #########################
 
 if (compare != 's'):
     # Construct solver:
@@ -336,13 +344,82 @@ if (compare == 'b'):
              label='Fluid velocity error')
     plt.plot(np.linspace(0, T, int(T/(ndump*dt))+1), eta_err,
              label='Free surface error')
-    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+    plt.legend(bbox_to_anchor=(0.1, 1.02, 1., .102), loc=3,
                borderaxespad=0.)
     plt.xlim([0, 7200])
     plt.xlabel(r'Time (s)')
     plt.ylabel(r'Relative L2 error')
     plt.savefig('tsunami_outputs/screenshots/error_{y1}_{y2}.png'\
                     .format(y1=mode, y2=res))
+
+################### ADJOINT 'INITIAL' CONDITIONS ######################
+
+# TODO: Specify some ICs
+
+###################### ADJOINT WEAK PROBLEM ###########################
+
+# Establish test functions and split adjoint variables:
+w, xi = TestFunctions(Vq)
+lam = Function(Vq)
+lam.assign(lam_)
+lm, le = split(lam)      
+lm_, le_ = split(lam_)
+
+# Establish form:
+if (mode == 'l'):
+    L2 = adj_linear_form()
+elif (mode == 'n'):
+    L2 = adj_nonlinear_form()
+
+# Set up the variational problem
+uprob2 = NonlinearVariationalProblem(L2, lam)
+usolver2 = NonlinearVariationalSolver(uprob2, solver_parameters=params)
+
+# Split functions in order to access their data:
+lm_, le_ = lam_.split()
+lm, le = lam.split()
+
+# Store multiple functions:
+lm.rename('Adjoint fluid momentum')
+le.rename('Adjoint free surface displacement')
+
+######################## BACKWARD TIMESTEPPING ########################
+
+# Initialise some arrays for storage:
+le_vals = np.zeros((int(T/(ndump*dt))+1, 1099))
+lm_vals = np.zeros((int(T/(ndump*dt))+1, 4067, 2))
+i -= 1
+le_vals[i,:] = le.dat.data
+lm_vals[i,:] = lm.dat.data
+
+# Initialise dump counter and files:
+if (dumpn == 0):
+    dumpn = ndump
+if (mode == 'l'):
+    ufile2 = File('tsunami_outputs/tohoku_linear_adj.pvd')
+else:
+    ufile2 = File('tsunami_outputs/tohoku_nonlinear_adj.pvd')
+ufile2.write(lm, le, time=0)
+
+# Enter the backward timeloop:
+while (t > 0):
+    t -= dt
+    print 't = ', t, ' seconds'
+    usolver2.solve()
+    lam_.assign(lam)
+    dumpn -= 1
+    # Dump data:
+    if (dumpn == 0):
+        dumpn += ndump
+        i -= 1
+        lm_vals[i,:] = lm.dat.data
+        le_vals[i,:] = le.dat.data
+        # Note the time inversion in output:
+        ufile2.write(lm, le, time=T-t)
+
+######################## ADJOINT THETIS SETUP #########################
+
+# TODO
 
 ########################## DISPLAY OUTPUTS ############################
 ##

@@ -69,7 +69,6 @@ params = {
     'pc_python_type': 'firedrake.AssembledPC',
     'assembled_pc_type': 'lu', 'snes_lag_preconditioner': -1, 
     'snes_lag_preconditioner_persists': True,}
- 
 uprob1 = NonlinearVariationalProblem(L1, q)
 usolver1 = NonlinearVariationalSolver(uprob1, solver_parameters=params)
 
@@ -108,11 +107,11 @@ m[i] = np.log2(max(max(eta_vals[i, b_nodes]), 0.5))
 # Enter the forward timeloop:
 while (t < T - 0.5*dt):     
     t += dt
-    print 't = ', t, ' seconds'
     usolver1.solve()
     q_.assign(q)
     dumpn += 1
     if (dumpn == ndump):
+        print 't = ', t, ' seconds'
         dumpn -= ndump
         i += 1
         ufile1.write(mu, eta, time=t)

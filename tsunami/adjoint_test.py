@@ -95,12 +95,15 @@ ufile1.write(mu, eta, time=t)
 bc = DirichletBC(Ve, 0, 1)
 b_nodes = bc.nodes
 
-# Initialise arrays for storage:
+# Initialise a CG1 version of mu and some arrays for storage:
+V1 = VectorFunctionSpace(mesh, 'CG', 1)
+mu_cg1 = Function(V1)
+mu_cg1.interpolate(mu)
 eta_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
-mu_vals = np.zeros((int(T/(ndump*dt))+1, (2*nx+1)*(2*ny+1), 2))
+mu_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1), 2))
 m = np.zeros((int(T/(ndump*dt))+1))
 eta_vals[i,:] = eta.dat.data
-mu_vals[i,:,:] = mu.dat.data
+mu_vals[i,:,:] = mu_cg1.dat.data
 m[i] = np.log2(max(max(eta_vals[i, b_nodes]), 0.5))
 
 # Enter the forward timeloop:
@@ -114,7 +117,8 @@ while (t < T - 0.5*dt):
         dumpn -= ndump
         i += 1
         ufile1.write(mu, eta, time=t)
-        mu_vals[i,:,:] = mu.dat.data 
+        mu_cg1.interpolate(mu)
+        mu_vals[i,:,:] = mu_cg1.dat.data
         eta_vals[i,:] = eta.dat.data
         
         # Implement damage measures:
@@ -162,18 +166,20 @@ if (dumpn == 0):
 ufile2 = File('adjoint_test_outputs/linear_adjoint.pvd')
 ufile2.write(lm, le, time=0)
 
-# Initialise arrays for storage:
-le_vals = np.zeros((int(T/(ndump*dt))+1, 10251))        # \ TODO: Make 
-lm_vals = np.zeros((int(T/(ndump*dt))+1, 40501, 2))     # | these more 
-##q_dot_lam = np.zeros((int(T/(ndump*dt))+1, 10251))      # / general
+# Initialise a CG1 version of lm and some arrays for storage:
+lm_cg1 = Function(V1)
+lm_cg1.interpolate(lm)
+le_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
+lm_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1), 2))
+q_dot_lam = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))   
 le_vals[i,:] = le.dat.data
-lm_vals[i,:,:] = lm.dat.data
+lm_vals[i,:] = lm_cg1.dat.data
 
-### Evaluate forward-adjoint inner products (noting mu and lm are in P2,
-### while eta and le are in P1, so we need to evaluate at nodes):
-##q_dot_lam[i,:] = mu_vals[i,0::2,0] * lm_vals[i,0::2,0] + \
-##                 mu_vals[i,0::2,1] * lm_vals[i,0::2,1] + \
-##                 eta_vals[i,:] * le_vals[i,:]
+# Evaluate forward-adjoint inner products (noting mu and lm are in P2,
+# while eta and le are in P1, so we need to evaluate at nodes):
+q_dot_lam[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + \
+                 mu_vals[i,:,1] * lm_vals[i,:,1] + \
+                 eta_vals[i,:] * le_vals[i,:]
 
 # Enter the backward timeloop:
 while (t > 0):
@@ -186,11 +192,12 @@ while (t > 0):
     if (dumpn == 0):
         dumpn += ndump
         i -= 1
-        lm_vals[i,:] = lm.dat.data
+        lm_cg1.interpolate(lm)
+        lm_vals[i,:] = lm_cg1.dat.data
         le_vals[i,:] = le.dat.data
-##        q_dot_lam[i,:] = mu_vals[i,0::2,0] * lm_vals[i,0::2,0] + \
-##                         mu_vals[i,0::2,1] * lm_vals[i,0::2,1] + \
-##                         eta_vals[i,:] * le_vals[i,:]
+        q_dot_lam[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + \
+                         mu_vals[i,:,1] * lm_vals[i,:,1] + \
+                         eta_vals[i,:] * le_vals[i,:]
         ufile2.write(lm, le, time=T-t)   # Note time inversion
 
 ############################ PLOTTING ###############################

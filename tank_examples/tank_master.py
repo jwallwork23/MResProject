@@ -324,43 +324,37 @@ if (compare != 's'):
         # Initialise Taylor-Hood versions of eta and u:
         eta_t = Function(Ve)
         u_t = Function(Vu)
-        eta_t.interpolate(solver_obj.fields.solution_2d.split()[1])
-        u_t.interpolate(solver_obj.fields.solution_2d.split()[0])
+##        eta_t.interpolate(solver_obj.fields.solution_2d.split()[1])
+##        u_t.interpolate(solver_obj.fields.solution_2d.split()[0])
+##
+##        # Evaluate initial errors:
+##        eta.dat.data[:] = eta_vals[i,:]
+##        u.dat.data[:] = u_vals[i,:,:]
+##        u_err[i] = errornorm(u, u_t)
+##        eta_err[i] = errornorm(eta, eta_t)
 
-        # Evaluate initial errors:
-        eta.dat.data[:] = eta_vals[i,:]
-        u.dat.data[:] = u_vals[i,:,:]
-        u_err[i] = errornorm(u, u_t)
-        eta_err[i] = errornorm(eta, eta_t)
-
-        # TODO : make this work properly
         def plot_error():
-            '''A function which compares '''
-            global dumpn
-            global ndump
+            '''A function which approximates the error made by the
+            standalone, as compared against the Thetis solver.'''
             global i
-            dumpn += 1
-            if (dumpn == ndump):
-                dumpn -= ndump
-                i += 1
-                print 'i = ',i,'dumpn = ',dumpn
-                # Interpolate functions onto the same spaces:
-                eta_t.interpolate( \
-                    solver_obj.fields.solution_2d.split()[1])
-                u_t.interpolate( \
-                    solver_obj.fields.solution_2d.split()[0])
-                eta.dat.data[:] = eta_vals[i,:]
-                u.dat.data[:] = u_vals[i,:,:]
-                # Calculate errors:
-                u_err[i] = errornorm(u, u_t)
-                eta_err[i] = errornorm(eta, eta_t)
+            # Interpolate functions onto the same spaces:
+            eta_t.interpolate( \
+                solver_obj.fields.solution_2d.split()[1])
+            u_t.interpolate( \
+                solver_obj.fields.solution_2d.split()[0])
+            eta.dat.data[:] = eta_vals[i,:]
+            u.dat.data[:] = u_vals[i,:,:]
+            # Calculate errors:
+            u_err[i] = errornorm(u, u_t)
+            eta_err[i] = errornorm(eta, eta_t)
+            i += 1
     
         # Run the model:
         if (waves == 'y'):
             solver_obj.iterate(update_forcings=update_forcings, \
-                           export_func=plot_error())
+                           export_func=plot_error)
         else:
-            solver_obj.iterate(export_func=plot_error())
+            solver_obj.iterate(export_func=plot_error)
     else:
         if (waves == 'y'):
             solver_obj.iterate(update_forcings=update_forcings)

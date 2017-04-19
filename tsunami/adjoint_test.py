@@ -14,7 +14,7 @@ T = float(raw_input('Simulation duration in s (default 4200): ') \
 
 # Set physical and numerical parameters for the scheme:
 g = 9.81            # Gravitational acceleration
-ndump = 40
+ndump = 5           # Timesteps per data dump
 
 ############################## FE SETUP ###############################
 
@@ -160,26 +160,31 @@ le.rename('Adjoint free surface displacement')
 
 ######################## BACKWARD TIMESTEPPING ########################
 
-# Initialise dump counter and files:
-if (dumpn == 0):
-    dumpn = ndump
-ufile2 = File('adjoint_test_outputs/linear_adjoint.pvd')
-ufile2.write(lm, le, time=0)
-
 # Initialise a CG1 version of lm and some arrays for storage:
 lm_cg1 = Function(V1)
 lm_cg1.interpolate(lm)
 le_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
 lm_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1), 2))
-q_dot_lam = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))   
+ql_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
+q_dot_lam = Function(Ve)
+q_dot_lam.rename('Forward-adjoint inner product')
 le_vals[i,:] = le.dat.data
 lm_vals[i,:] = lm_cg1.dat.data
 
 # Evaluate forward-adjoint inner products (noting mu and lm are in P2,
 # while eta and le are in P1, so we need to evaluate at nodes):
-q_dot_lam[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + \
+ql_vals[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + \
                  mu_vals[i,:,1] * lm_vals[i,:,1] + \
                  eta_vals[i,:] * le_vals[i,:]
+q_dot_lam.dat.data[:] = ql_vals[i,:]
+
+# Initialise dump counter and files:
+if (dumpn == 0):
+    dumpn = ndump
+ufile2 = File('adjoint_test_outputs/linear_adjoint.pvd')
+ufile2.write(lm, le, time=0)
+ufile3 = File('adjoint_test_outputs/inner_product.pvd')
+ufile3.write(q_dot_lam, time=0)
 
 # Enter the backward timeloop:
 while (t > 0):
@@ -195,12 +200,15 @@ while (t > 0):
         lm_cg1.interpolate(lm)
         lm_vals[i,:] = lm_cg1.dat.data
         le_vals[i,:] = le.dat.data
-        q_dot_lam[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + \
+        ql_vals[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + \
                          mu_vals[i,:,1] * lm_vals[i,:,1] + \
                          eta_vals[i,:] * le_vals[i,:]
-        ufile2.write(lm, le, time=T-t)   # Note time inversion
+        q_dot_lam.dat.data[:] = ql_vals[i,:]
+        # Note the time inversion in outputs:
+        ufile2.write(lm, le, time=T-t)
+        ufile3.write(q_dot_lam, time=T-t)
 
-############################ PLOTTING ###############################
+############################ PLOTTING #################################
 
 # Plot damage measures:
 plt.rc('text', usetex=True)

@@ -175,7 +175,7 @@ lm_vals[i,:] = lm_cg1.dat.data
 ql_vals[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + \
                  mu_vals[i,:,1] * lm_vals[i,:,1] + \
                  eta_vals[i,:] * le_vals[i,:]
-q_dot_lam.dat.data[:] = ql_vals[i,:]
+q_dot_lam.dat.data[:] = abs(ql_vals[i,:])
 
 # Initialise dump counter and files:
 if (dumpn == 0):
@@ -202,7 +202,7 @@ while (t > 0):
         ql_vals[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + \
                          mu_vals[i,:,1] * lm_vals[i,:,1] + \
                          eta_vals[i,:] * le_vals[i,:]
-        q_dot_lam.dat.data[:] = ql_vals[i,:]
+        q_dot_lam.dat.data[:] = abs(ql_vals[i,:])
         # Note the time inversion in outputs:
         ufile2.write(lm, le, time=T-t)
         ufile3.write(q_dot_lam, time=T-t)

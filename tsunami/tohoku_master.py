@@ -4,8 +4,8 @@ import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
 from math import radians
 import numpy as np
-import timeit
 import matplotlib.pyplot as plt
+from time import clock
 
 ########################## VARIOUS FUNCTIONS #########################
 
@@ -99,6 +99,7 @@ def adj_linear_form():
       inner(lm-lm_, w) + Dt * inner(grad(le), w)) * dx
     return L                                    # + J derivative term?
 
+# NOTE: this function is not currently used
 def wrapper(func, *args, **kwargs):
     '''A wrapper function to enable timing of functions with
     arguments'''
@@ -128,13 +129,9 @@ ndump = 4
 t_export = ndump * dt
 T = float(raw_input('Specify time period (s) (default 7200):') \
           or 7200.)
-##tmode = raw_input('Time-averaging mode? (y/n, default n): ') or 'n'
-##if (tmode == 'y'):
-##    tt = 10
-##elif (tmode == 'n'):
-##    tt = 1
-##else:
-##    raise ValueError('Please try again, choosing y or n.')
+tmode = raw_input('Time-averaging mode? (y/n, default n): ') or 'n'
+if ((tmode != 'y') & (tmode != 'n')):
+    raise ValueError('Please try again, choosing y or n.')
 
 # Set physical parameters for the scheme:
 nu = 1e-3           # Viscosity (kg s^{-1} m^{-1})
@@ -258,6 +255,8 @@ eta_vals[i,:] = eta.dat.data                        #   apply in fine
 u_vals[i,:,:] = u.dat.data                          #   and med cases
 
 if (compare != 't'):
+
+    tic1 = clock()
     # Enter the timeloop:
     while (t < T - 0.5*dt):     
         t += dt
@@ -270,13 +269,14 @@ if (compare != 't'):
             dumpn -= ndump
             i += 1
             ufile.write(u, eta, time=t)
-            eta_vals[i,:] = eta.dat.data
-            u_vals[i,:,:] = u.dat.data
+            if (tmode == 'n'):
+                eta_vals[i,:] = eta.dat.data
+                u_vals[i,:,:] = u.dat.data
+    toc1 = clock()
+
+    print 'Elapsed time for standalone solver: %1.2es' % (toc1 - tic1)
                   
 # TODO: Implement damage measures
-
-##    wrapped = wrapper(standalone_timeloop, t, T, dt, ndump, dumpn)
-##    t1 = timeit.timeit(wrapped, number=tt)
 
 ######################## FORWARD THETIS SETUP #########################
 
@@ -307,7 +307,7 @@ if (compare != 's'):
         eta_t = Function(Ve)
         u_t = Function(Vu)
 
-        def plot_error():
+        def compute_error():
             '''A function which approximates the error made by the
             standalone solver, as compared against Thetis' solution.
             '''
@@ -328,12 +328,17 @@ if (compare != 's'):
                 eta_err[i] = errornorm(eta, eta_t)
             i += 1
 
-        # Run the model:
-        solver_obj.iterate(export_func=plot_error)
+    # Run solver:
+        if (tmode == 'y'):
+            tic2 = clock()
+            solver_obj.iterate(export_func=compute_error)
+            toc2 = clock()
+            print 'Elapsed time for Thetis solver: %1.2es' % (toc2 - tic2)
+        else:
+            solver_obj.iterate()
+        
     else:
         solver_obj.iterate()
-
-##    t2 = timeit.timeit(thetis_timeloop, number=tt)
 
 ############################# PLOT ERROR ##############################
 
@@ -420,11 +425,3 @@ while (t > 0):
 ######################## ADJOINT THETIS SETUP #########################
 
 # TODO
-
-########################## DISPLAY OUTPUTS ############################
-##
-##if (mode == 'l'):
-##    print 'Linear solver time: ', t1, ' seconds'
-##elif (mode == 'n'):
-##    print 'Nonlinear solver time: ', t1, ' seconds'
-##print 'Thetis solver time: ', t2, ' seconds'

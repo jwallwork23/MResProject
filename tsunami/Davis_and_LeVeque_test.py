@@ -49,7 +49,7 @@ lm_, le_ = lam_.split() # / initial condition into the two components
 # Interpolate ICs:
 mu_.interpolate(Expression(0.))
 eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? \
-                             0.4*sin(pi*(x[0]-1e5)*2e-5) : 0.0'))
+                             0.4*sin(pi*(x[0]-1e5)/5e4) : 0.0'))
 
 # Interpolate bathymetry:
 b = Function(Ve, name = 'Bathymetry')

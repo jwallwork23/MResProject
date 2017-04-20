@@ -1,8 +1,13 @@
 ## Welcome to Joe Wallwork's MRes project GitHub page!
 
-Here you will find two directories, ``tank_examples`` and ``tsunami``.
+Here you will find three directories, ``adaptivity``, ``tank_examples`` and
+``tsunami``.
 
-The former directory contains a Python script called ``tank_master.py``
+The first directory contains test scripts designed to understand and implement
+anisotropic mesh adaptivity, as applied to some example PDE problems in
+Firedrake.
+
+The second directory contains a Python script called ``tank_master.py``
 which enables the user to experiment with the inclusion of non-trivial
 bathymetry and a 'wave generator' in a 2D shallow water problem. The domain
 considered is a 4m x 1m tank with water depth 10cm. As well as developing a
@@ -11,7 +16,7 @@ and esturarine solver Thetis. This enables the user to generate an accurate
 approximation to the true fluid dynamics in the tank, to which the standalone
 solution can be compared.
 
-The latter directory contains three Python scripts,
+The final directory contains three Python scripts,
 ``Davis_and_LeVeque_test.py``, ``adjoint_test``and ``tohoku_master.py``.
 The 1D Davis and LeVeque tsunami test problem of the
 first script comes from Brisa Davis and Randall LeVeque's 2016 paper 'Adjoint

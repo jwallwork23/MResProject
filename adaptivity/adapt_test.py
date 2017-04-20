@@ -1,26 +1,31 @@
 from firedrake import *
 import numpy as np
 
+# Mesh adaptivity function (courtesy of Nicolas Barral):
 def adapt(mesh,metric):
     
     dim = mesh._topological_dimension
     entity_dofs = np.zeros(dim+1, dtype=np.int32)
     entity_dofs[0] = mesh.geometric_dimension()
-    coordSection = mesh._plex.createSection([1], entity_dofs, perm=mesh.topology._plex_renumbering)
+    coordSection = mesh._plex.createSection(\
+        [1], entity_dofs, perm=mesh.topology._plex_renumbering)
     
     plex = mesh._plex
     vStart, vEnd = plex.getDepthStratum(0)
     nbrVer = vEnd - vStart
-#    print  "DEBUG  vStart: %d  vEnd: %d" % (vStart, vEnd)
-#    coordSection.view()
+##    print  "DEBUG  vStart: %d  vEnd: %d" % (vStart, vEnd)
+##    coordSection.view()
     
     dmCoords = mesh.topology._plex.getCoordinateDM()
     dmCoords.setDefaultSection(coordSection)    
-#    dmCoords.setDefaultSection(mesh.coordinates.function_space()._dm.getDefaultSection())
+##    dmCoords.setDefaultSection(\
+##        mesh.coordinates.function_space()._dm.getDefaultSection())
 
-    #### TEMPORARY (?) HACK to sort the metric in the right order (waiting for Matt Knepley fix in plexadapt)
+    #### TEMPORARY (?) HACK to sort the metric in the right order
+    ####                (waiting for Matt Knepley fix in plexadapt)
     
-    met = np.ndarray(shape=metric.dat.data.shape, dtype=metric.dat.data.dtype, order='C');
+    met = np.ndarray(shape=metric.dat.data.shape, \
+                     dtype=metric.dat.data.dtype, order='C');
     for iVer in range(nbrVer):
         off = coordSection.getOffset(iVer+vStart)/dim
 #        print "DEBUG  iVer: %d  off: %d   nbrVer: %d" %(iVer, off, nbrVer)

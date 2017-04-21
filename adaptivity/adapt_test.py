@@ -50,8 +50,11 @@ def adapt(mesh,metric):
 mesh1 = SquareMesh(2, 2, 1, 1)
 V1 = TensorFunctionSpace(mesh1, 'CG', 1) # Function space for metric
 metric = Function(V1)
-# TASK: generate this using a function:
-metric.interpolate(Expression([[100, 0], [0, 100]]))
+
+# TASK: generate the metric using a function involving the Hessian:
+metric.interpolate(Expression([['10*x[0]', 0], [0, '10*x[1]']]))
+# UNDERSTAND: what exactly the role of the Hessian is, and how it
+#           : affects the adaption.
 
 F = FunctionSpace(mesh1, 'CG', 1)        # Scalar function space
 f = Function(F)
@@ -71,9 +74,7 @@ g.dat.data[:] = f.at(mesh2.coordinates.dat.data)
 
 ## Plot results:
 
-ufile = File('adapt_plots/test1.pvd')
-ufile.write(f)
-ufile = File('adapt_plots/test2.pvd')
-ufile.write(g)
+File('adapt_plots/test1.pvd').write(f)
+File('adapt_plots/test2.pvd').write(g)
 
 

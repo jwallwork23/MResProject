@@ -123,11 +123,11 @@ else:
 res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
 if ((res != 'f') & (res != 'm') & (res != 'c')):
     raise ValueError('Please try again, choosing f, m or c.')
-dt = float(raw_input('Specify timestep (s) (default 15):') or 15.)
+dt = float(raw_input('Specify timestep (s) (default 15): ') or 15.)
 Dt = Constant(dt)
 ndump = 4
 t_export = ndump * dt
-T = float(raw_input('Specify time period (s) (default 7200):') \
+T = float(raw_input('Specify time period (s) (default 7200): ') \
           or 7200.)
 tmode = raw_input('Time-averaging mode? (y/n, default n): ') or 'n'
 if ((tmode != 'y') & (tmode != 'n')):
@@ -196,10 +196,8 @@ eta_.assign(eta0)
 b.assign(conditional(lt(30, b), b, 30))
 
 # Plot initial surface and bathymetry profiles:
-ufile = File('tsunami_outputs/init_surf.pvd')
-ufile.write(eta0)
-ufile = File('tsunami_outputs/tsunami_bathy.pvd')
-ufile.write(b)
+File('tsunami_outputs/init_surf.pvd').write(eta0)
+File('tsunami_outputs/tsunami_bathy.pvd').write(b)
 
 ###################### FORWARD WEAK PROBLEM ###########################
 
@@ -225,8 +223,8 @@ params = {
     'fieldsplit_0_ksp_type': 'cg', 'fieldsplit_0_pc_type': 'ilu',
     'fieldsplit_1_ksp_type': 'cg', 'fieldsplit_1_pc_type': 'hypre',
     'pc_fieldsplit_schur_precondition': 'selfp',}
-uprob = NonlinearVariationalProblem(L1, q)
-usolver = NonlinearVariationalSolver(uprob, solver_parameters=params)
+q_prob = NonlinearVariationalProblem(L1, q)
+q_solve = NonlinearVariationalSolver(q_prob, solver_parameters=params)
 
 # Split functions in order to access their data:
 u_, eta_ = q_.split()
@@ -240,13 +238,13 @@ eta.rename('Free surface displacement')
 
 # Initialise output directory and dump counter:
 if (mode == 'l'):
-    ufile = File('tsunami_outputs/tohoku_linear.pvd')
+    q_file = File('tsunami_outputs/tohoku_linear.pvd')
 elif (mode == 'n'):
-    ufile = File('tsunami_outputs/tohoku_nonlinear.pvd')
+    q_file = File('tsunami_outputs/tohoku_nonlinear.pvd')
 t = 0.0
 i = 0
 dumpn = 0
-ufile.write(u, eta, time=t)
+q_file.write(u, eta, time=t)
 
 # Initialise arrays for storage:
 eta_vals = np.zeros((int(T/(ndump*dt))+1, 1099))    # \ TODO: Make  
@@ -260,7 +258,7 @@ if (compare != 't'):
     # Enter the timeloop:
     while (t < T - 0.5*dt):     
         t += dt
-        usolver.solve()
+        q_solve.solve()
         q_.assign(q)
         dumpn += 1
         # Dump data:
@@ -268,7 +266,7 @@ if (compare != 't'):
             print 't = ', t/60, ' mins'
             dumpn -= ndump
             i += 1
-            ufile.write(u, eta, time=t)
+            q_file.write(u, eta, time=t)
             if (tmode == 'n'):
                 eta_vals[i,:] = eta.dat.data
                 u_vals[i,:,:] = u.dat.data
@@ -377,8 +375,8 @@ elif (mode == 'n'):
     L2 = adj_nonlinear_form()
 
 # Set up the variational problem
-uprob2 = NonlinearVariationalProblem(L2, lam)
-usolver2 = NonlinearVariationalSolver(uprob2, solver_parameters=params)
+lam_prob = NonlinearVariationalProblem(L2, lam)
+lam_solve = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
 
 # Split functions in order to access their data:
 lm_, le_ = lam_.split()
@@ -401,16 +399,16 @@ lm_vals[i,:] = lm.dat.data
 if (dumpn == 0):
     dumpn = ndump
 if (mode == 'l'):
-    ufile2 = File('tsunami_outputs/tohoku_linear_adj.pvd')
+    lam_file = File('tsunami_outputs/tohoku_linear_adj.pvd')
 else:
-    ufile2 = File('tsunami_outputs/tohoku_nonlinear_adj.pvd')
-ufile2.write(lm, le, time=0)
+    lam_file = File('tsunami_outputs/tohoku_nonlinear_adj.pvd')
+lam_file.write(lm, le, time=0)
 
 # Enter the backward timeloop:
 while (t > 0):
     t -= dt
     print 't = ', t, ' seconds'
-    usolver2.solve()
+    lam_solve.solve()
     lam_.assign(lam)
     dumpn -= 1
     # Dump data:
@@ -420,8 +418,8 @@ while (t > 0):
         lm_vals[i,:] = lm.dat.data
         le_vals[i,:] = le.dat.data
         # Note the time inversion in output:
-        ufile2.write(lm, le, time=T-t)
+        lam_file.write(lm, le, time=T-t)
 
 ######################## ADJOINT THETIS SETUP #########################
 
-# TODO
+# TODO : use Firedrake adjoint?

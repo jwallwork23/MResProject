@@ -170,8 +170,8 @@ else:
 
 # Set up the variational problem:
 if (waves == 'n'):
-    uprob = NonlinearVariationalProblem(L, q)
-    usolver = NonlinearVariationalSolver(uprob,
+    q_prob = NonlinearVariationalProblem(L, q)
+    q_solve = NonlinearVariationalSolver(q_prob,
         solver_parameters={
                             'mat_type': 'matfree',
                             'snes_type': 'ksponly',
@@ -182,8 +182,8 @@ if (waves == 'n'):
                             'snes_lag_preconditioner_persists': True,
                             })
 else:
-    uprob = NonlinearVariationalProblem(L, q, bcs=[bc1, bc2])
-    usolver = NonlinearVariationalSolver(uprob,
+    q_prob = NonlinearVariationalProblem(L, q, bcs=[bc1, bc2])
+    q_solve = NonlinearVariationalSolver(q_prob,
         solver_parameters={
                             'ksp_type': 'gmres',
                             'ksp_rtol': '1e-8',
@@ -211,30 +211,30 @@ eta.rename('Free surface displacement')
 if (bath == 'n'):
     if (waves == 'n'):
         if (mode == 'l'):
-            ufile = File('tank_outputs/model_prob1_linear.pvd')
+            q_file = File('tank_outputs/model_prob1_linear.pvd')
         else:
-            ufile = File('tank_outputs/model_prob1_nonlinear.pvd')
+            q_file = File('tank_outputs/model_prob1_nonlinear.pvd')
     else:
         if (mode == 'l'):
-            ufile = File('tank_outputs/model_prob2_linear.pvd')
+            q_file = File('tank_outputs/model_prob2_linear.pvd')
         else:
-            ufile = File('tank_outputs/model_prob2_nonlinear.pvd')
+            q_file = File('tank_outputs/model_prob2_nonlinear.pvd')
 elif (bath == 'y'):
     if (waves == 'n'):
         if (mode == 'l'):
-            ufile = File('tank_outputs/model_prob3_linear.pvd')
+            q_file = File('tank_outputs/model_prob3_linear.pvd')
         else:
-            ufile = File('tank_outputs/model_prob3_nonlinear.pvd')
+            q_file = File('tank_outputs/model_prob3_nonlinear.pvd')
     else:
         if (mode == 'l'):
-            ufile = File('tank_outputs/model_prob4_linear.pvd')
+            q_file = File('tank_outputs/model_prob4_linear.pvd')
         else:
-            ufile = File('tank_outputs/model_prob4_nonlinear.pvd')
+            q_file = File('tank_outputs/model_prob4_nonlinear.pvd')
 
 # Initialise time, arrays and dump counter:
 t = 0.0
 dumpn = 0
-ufile.write(u, eta, time=t)
+q_file.write(u, eta, time=t)
 
 # Initialise arrays for storage:
 eta_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
@@ -249,7 +249,7 @@ if (compare != 't'):
         t += dt
         if (waves == 'y'):
             bcval.assign(wave_machine(t, A, p, in_flux))    # Update BC
-        usolver.solve()
+        q_solve.solve()
         q_.assign(q)
         dumpn += 1
         # Dump data:
@@ -257,7 +257,7 @@ if (compare != 't'):
             print 't = ', t, ' seconds'
             dumpn -= ndump
             i += 1
-            ufile.write(u, eta, time=t)
+            q_file.write(u, eta, time=t)
             eta_vals[i,:] = eta.dat.data
             u_vals[i,:,:] = u.dat.data
 

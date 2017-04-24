@@ -109,31 +109,31 @@ while (t < T-0.5*dt):
 
         ###################### HESSIAN COMPUTATION ####################
 
-##        H = Function(Vm)            # Hessian-to-be
-##        sigma = TestFunction(Vm)
-##        n = FacetNormal(mesh)
-##
-##        # Variational problem
-##        Lh = (
-##                inner(H, sigma) * dx + \
-##                inner(div(sigma), grad(eta)) * dx - \
-##                (sigma[0,1] * n[1] * eta.dx(0) + \
-##                 sigma[1,0] *n[0] * eta.dx(1)) * ds
-##            )
-##
-##        H_prob = NonlinearVariationalProblem(Lh, H)
-##        H_solv = NonlinearVariationalSolver(H_prob,
-##                solver_parameters={'snes_rtol': 1e8,
-##                                    'ksp_rtol': 1e-5,
-##                                    'ksp_gmres_restart': 20,
-##                                    'pc_type': 'sor',
-##                                    'snes_monitor': True,
-##                                    'snes_view': False,
-##                                    'ksp_monitor_true_residual': False,
-##                                    'snes_converged_reason': True,
-##                                    'ksp_converged_reason': True})
-##
-##        H_solv.solve()
+        H = Function(Vm)            # Hessian-to-be
+        sigma = TestFunction(Vm)
+        nhat = FacetNormal(mesh)    # Normal vector
+
+        # Variational problem
+        Lh = (
+                inner(H, sigma) * dx + \
+                inner(div(sigma), grad(eta)) * dx - \
+                (sigma[0,1] * nhat[1] * eta.dx(0) + \
+                 sigma[1,0] *nhat[0] * eta.dx(1)) * ds
+            )
+
+        H_prob = NonlinearVariationalProblem(Lh, H)
+        H_solv = NonlinearVariationalSolver(H_prob,
+                solver_parameters={'snes_rtol': 1e8,
+                                    'ksp_rtol': 1e-5,
+                                    'ksp_gmres_restart': 20,
+                                    'pc_type': 'sor',
+                                    'snes_monitor': True,
+                                    'snes_view': False,
+                                    'ksp_monitor_true_residual': False,
+                                    'snes_converged_reason': True,
+                                    'ksp_converged_reason': True})
+
+        H_solv.solve()
 
         ########################## FE SETUP ###########################
 

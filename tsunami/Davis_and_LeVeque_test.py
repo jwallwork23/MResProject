@@ -72,8 +72,8 @@ L1 = ((eta-eta_) * ze - Dt * mu * ze.dx(0) + \
       (mu-mu_) * nu + Dt * g * b * eta.dx(0) * nu) * dx
 
 # Set up the variational problem:
-uprob1 = NonlinearVariationalProblem(L1, q)
-usolver1 = NonlinearVariationalSolver(uprob1, solver_parameters={
+q_prob = NonlinearVariationalProblem(L1, q)
+q_solve = NonlinearVariationalSolver(q_prob, solver_parameters={
                             'mat_type': 'matfree',
                             'snes_type': 'ksponly',
                             'pc_type': 'python',
@@ -120,7 +120,7 @@ for j in range(nx+1):
 while (t < T - 0.5*dt):
     t += dt
     print 't = ', t, ' seconds'
-    usolver1.solve()
+    q_solve.solve()
     q_.assign(q)
     dumpn += 1
     if (dumpn == ndump):
@@ -166,8 +166,8 @@ L2 = ((le-le_) * w + Dt * g * b * lm * w.dx(0) + \
       (lm-lm_) * v - Dt * le.dx(0) * v) * dx
 
 # Set up the variational problem:
-uprob2 = NonlinearVariationalProblem(L2, lam)
-usolver2 = NonlinearVariationalSolver(uprob2, solver_parameters={
+lam_prob = NonlinearVariationalProblem(L2, lam)
+lam_solve = NonlinearVariationalSolver(lam_prob, solver_parameters={
                             'mat_type': 'matfree',
                             'snes_type': 'ksponly',
                             'pc_type': 'python',
@@ -219,7 +219,7 @@ for j in range(nx+1):
 while (t > 0):
     t -= dt
     print 't = ', t, ' seconds'
-    usolver2.solve()
+    lam_solve.solve()
     lam_.assign(lam)
     dumpn -= 1
     if (dumpn == 0):

@@ -97,42 +97,74 @@ eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 # Initialisation:
 t = 0.0
 dumpn = 0
+mn = 0
 q = Function(Vq)
 q.assign(q_)
 
 while (t < T-0.5*dt):
 
-    ############################ FE SETUP #############################
+    mn += 1
 
     if (t != 0.0):
 
+        ###################### HESSIAN COMPUTATION ####################
+
+##        H = Function(Vm)            # Hessian-to-be
+##        sigma = TestFunction(Vm)
+##        n = FacetNormal(mesh)
+##
+##        # Variational problem
+##        Lh = (
+##                inner(H, sigma) * dx + \
+##                inner(div(sigma), grad(eta)) * dx - \
+##                (sigma[0,1] * n[1] * eta.dx(0) + \
+##                 sigma[1,0] *n[0] * eta.dx(1)) * ds
+##            )
+##
+##        H_prob = NonlinearVariationalProblem(Lh, H)
+##        H_solv = NonlinearVariationalSolver(H_prob,
+##                solver_parameters={'snes_rtol': 1e8,
+##                                    'ksp_rtol': 1e-5,
+##                                    'ksp_gmres_restart': 20,
+##                                    'pc_type': 'sor',
+##                                    'snes_monitor': True,
+##                                    'snes_view': False,
+##                                    'ksp_monitor_true_residual': False,
+##                                    'snes_converged_reason': True,
+##                                    'ksp_converged_reason': True})
+##
+##        H_solv.solve()
+
+        ########################## FE SETUP ###########################
+
+
         # Adapt mesh:
         M.interpolate(Expression([[n**2, 0], [0, n**2]]))   # TODO:
-        mesh2 = adapt(mesh, M)                              # Hessian
-        m2coords = mesh2.coordinates.dat.data
+        mesh = adapt(mesh, M)                               # Hessian
+        coords = mesh.coordinates.dat.data
 
         # Establish new function spaces:
-        Vm2 = TensorFunctionSpace(mesh2, 'CG', 1)   # \ TODO: use
-        Vu2 = VectorFunctionSpace(mesh2, 'CG', 1)   # / Taylor-Hood
-        Ve2 = FunctionSpace(mesh2, 'CG', 1)
-        Vq2 = MixedFunctionSpace((Vu2, Ve2))
+        Vm = TensorFunctionSpace(mesh, 'CG', 1)   # \ TODO: use
+        Vu = VectorFunctionSpace(mesh, 'CG', 1)   # / Taylor-Hood
+        Ve = FunctionSpace(mesh, 'CG', 1)
+        Vq = MixedFunctionSpace((Vu, Ve))
 
         # Set up new functions:
-        q_2 = Function(Vq2)
+        q_2 = Function(Vq)
         u_2, eta_2 = q_2.split()
-        q2 = Function(Vq2)
+        q2 = Function(Vq)
         u2, eta2 = q2.split()
-        b2 = Function(Ve2)
-        M2 = Function(Vm2)
+        b2 = Function(Ve)
+        M2 = Function(Vm)
 
         # Interpolate functions:
-        eta2.dat.data[:] = eta.at(m2coords)
-        u2.dat.data[:] = u.at(m2coords)
-        u_2.dat.data[:] = u_.at(m2coords)
-        eta_2.dat.data[:] = eta_.at(m2coords)
-        b2.dat.data[:] = b.at(m2coords)
+        eta2.dat.data[:] = eta.at(coords)
+        u2.dat.data[:] = u.at(coords)
+        u_2.dat.data[:] = u_.at(coords)
+        eta_2.dat.data[:] = eta_.at(coords)
+        b2.dat.data[:] = b.at(coords)
 
-        # Relabel:
+        # Relabel functions:
         q_ = q_2
         q = q2
         u_ = u_2
@@ -140,12 +172,7 @@ while (t < T-0.5*dt):
         eta_ = eta_2
         eta = eta2
         b = b2
-        mesh = mesh2
-        Vm = Vm2
         M = M2
-        Vu = Vu2
-        Ve = Ve2
-        Vq = Vq2
 
     ########################## WEAK PROBLEM ###########################
 
@@ -163,8 +190,8 @@ while (t < T-0.5*dt):
         )
 
     # Set up the variational problem
-    uprob = NonlinearVariationalProblem(L, q)
-    usolver = NonlinearVariationalSolver(uprob,
+    q_prob = NonlinearVariationalProblem(L, q)
+    q_solve = NonlinearVariationalSolver(q_prob,
             solver_parameters={
                             'mat_type': 'matfree',
                             'snes_type': 'ksponly',
@@ -187,20 +214,20 @@ while (t < T-0.5*dt):
     ######################### INNER TIMESTEP ##########################
 
     # Set up files:
-    ufile = File('prob1_test_outputs/prob1_step_{y}_adapt.pvd'\
+    q_file = File('prob1_test_outputs/prob1_step_{y}_adapt.pvd'\
                  .format(y=int(t/(dt*rm))))
     if (t == 0.0):
-        ufile.write(u, eta, time=t)
+        q_file.write(u, eta, time=t)
     cnt = 0
 
     # Enter the timeloop:
     while (cnt < rm):     
         t += dt
-        print 't = ', t, ' seconds, cnt = ', cnt
+        print 't = ', t, ' seconds, mesh number = ', mn
         cnt += 1
-        usolver.solve()
+        q_solve.solve()
         q_.assign(q)
         dumpn += 1
         if (dumpn == ndump):
             dumpn -= ndump
-            ufile.write(u, eta, time=t)
+            q_file.write(u, eta, time=t)

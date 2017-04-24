@@ -48,6 +48,7 @@ ly = 1
 nx = lx*n
 ny = ly*n
 mesh = RectangleMesh(nx, ny, lx, ly)
+x = SpatialCoordinate(mesh)
 
 # Define function spaces:
 Vu  = VectorFunctionSpace(mesh, 'CG', 2)    # Use Taylor-Hood elements
@@ -66,7 +67,7 @@ b.assign(depth)
 
 # Interpolate ICs:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(Expression('-0.01*cos(0.5*pi*x[0])'))
+eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 
 ########################## WEAK PROBLEM ###############################
 
@@ -115,8 +116,6 @@ elif (mode == 'n'):
 t = 0.0
 dumpn = 0
 ufile.write(u, eta, time=t)
-eta_sols = [Function(eta)]
-u_sols = [Function(u)]
 
 # Enter the timeloop:
 while (t < T - 0.5*dt):     
@@ -129,9 +128,6 @@ while (t < T - 0.5*dt):
     if (dumpn == ndump):
         dumpn -= ndump
         ufile.write(u, eta, time=t)
-    # Store solution data:
-    eta_sols.append(Function(eta))
-    u_sols.append(Function(u))
 
 ############################ THETIS SETUP #############################
 
@@ -155,7 +151,7 @@ solver_obj.assign_initial_conditions(elev=elev_init)
 # Run the model:
 solver_obj.iterate()
 
-# OUTPUT CHECKS FOR THETIS TOO
+# OUTPUT CHECKS
 
 ########################### EVALUATE ERROR ############################
 

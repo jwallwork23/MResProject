@@ -49,16 +49,16 @@ def adapt(mesh,metric):
 ########################### PARAMETERS ################################
 
 # Specify problem parameters:
-dt = float(raw_input('Timestep (default 0.01)?: ') or 0.01)
+dt = float(raw_input('Timestep (default 0.1)?: ') or 0.1)
 Dt = Constant(dt)
-n = float(raw_input('Number of mesh cells per m (default 10)?: ') \
-          or 10)
+n = float(raw_input('Number of mesh cells per m (default 5)?: ') \
+          or 5)
 T = float(raw_input('Simulation duration in s (default 5)?: ') or 5.0)
 
 # Set physical and numerical parameters for the scheme:
 g = 9.81        # Gravitational acceleration
 depth = 0.1     # Tank water depth
-ndump = 5       # Timesteps per data dump
+ndump = 1       # Timesteps per data dump
 rm = 5          # Timesteps per remesh
 
 ######################## INITIAL FE SETUP #############################
@@ -72,7 +72,7 @@ mesh = RectangleMesh(nx, ny, lx, ly)
 x = SpatialCoordinate(mesh)
 
 # Define function spaces:
-Vu = VectorFunctionSpace(mesh, 'CG', 2)     # \ Use Taylor-Hood 
+Vu = VectorFunctionSpace(mesh, 'CG', 1)     # \ TODO: Use Taylor-Hood 
 Ve = FunctionSpace(mesh, 'CG', 1)           # / elements
 Vq = MixedFunctionSpace((Vu, Ve))           # Mixed FE problem
 Vm = TensorFunctionSpace(mesh, 'CG', 1)     # Function space of metric
@@ -94,11 +94,9 @@ eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 
 ############################ TIMESTEPPING #############################
 
-# Initialise time, files and dump counter:
+# Initialisation:
 t = 0.0
 dumpn = 0
-ufile = File('prob1_test_outputs/model_prob1.pvd')
-
 q = Function(Vq)
 q.assign(q_)
 
@@ -109,25 +107,45 @@ while (t < T-0.5*dt):
     if (t != 0.0):
 
         # Adapt mesh:
-        M.interpolate(Expression([[100, 0], [0, 100]]))  # TODO
-        mesh = adapt(mesh, M)
+        M.interpolate(Expression([[n**2, 0], [0, n**2]]))   # TODO:
+        mesh2 = adapt(mesh, M)                              # Hessian
+        m2coords = mesh2.coordinates.dat.data
 
         # Establish new function spaces:
-        Vm = TensorFunctionSpace(mesh, 'CG', 1)
-        M = Function(Vm)
-        Vu = VectorFunctionSpace(mesh, 'CG', 2)
-        Ve = FunctionSpace(mesh, 'CG', 1)
-        Vq = MixedFunctionSpace((Vu, Ve))
+        Vm2 = TensorFunctionSpace(mesh2, 'CG', 1)   # \ TODO: use
+        Vu2 = VectorFunctionSpace(mesh2, 'CG', 1)   # / Taylor-Hood
+        Ve2 = FunctionSpace(mesh2, 'CG', 1)
+        Vq2 = MixedFunctionSpace((Vu2, Ve2))
 
         # Set up new functions:
-        qq_ = Function(Vq)
-        qq = Function(Vq)
-        bb = Function(Ve)
+        q_2 = Function(Vq2)
+        u_2, eta_2 = q_2.split()
+        q2 = Function(Vq2)
+        u2, eta2 = q2.split()
+        b2 = Function(Ve2)
+        M2 = Function(Vm2)
 
         # Interpolate functions:
-        qq_.dat.data[:] = q_.at(mesh.coordinates.dat.data)
-        qq.dat.data[:] = q.at(mesh.coordinates.dat.data)
-        bb.dat.data[:] = b.at(mesh.coordinates.dat.data)
+        eta2.dat.data[:] = eta.at(m2coords)
+        u2.dat.data[:] = u.at(m2coords)
+        u_2.dat.data[:] = u_.at(m2coords)
+        eta_2.dat.data[:] = eta_.at(m2coords)
+        b2.dat.data[:] = b.at(m2coords)
+
+        # Relabel:
+        q_ = q_2
+        q = q2
+        u_ = u_2
+        u = u2
+        eta_ = eta_2
+        eta = eta2
+        b = b2
+        mesh = mesh2
+        Vm = Vm2
+        M = M2
+        Vu = Vu2
+        Ve = Ve2
+        Vq = Vq2
 
     ########################## WEAK PROBLEM ###########################
 
@@ -168,7 +186,10 @@ while (t < T-0.5*dt):
 
     ######################### INNER TIMESTEP ##########################
 
-    if (t == 0):
+    # Set up files:
+    ufile = File('prob1_test_outputs/prob1_step_{y}_adapt.pvd'\
+                 .format(y=int(t/(dt*rm))))
+    if (t == 0.0):
         ufile.write(u, eta, time=t)
     cnt = 0
 

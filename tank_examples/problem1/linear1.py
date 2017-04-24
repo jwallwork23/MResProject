@@ -1,5 +1,6 @@
 from firedrake import *
 import numpy as np
+from numpy import linalg as LA
 
 ############################ FUNCTIONS ################################
 
@@ -51,23 +52,19 @@ def adapt(mesh,metric):
 # Specify problem parameters:
 dt = float(raw_input('Timestep (default 0.1)?: ') or 0.1)
 Dt = Constant(dt)
-n = float(raw_input('Number of mesh cells per m (default 5)?: ') \
-          or 5)
+n = int(raw_input('Number of mesh cells per m (default 5)?: ') or 5)
 T = float(raw_input('Simulation duration in s (default 5)?: ') or 5.0)
 
 # Set physical and numerical parameters for the scheme:
-g = 9.81        # Gravitational acceleration
-depth = 0.1     # Tank water depth
+g = 9.81        # Gravitational acceleration (m s^{-2})
+depth = 0.1     # Tank water depth (m)
 ndump = 1       # Timesteps per data dump
 rm = 5          # Timesteps per remesh
 
 ######################## INITIAL FE SETUP #############################
 
 # Define domain and mesh:
-lx = 4
-ly = 1
-nx = lx*n
-ny = ly*n
+lx = 4; ly = 1; nx = lx*n; ny = ly*n
 mesh = RectangleMesh(nx, ny, lx, ly)
 x = SpatialCoordinate(mesh)
 
@@ -95,9 +92,7 @@ eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 ############################ TIMESTEPPING #############################
 
 # Initialisation:
-t = 0.0
-dumpn = 0
-mn = 0
+t = 0.0; dumpn = 0; mn = 0
 q = Function(Vq)
 q.assign(q_)
 
@@ -107,20 +102,21 @@ while (t < T-0.5*dt):
 
     if (t != 0.0):
 
-        ###################### HESSIAN COMPUTATION ####################
+        ######################### MESH ADAPTION #######################
 
+        # Construct functions:
         H = Function(Vm)            # Hessian-to-be
         sigma = TestFunction(Vm)
         nhat = FacetNormal(mesh)    # Normal vector
 
-        # Variational problem
+        # Establish and solve a variational problem associated with the
+        # Monge-Ampere equation:
         Lh = (
                 inner(H, sigma) * dx + \
                 inner(div(sigma), grad(eta)) * dx - \
                 (sigma[0,1] * nhat[1] * eta.dx(0) + \
-                 sigma[1,0] *nhat[0] * eta.dx(1)) * ds
+                 sigma[1,0] * nhat[0] * eta.dx(1)) * ds
             )
-
         H_prob = NonlinearVariationalProblem(Lh, H)
         H_solv = NonlinearVariationalSolver(H_prob,
                 solver_parameters={'snes_rtol': 1e8,
@@ -131,33 +127,36 @@ while (t < T-0.5*dt):
                                     'snes_view': False,
                                     'ksp_monitor_true_residual': False,
                                     'snes_converged_reason': True,
-                                    'ksp_converged_reason': True})
-
+                                    'ksp_converged_reason': True,})
         H_solv.solve()
 
-        ########################## FE SETUP ###########################
+        # Access the eigenvalues and eigenvectors of the Hessian:
+##  TODO: not quite so simple as this
+##        evals, evecs = LA.eig(H)
 
+        # Edit the eigenvalues to obtain the metric:
+##  TODO properly. Temporary approximate identity transformation:
+        M.interpolate(Expression([[n**2, 0], [0, n**2]]))
 
         # Adapt mesh:
-        M.interpolate(Expression([[n**2, 0], [0, n**2]]))   # TODO:
-        mesh = adapt(mesh, M)                               # Hessian
+        mesh = adapt(mesh, M)
         coords = mesh.coordinates.dat.data
 
-        # Establish new function spaces:
+        ####################### UPDATE FE SETUP #######################
+
+        # Establish function spaces on the new mesh:
         Vm = TensorFunctionSpace(mesh, 'CG', 1)   # \ TODO: use
         Vu = VectorFunctionSpace(mesh, 'CG', 1)   # / Taylor-Hood
         Ve = FunctionSpace(mesh, 'CG', 1)
         Vq = MixedFunctionSpace((Vu, Ve))
 
-        # Set up new functions:
-        q_2 = Function(Vq)
-        u_2, eta_2 = q_2.split()
-        q2 = Function(Vq)
-        u2, eta2 = q2.split()
+        # Establish functions in the new spaces:
+        q_2 = Function(Vq); u_2, eta_2 = q_2.split()
+        q2 = Function(Vq); u2, eta2 = q2.split()
         b2 = Function(Ve)
         M2 = Function(Vm)
 
-        # Interpolate functions:
+        # Interpolate across from the previous mesh:
         eta2.dat.data[:] = eta.at(coords)
         u2.dat.data[:] = u.at(coords)
         u_2.dat.data[:] = u_.at(coords)
@@ -165,19 +164,13 @@ while (t < T-0.5*dt):
         b2.dat.data[:] = b.at(coords)
 
         # Relabel functions:
-        q_ = q_2
-        q = q2
-        u_ = u_2
-        u = u2
-        eta_ = eta_2
-        eta = eta2
-        b = b2
-        M = M2
+        q_ = q_2; q = q2; u_ = u_2; u = u2
+        eta_ = eta_2; eta = eta2; b = b2; M = M2
 
     ########################## WEAK PROBLEM ###########################
 
     # Build the weak form of the timestepping algorithm, expressed as a 
-    # mixed nonlinear problem
+    # mixed nonlinear problem:
     v, ze = TestFunctions(Vq)
     u, eta = split(q)      
     u_, eta_ = split(q_)

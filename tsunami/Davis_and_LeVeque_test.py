@@ -23,14 +23,13 @@ if ((vid != 'y') & (vid != 'n')):
     raise ValueError('Please try again, choosing y or n.')
 
 # Set problem parameters:
-g = 9.81                    # Gravitational acceleration (m s^{-2})
-ndump = 40
+g = 9.81    # Gravitational acceleration (m s^{-2})
+ndump = 40  # Timesteps per data dump
 
 ############################## FE SETUP ###############################
 
 # Define domain and mesh:
-lx = 4e5                    # 400 km ocean domain
-nx = int(lx*n)
+lx = 4e5; nx = int(lx*n)    # 400 km ocean domain, uniform grid spacing
 mesh = IntervalMesh(nx, lx)
 
 # Define function spaces:
@@ -95,9 +94,7 @@ eta.rename('Free surface displacement')
 ######################## FORWARD TIMESTEPPING #########################
 
 # Initialise time, counters and function arrays:
-t = 0.0
-i = 0
-dumpn = 0
+t = 0.0; i = 0; dumpn = 0
 eta_snapshots = [Function(eta)]
 eta_vid = [Function(eta)]
 snaps = {0: 0.0, 1: 525.0, 2: 1365.0, 3: 2772.0, 4: 3255.0, 5: 4200.0}

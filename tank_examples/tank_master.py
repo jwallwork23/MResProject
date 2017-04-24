@@ -87,7 +87,7 @@ if ((waves != 'y') & (waves != 'n')):
 n = int(raw_input('Specify number of cells per m (default 30): ') \
         or 30)
 dt = float(raw_input('Specify timestep (default 0.01): ') or 0.01)
-Dt = Constant(dt)
+Dt = Constant(dt)   # TODO: adaptive timestepping?
 ndump = 10
 t_export = dt*ndump
 T = float(raw_input('Specify simulation duration in s (default 40): ') \
@@ -107,10 +107,7 @@ in_flux = 0         # Flux into domain
 ############################ FE SETUP #################################
 
 # Define domain and mesh:
-lx = 4
-ly = 1
-nx = lx*n
-ny = ly*n
+lx = 4; ly = 1; nx = lx*n; ny = ly*n
 mesh = RectangleMesh(nx, ny, lx, ly)
 x = SpatialCoordinate(mesh)
 
@@ -232,14 +229,12 @@ elif (bath == 'y'):
             q_file = File('tank_outputs/model_prob4_nonlinear.pvd')
 
 # Initialise time, arrays and dump counter:
-t = 0.0
-dumpn = 0
+t = 0.0; dumpn = 0; i = 0
 q_file.write(u, eta, time=t)
 
 # Initialise arrays for storage:
 eta_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
 u_vals = np.zeros((int(T/(ndump*dt))+1, (2*nx+1)*(2*ny+1), 2))
-i = 0
 eta_vals[i,:] = eta.dat.data
 u_vals[i,:,:] = u.dat.data
 
@@ -314,8 +309,7 @@ if (compare != 's'):
     if (compare == 'b'):
 
         # Re-initialise counters and set up error arrays:
-        dumpn = 0
-        i = 0
+        dumpn = 0; i = 0
         u_err = np.zeros((int(T/(ndump*dt))+1))
         eta_err = np.zeros((int(T/(ndump*dt))+1)) 
 

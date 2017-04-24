@@ -125,7 +125,7 @@ if ((res != 'f') & (res != 'm') & (res != 'c')):
     raise ValueError('Please try again, choosing f, m or c.')
 dt = float(raw_input('Specify timestep (s) (default 15): ') or 15.)
 Dt = Constant(dt)
-ndump = 4
+ndump = 4           # Timesteps per data dump
 t_export = ndump * dt
 T = float(raw_input('Specify time period (s) (default 7200): ') \
           or 7200.)
@@ -201,58 +201,55 @@ File('tsunami_outputs/tsunami_bathy.pvd').write(b)
 
 ###################### FORWARD WEAK PROBLEM ###########################
 
-# Build the weak form of the timestepping algorithm, expressed as a 
-# mixed nonlinear problem:
-v, ze = TestFunctions(Vq)
-q = Function(Vq)
-q.assign(q_)
-u, eta = split(q)
-u_, eta_ = split(q_)
-
-# Establish form:
-if (mode == 'l'):
-    L1 = linear_form()
-elif (mode == 'n'):
-    L1 = nonlinear_form()
-
-# Set up the variational problem:
-params = {
-    'ksp_type': 'gmres', 'ksp_rtol': '1e-8',
-    'pc_type': 'fieldsplit', 'pc_fieldsplit_type': 'schur',
-    'pc_fieldsplit_schur_fact_type': 'full',
-    'fieldsplit_0_ksp_type': 'cg', 'fieldsplit_0_pc_type': 'ilu',
-    'fieldsplit_1_ksp_type': 'cg', 'fieldsplit_1_pc_type': 'hypre',
-    'pc_fieldsplit_schur_precondition': 'selfp',}
-q_prob = NonlinearVariationalProblem(L1, q)
-q_solve = NonlinearVariationalSolver(q_prob, solver_parameters=params)
-
-# Split functions in order to access their data:
-u_, eta_ = q_.split()
-u, eta = q.split()
-
-# Store multiple functions:
-u.rename('Fluid velocity')
-eta.rename('Free surface displacement')
-
-######################## FORWARD TIMESTEPPING #########################
-
-# Initialise output directory and dump counter:
-if (mode == 'l'):
-    q_file = File('tsunami_outputs/tohoku_linear.pvd')
-elif (mode == 'n'):
-    q_file = File('tsunami_outputs/tohoku_nonlinear.pvd')
-t = 0.0
-i = 0
-dumpn = 0
-q_file.write(u, eta, time=t)
-
-# Initialise arrays for storage:
-eta_vals = np.zeros((int(T/(ndump*dt))+1, 1099))    # \ TODO: Make  
-u_vals = np.zeros((int(T/(ndump*dt))+1, 4067, 2))   # \ more general to
-eta_vals[i,:] = eta.dat.data                        #   apply in fine
-u_vals[i,:,:] = u.dat.data                          #   and med cases
-
 if (compare != 't'):
+    # Build the weak form of the timestepping algorithm, expressed as a 
+    # mixed nonlinear problem:
+    v, ze = TestFunctions(Vq)
+    q = Function(Vq)
+    q.assign(q_)
+    u, eta = split(q)
+    u_, eta_ = split(q_)
+
+    # Establish form:
+    if (mode == 'l'):
+        L1 = linear_form()
+    elif (mode == 'n'):
+        L1 = nonlinear_form()
+
+    # Set up the variational problem:
+    params = {
+        'ksp_type': 'gmres', 'ksp_rtol': '1e-8',
+        'pc_type': 'fieldsplit', 'pc_fieldsplit_type': 'schur',
+        'pc_fieldsplit_schur_fact_type': 'full',
+        'fieldsplit_0_ksp_type': 'cg', 'fieldsplit_0_pc_type': 'ilu',
+        'fieldsplit_1_ksp_type': 'cg', 'fieldsplit_1_pc_type': 'hypre',
+        'pc_fieldsplit_schur_precondition': 'selfp',}
+    q_prob = NonlinearVariationalProblem(L1, q)
+    q_solve = NonlinearVariationalSolver(q_prob, solver_parameters=params)
+
+    # Split functions in order to access their data:
+    u_, eta_ = q_.split()
+    u, eta = q.split()
+
+    # Store multiple functions:
+    u.rename('Fluid velocity')
+    eta.rename('Free surface displacement')
+
+    #################### FORWARD TIMESTEPPING #########################
+
+    # Initialise output directory and dump counter:
+    if (mode == 'l'):
+        q_file = File('tsunami_outputs/tohoku_linear.pvd')
+    elif (mode == 'n'):
+        q_file = File('tsunami_outputs/tohoku_nonlinear.pvd')
+    t = 0.0; i = 0; dumpn = 0
+    q_file.write(u, eta, time=t)
+
+    # Initialise arrays for storage:
+    eta_vals = np.zeros((int(T/(ndump*dt))+1, 1099))    # \ TODO: Make  
+    u_vals = np.zeros((int(T/(ndump*dt))+1, 4067, 2))   # \ more general to
+    eta_vals[i,:] = eta.dat.data                        #   apply in fine
+    u_vals[i,:,:] = u.dat.data                          #   and med cases
 
     tic1 = clock()
     # Enter the timeloop:
@@ -274,7 +271,7 @@ if (compare != 't'):
 
     print 'Elapsed time for standalone solver: %1.2es' % (toc1 - tic1)
                   
-# TODO: Implement damage measures
+## TODO: Implement damage measures
 
 ######################## FORWARD THETIS SETUP #########################
 
@@ -296,7 +293,6 @@ if (compare != 's'):
     if (compare == 'b'):
 
         # Re-initialise counters and set up error arrays:
-        dumpn = 0
         i = 0
         u_err = np.zeros((int(T/(ndump*dt))+1))
         eta_err = np.zeros((int(T/(ndump*dt))+1)) 

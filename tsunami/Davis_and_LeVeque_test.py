@@ -8,7 +8,7 @@ from matplotlib import rc
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 rc('text', usetex=True)
 
-############################ PARAMETERS ###############################
+######################################################## PARAMETERS ###########################################################
 
 # User input:
 dt = float(raw_input('Specify timestep (default 1): ') or 1.)

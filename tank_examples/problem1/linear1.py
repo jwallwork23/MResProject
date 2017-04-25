@@ -89,7 +89,8 @@ def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3,
     
     for i in range(mesh.topology.num_vertices()):
         
-        # Generate local Hessian and edit values:
+        # Generate local Hessian, scaling to avoid roundoff error and
+        # editing values:
         H_loc = H.dat.data[i] * \
                 1/max(abs(sol.dat.data[i]), sol_min) * n
 ##         TODO: what is this mysterious scale factor? ^
@@ -105,7 +106,7 @@ def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3,
         lam1 = max(lam1, ia * lam_max)
         lam2 = max(lam2, ia * lam_max)
 
-        # Reconstruct abs(H):
+        # Reconstruct edited Hessian:
         M.dat.data[i][0,0] = lam1 * v1[0] * v1[0] + \
                              lam2 * v2[0] * v2[0]
         M.dat.data[i][0,1] = lam1 * v1[0] * v1[1] + \

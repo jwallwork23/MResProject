@@ -81,6 +81,21 @@ def construct_hessian(mesh, eta):
     H_solv.solve()
 
     return H
+
+def compute_steady_metric(mesh, H, sol):
+    '''A function which computes the steady metric for remeshing,
+    provided with the current mesh, hessian and free surface. Based on
+    Nicolas Barral's function ``computeSteadyMetric``, from
+    ``adapt.py``.'''
+    M = H
+
+    for i in range(mesh.topology.num_vertices()):
+        H_loc = H.dat.data[i]*1/max(abs(sol.dat.data[i]), 0.01)*1000
+        
+
+    # ...
+
+    return M
     
 
 ########################### PARAMETERS ################################
@@ -90,6 +105,9 @@ dt = float(raw_input('Timestep (default 0.1)?: ') or 0.1)
 Dt = Constant(dt)
 n = int(raw_input('Number of mesh cells per m (default 4)?: ') or 4)
 T = float(raw_input('Simulation duration in s (default 5)?: ') or 5.0)
+remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
+if ((remesh != 'y') & (remesh != 'n')):
+    raise ValueError('Please try again, typing y or n.')
 
 # Set physical and numerical parameters for the scheme:
 g = 9.81        # Gravitational acceleration (m s^{-2})
@@ -141,17 +159,13 @@ while (t < T-0.5*dt):
         # Set up metric:
         Vm = TensorFunctionSpace(mesh, 'CG', 1)
         M = Function(Vm)
-        
+
+        # Build Hessian and (hence) metric:
         H = construct_hessian(mesh, eta)
-
-        # Access the eigenvalues and eigenvectors of the Hessian:
-##  TODO: not quite so simple as this
-##        evals, evecs = LA.eig(H)
-
-        # Edit the eigenvalues to obtain the metric:
-##  TODO properly. Temporary approximate identity transformation:
-        M.interpolate(Expression([[n**2, 0], [0, n**2]]))
-        # Include this also as a 'no-remesh' option
+        if (remesh == 'y'):
+            M = compute_steady_metric(mesh, H, eta)
+        else:
+            M.interpolate(Expression([[n**2, 0], [0, n**2]]))
 
         # Adapt mesh:
         mesh = adapt(mesh, M)

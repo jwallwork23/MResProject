@@ -43,10 +43,7 @@ def mesh_converter(meshfile, lon0, lat0):
     Cartesian coordinates.'''
     mesh1 = open(meshfile, 'r') # Lon-lat mesh to be converted
     mesh2 = open('meshes/CartesianTohoku.msh', 'w')
-    i = 0
-    mode = 0
-    cnt = 0
-    N = -1
+    i = 0; mode = 0; cnt = 0; N = -1
     for line in mesh1:
         i += 1
         if (i == 5):
@@ -66,8 +63,7 @@ def mesh_converter(meshfile, lon0, lat0):
             mode += 1
             cnt +=1
         mesh2.write(line)
-    mesh1.close()
-    mesh2.close()
+    mesh1.close(); mesh2.close()
 
 def nonlinear_form():
     '''Weak residual form of the nonlinear shallow water equations'''

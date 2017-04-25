@@ -87,7 +87,8 @@ mu.rename('Fluid momentum'); eta.rename('Free surface displacement')
 
 # Initialise time, counters and function arrays:
 t = 0.0; i = 0; dumpn = 0
-eta_snapshots = [Function(eta)]; eta_vid = [Function(eta)]
+eta_snapshots = [Function(eta)]
+eta_vid = [Function(eta)]
 snaps = {0: 0.0, 1: 525.0, 2: 1365.0, 3: 2772.0, 4: 3255.0, 5: 4200.0}
 
 # Initialise arrays for storage:
@@ -95,7 +96,8 @@ sig_eta = np.zeros((int(T/(ndump*dt))+1, nx+1))         # \ Dimension
 mu_vals = np.zeros((int(T/(ndump*dt))+1, 2*nx+1))       # | pre-allocated
 eta_vals = np.zeros((int(T/(ndump*dt))+1, nx+1))        # | for speed
 m = np.zeros((int(T/(ndump*dt))+1))                     # /
-mu_vals[i,:] = mu.dat.data; eta_vals[i,:] = eta.dat.data
+mu_vals[i,:] = mu.dat.data
+eta_vals[i,:] = eta.dat.data
 m[i] = np.log2(max(eta_vals[i, 0], 0.5))
 
 # Determine signifiant values (for domain of dependence plot):
@@ -171,14 +173,16 @@ lm.rename('Adjoint fluid momentum'); le.rename('Adjoint free surface displacemen
 # Initialise dump counter and function arrays:
 if (dumpn == 0):
     dumpn = ndump
-le_snapshots = [Function(le)]; le_vid = [Function(le)]
+le_snapshots = [Function(le)]
+le_vid = [Function(le)]
 
 # Initialise arrays for storage:
 sig_le = np.zeros((int(T/(ndump*dt))+1, nx+1))      # \ Dimension
 lm_vals = np.zeros((int(T/(ndump*dt))+1, 2*nx+1))   # | pre-allocated
 le_vals = np.zeros((int(T/(ndump*dt))+1, nx+1))     # | for speed
 q_dot_lam = np.zeros((int(T/(ndump*dt))+1, nx+1))   # /
-lm_vals[i,:] = lm.dat.data; le_vals[i,:] = le.dat.data
+lm_vals[i,:] = lm.dat.data
+le_vals[i,:] = le.dat.data
 
 # Evaluate forward-adjoint inner products (noting mu and lm are in P2,
 # while eta and le are in P1, so we need to evaluate at nodes):

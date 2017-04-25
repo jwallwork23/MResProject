@@ -328,14 +328,10 @@ if (compare != 's'):
 if (compare == 'b'):
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
-    plt.plot(np.linspace(0, T, int(T/(ndump*dt))+1), u_err,
-             label='Fluid velocity error')
-    plt.plot(np.linspace(0, T, int(T/(ndump*dt))+1), eta_err,
-             label='Free surface error')
-    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
-               borderaxespad=0.)
+    plt.plot(np.linspace(0, T, int(T/(ndump*dt))+1), u_err, label='Fluid velocity error')
+    plt.plot(np.linspace(0, T, int(T/(ndump*dt))+1), eta_err, label='Approximated free surface error')
+    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, borderaxespad=0.)
     plt.xlim([0, 7200])
     plt.xlabel(r'Time (s)')
     plt.ylabel(r'L2 error')
-    plt.savefig('tank_outputs/graphs/error_{y1}_{y2}_{y3}.png'\
-                    .format(y1=mode, y2=bath, y3=waves))
+    plt.savefig('tank_outputs/graphs/error_{y1}_{y2}_{y3}.png'.format(y1=mode, y2=bath, y3=waves))

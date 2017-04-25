@@ -7,8 +7,9 @@ from numpy import linalg as LA
 
 ############################ FUNCTIONS ################################
 
-# Mesh adaptivity function (courtesy of Nicolas Barral):
-def adapt(mesh,metric):
+def adapt(mesh, metric):
+    '''A function which generates a new mesh, provided with a previous
+    mesh and an adaptivity metric. Courtesy of Nicolas Barral.'''
     
     dim = mesh._topological_dimension
     entity_dofs = np.zeros(dim+1, dtype=np.int32)
@@ -19,27 +20,18 @@ def adapt(mesh,metric):
     plex = mesh._plex
     vStart, vEnd = plex.getDepthStratum(0)
     nbrVer = vEnd - vStart
-##    print  "DEBUG  vStart: %d  vEnd: %d" % (vStart, vEnd)
-##    coordSection.view()
     
     dmCoords = mesh.topology._plex.getCoordinateDM()
     dmCoords.setDefaultSection(coordSection)    
-##    dmCoords.setDefaultSection(\
-##        mesh.coordinates.function_space()._dm.getDefaultSection())
-
-    #### TEMPORARY (?) HACK to sort the metric in the right order
-    ####                (waiting for Matt Knepley fix in plexadapt)
     
     met = np.ndarray(shape=metric.dat.data.shape, \
                      dtype=metric.dat.data.dtype, order='C');
     for iVer in range(nbrVer):
         off = coordSection.getOffset(iVer+vStart)/dim
-#        print "DEBUG  iVer: %d  off: %d   nbrVer: %d" \
-#                                   %(iVer, off, nbrVer)
+
         met[iVer] = metric.dat.data[off]
     for iVer in range(nbrVer):
         metric.dat.data[iVer] = met[iVer]
-#    metric.dat.data.data = met.data
 
     with mesh.coordinates.dat.vec_ro as coords:
         mesh.topology._plex.setCoordinatesLocal(coords)
@@ -89,6 +81,7 @@ def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3,
     Nicolas Barral's function ``computeSteadyMetric``, from
     ``adapt.py``.'''
 
+    sol_min = 0.01
     ia = 1./(a**2)
     ihmin2 = 1./(h_min**2)
     ihmax2 = 1./(h_max**2)
@@ -97,27 +90,29 @@ def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3,
     for i in range(mesh.topology.num_vertices()):
         
         # Generate local Hessian and edit values:
-        H_loc = H.dat.data[i]*1/max(abs(sol.dat.data[i]), 0.01)*1000
+        H_loc = H.dat.data[i] * \
+                1/max(abs(sol.dat.data[i]), sol_min) * n
+##         TODO: what is this mysterious scale factor? ^
         mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
         H_loc[0][1] = mean_diag; H_loc[1][0] = mean_diag
 
         # Find eigenpairs and truncate eigenvalues:
-        lbd, v = LA.eig(H_loc)
+        lam, v = LA.eig(H_loc)
         v1, v2 = v[0], v[1]
-        lbd1 = min(ihmin2, max(ihmax2, abs(lbd[0])))
-        lbd2 = min(ihmin2, max(ihmax2, abs(lbd[1])))
-        lbd_max = max(lbd1, lbd2)
-        lbd1 = max(lbd1, ia * lbd_max)
-        lbd2 = max(lbd2, ia * lbd_max)
+        lam1 = min(ihmin2, max(ihmax2, abs(lam[0])))
+        lam2 = min(ihmin2, max(ihmax2, abs(lam[1])))
+        lam_max = max(lam1, lam2)
+        lam1 = max(lam1, ia * lam_max)
+        lam2 = max(lam2, ia * lam_max)
 
         # Reconstruct abs(H):
-        M.dat.data[i][0,0] = lbd1 * v1[0] * v1[0] + \
-                             lbd2 * v2[0] * v2[0]
-        M.dat.data[i][0,1] = lbd1 * v1[0] * v1[1] + \
-                             lbd2 * v2[0] * v2[1]
+        M.dat.data[i][0,0] = lam1 * v1[0] * v1[0] + \
+                             lam2 * v2[0] * v2[0]
+        M.dat.data[i][0,1] = lam1 * v1[0] * v1[1] + \
+                             lam2 * v2[0] * v2[1]
         M.dat.data[i][1,0] = M.dat.data[i][0,1]
-        M.dat.data[i][1,1] = lbd1 * v1[1] * v1[1] + \
-                             lbd2 * v2[1] * v2[1]
+        M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + \
+                             lam2 * v2[1] * v2[1]
 
     return M
     
@@ -127,7 +122,8 @@ def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3,
 # Specify problem parameters:
 dt = float(raw_input('Timestep (default 0.1)?: ') or 0.1)
 Dt = Constant(dt)
-n = int(raw_input('Number of mesh cells per m (default 4)?: ') or 4)
+n = int(raw_input('Number of mesh cells per m (default 16)?: ') or 16)
+n2 = n**2
 T = float(raw_input('Simulation duration in s (default 5)?: ') or 5.0)
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if ((remesh != 'y') & (remesh != 'n')):
@@ -189,7 +185,7 @@ while (t < T-0.5*dt):
         if (remesh == 'y'):
             M = compute_steady_metric(mesh, H, eta)
         else:
-            M.interpolate(Expression([[n**2, 0], [0, n**2]]))
+            M.interpolate(Expression([[n2, 0], [0, n2]]))
 
         # Adapt mesh:
         mesh = adapt(mesh, M)
@@ -261,7 +257,7 @@ while (t < T-0.5*dt):
 
     # Set up files:
     q_file = File('prob1_test_outputs/prob1_step_{y}_adapt.pvd'\
-                 .format(y=int(t/(dt*rm))))
+                 .format(y=mn))
     if (t == 0.0):
         q_file.write(u, eta, time=t)
     cnt = 0

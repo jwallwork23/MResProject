@@ -1,4 +1,7 @@
 from firedrake import *
+import pyop2 as op2             # Not currently used
+
+import sys, os, os.path         # Not currently used
 import numpy as np
 from numpy import linalg as LA
 
@@ -47,12 +50,45 @@ def adapt(mesh,metric):
 
     return newmesh
 
+def construct_hessian(mesh, eta):
+    '''A function which computes the hessian of the free surface with
+    respect to the current mesh.'''
+
+    # Construct functions:
+    H = Function(Vm)            # Hessian-to-be
+    sigma = TestFunction(Vm)
+    nhat = FacetNormal(mesh)    # Normal vector
+
+    # Establish and solve a variational problem associated with the
+    # Monge-Ampere equation:
+    Lh = (
+            inner(H, sigma) * dx + \
+            inner(div(sigma), grad(eta)) * dx - \
+            (sigma[0,1] * nhat[1] * eta.dx(0) + \
+            sigma[1,0] * nhat[0] * eta.dx(1)) * ds
+        )
+    H_prob = NonlinearVariationalProblem(Lh, H)
+    H_solv = NonlinearVariationalSolver(H_prob,
+                solver_parameters={'snes_rtol': 1e8,
+                                    'ksp_rtol': 1e-5,
+                                    'ksp_gmres_restart': 20,
+                                    'pc_type': 'sor',
+                                    'snes_monitor': True,
+                                    'snes_view': False,
+                                    'ksp_monitor_true_residual': False,
+                                    'snes_converged_reason': True,
+                                    'ksp_converged_reason': True,})
+    H_solv.solve()
+
+    return H
+    
+
 ########################### PARAMETERS ################################
 
 # Specify problem parameters:
 dt = float(raw_input('Timestep (default 0.1)?: ') or 0.1)
 Dt = Constant(dt)
-n = int(raw_input('Number of mesh cells per m (default 5)?: ') or 5)
+n = int(raw_input('Number of mesh cells per m (default 4)?: ') or 4)
 T = float(raw_input('Simulation duration in s (default 5)?: ') or 5.0)
 
 # Set physical and numerical parameters for the scheme:
@@ -72,14 +108,12 @@ x = SpatialCoordinate(mesh)
 Vu = VectorFunctionSpace(mesh, 'CG', 1)     # \ TODO: Use Taylor-Hood 
 Ve = FunctionSpace(mesh, 'CG', 1)           # / elements
 Vq = MixedFunctionSpace((Vu, Ve))           # Mixed FE problem
-Vm = TensorFunctionSpace(mesh, 'CG', 1)     # Function space of metric
 
 # Construct a function to store our two variables at time n:
 q_ = Function(Vq)       # \ Split means we can interpolate the 
 u_, eta_ = q_.split()   # / initial condition into the two components
 
-# Construct a metric and a (constant) bathymetry function:
-M = Function(Vm)
+# Construct a (constant) bathymetry function:
 b = Function(Ve, name = 'Bathymetry')
 b.assign(depth)
 
@@ -104,31 +138,11 @@ while (t < T-0.5*dt):
 
         ######################### MESH ADAPTION #######################
 
-        # Construct functions:
-        H = Function(Vm)            # Hessian-to-be
-        sigma = TestFunction(Vm)
-        nhat = FacetNormal(mesh)    # Normal vector
-
-        # Establish and solve a variational problem associated with the
-        # Monge-Ampere equation:
-        Lh = (
-                inner(H, sigma) * dx + \
-                inner(div(sigma), grad(eta)) * dx - \
-                (sigma[0,1] * nhat[1] * eta.dx(0) + \
-                 sigma[1,0] * nhat[0] * eta.dx(1)) * ds
-            )
-        H_prob = NonlinearVariationalProblem(Lh, H)
-        H_solv = NonlinearVariationalSolver(H_prob,
-                solver_parameters={'snes_rtol': 1e8,
-                                    'ksp_rtol': 1e-5,
-                                    'ksp_gmres_restart': 20,
-                                    'pc_type': 'sor',
-                                    'snes_monitor': True,
-                                    'snes_view': False,
-                                    'ksp_monitor_true_residual': False,
-                                    'snes_converged_reason': True,
-                                    'ksp_converged_reason': True,})
-        H_solv.solve()
+        # Set up metric:
+        Vm = TensorFunctionSpace(mesh, 'CG', 1)
+        M = Function(Vm)
+        
+        H = construct_hessian(mesh, eta)
 
         # Access the eigenvalues and eigenvectors of the Hessian:
 ##  TODO: not quite so simple as this
@@ -137,6 +151,7 @@ while (t < T-0.5*dt):
         # Edit the eigenvalues to obtain the metric:
 ##  TODO properly. Temporary approximate identity transformation:
         M.interpolate(Expression([[n**2, 0], [0, n**2]]))
+        # Include this also as a 'no-remesh' option
 
         # Adapt mesh:
         mesh = adapt(mesh, M)

@@ -5,17 +5,16 @@ import sys, os, os.path         # Not currently used
 import numpy as np
 from numpy import linalg as LA
 
-############################ FUNCTIONS ################################
+######################################################### FUNCTIONS ###########################################################
 
 def adapt(mesh, metric):
-    '''A function which generates a new mesh, provided with a previous
-    mesh and an adaptivity metric. Courtesy of Nicolas Barral.'''
+    '''A function which generates a new mesh, provided with a previous mesh and an adaptivity metric. Courtesy of Nicolas
+    Barral.'''
     
     dim = mesh._topological_dimension
     entity_dofs = np.zeros(dim+1, dtype=np.int32)
     entity_dofs[0] = mesh.geometric_dimension()
-    coordSection = mesh._plex.createSection(\
-        [1], entity_dofs, perm=mesh.topology._plex_renumbering)
+    coordSection = mesh._plex.createSection([1], entity_dofs, perm=mesh.topology._plex_renumbering)
     
     plex = mesh._plex
     vStart, vEnd = plex.getDepthStratum(0)
@@ -24,8 +23,7 @@ def adapt(mesh, metric):
     dmCoords = mesh.topology._plex.getCoordinateDM()
     dmCoords.setDefaultSection(coordSection)    
     
-    met = np.ndarray(shape=metric.dat.data.shape, \
-                     dtype=metric.dat.data.dtype, order='C');
+    met = np.ndarray(shape=metric.dat.data.shape, dtype=metric.dat.data.dtype, order='C');
     for iVer in range(nbrVer):
         off = coordSection.getOffset(iVer+vStart)/dim
 
@@ -43,8 +41,7 @@ def adapt(mesh, metric):
     return newmesh
 
 def construct_hessian(mesh, eta):
-    '''A function which computes the hessian of the free surface with
-    respect to the current mesh.'''
+    '''A function which computes the hessian of the free surface with respect to the current mesh.'''
 
     # Construct functions:
     H = Function(Vm)            # Hessian-to-be
@@ -54,31 +51,26 @@ def construct_hessian(mesh, eta):
     # Establish and solve a variational problem associated with the
     # Monge-Ampere equation:
     Lh = (
-            inner(H, sigma) * dx + \
-            inner(div(sigma), grad(eta)) * dx - \
-            (sigma[0,1] * nhat[1] * eta.dx(0) + \
-            sigma[1,0] * nhat[0] * eta.dx(1)) * ds
+            inner(H, sigma) * dx + inner(div(sigma), grad(eta)) * dx - \
+            (sigma[0,1] * nhat[1] * eta.dx(0) + sigma[1,0] * nhat[0] * eta.dx(1)) * ds
         )
     H_prob = NonlinearVariationalProblem(Lh, H)
-    H_solv = NonlinearVariationalSolver(H_prob,
-                solver_parameters={'snes_rtol': 1e8,
-                                    'ksp_rtol': 1e-5,
-                                    'ksp_gmres_restart': 20,
-                                    'pc_type': 'sor',
-                                    'snes_monitor': True,
-                                    'snes_view': False,
-                                    'ksp_monitor_true_residual': False,
-                                    'snes_converged_reason': True,
-                                    'ksp_converged_reason': True,})
+    H_solv = NonlinearVariationalSolver(H_prob, solver_parameters={'snes_rtol': 1e8,
+                                                                   'ksp_rtol': 1e-5,
+                                                                   'ksp_gmres_restart': 20,
+                                                                   'pc_type': 'sor',
+                                                                   'snes_monitor': True,
+                                                                   'snes_view': False,
+                                                                   'ksp_monitor_true_residual': False,
+                                                                   'snes_converged_reason': True,
+                                                                   'ksp_converged_reason': True,})
     H_solv.solve()
 
     return H
 
-def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3,
-                          a = 1000):
-    '''A function which computes the steady metric for remeshing,
-    provided with the current mesh, hessian and free surface. Based on
-    Nicolas Barral's function ``computeSteadyMetric``, from
+def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3, a = 100):
+    '''A function which computes the steady metric for remeshing, provided with the current mesh, hessian and free surface.
+    Here a denotes the maximum aspect ratio. This code is based on Nicolas Barral's function ``computeSteadyMetric``, from
     ``adapt.py``.'''
 
     sol_min = 0.01
@@ -91,8 +83,7 @@ def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3,
         
         # Generate local Hessian, scaling to avoid roundoff error and
         # editing values:
-        H_loc = H.dat.data[i] * \
-                1/max(abs(sol.dat.data[i]), sol_min) * n
+        H_loc = H.dat.data[i] * 1/max(abs(sol.dat.data[i]), sol_min) * n
 ##         TODO: what is this mysterious scale factor? ^
         mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
         H_loc[0][1] = mean_diag; H_loc[1][0] = mean_diag
@@ -107,18 +98,15 @@ def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3,
         lam2 = max(lam2, ia * lam_max)
 
         # Reconstruct edited Hessian:
-        M.dat.data[i][0,0] = lam1 * v1[0] * v1[0] + \
-                             lam2 * v2[0] * v2[0]
-        M.dat.data[i][0,1] = lam1 * v1[0] * v1[1] + \
-                             lam2 * v2[0] * v2[1]
+        M.dat.data[i][0,0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]
+        M.dat.data[i][0,1] = lam1 * v1[0] * v1[1] + lam2 * v2[0] * v2[1]
         M.dat.data[i][1,0] = M.dat.data[i][0,1]
-        M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + \
-                             lam2 * v2[1] * v2[1]
+        M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
 
     return M
     
 
-########################### PARAMETERS ################################
+######################################################## PARAMETERS ###########################################################
 
 # Specify problem parameters:
 dt = float(raw_input('Timestep (default 0.1)?: ') or 0.1)
@@ -136,7 +124,7 @@ depth = 0.1     # Tank water depth (m)
 ndump = 1       # Timesteps per data dump
 rm = 5          # Timesteps per remesh
 
-######################## INITIAL FE SETUP #############################
+##################################################### INITIAL FE SETUP ########################################################
 
 # Define domain and mesh:
 lx = 4; ly = 1; nx = lx*n; ny = ly*n
@@ -156,13 +144,13 @@ u_, eta_ = q_.split()   # / initial condition into the two components
 b = Function(Ve, name = 'Bathymetry')
 b.assign(depth)
 
-################## INITIAL AND BOUNDARY CONDITIONS ####################
+############################################## INITIAL AND BOUNDARY CONDITIONS ################################################
 
 # Interpolate ICs:
 u_.interpolate(Expression([0, 0]))
 eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 
-############################ TIMESTEPPING #############################
+######################################################## TIMESTEPPING #########################################################
 
 # Initialisation:
 t = 0.0; dumpn = 0; mn = 0
@@ -175,7 +163,7 @@ while (t < T-0.5*dt):
 
     if (t != 0.0):
 
-        ######################### MESH ADAPTION #######################
+        ################################################ MESH ADAPTION ########################################################
 
         # Set up metric:
         Vm = TensorFunctionSpace(mesh, 'CG', 1)
@@ -192,7 +180,7 @@ while (t < T-0.5*dt):
         mesh = adapt(mesh, M)
         coords = mesh.coordinates.dat.data
 
-        ####################### UPDATE FE SETUP #######################
+        ############################################### UPDATE FE SETUP #######################################################
 
         # Establish function spaces on the new mesh:
         Vm = TensorFunctionSpace(mesh, 'CG', 1)   # \ TODO: use
@@ -214,10 +202,9 @@ while (t < T-0.5*dt):
         b2.dat.data[:] = b.at(coords)
 
         # Relabel functions:
-        q_ = q_2; q = q2; u_ = u_2; u = u2
-        eta_ = eta_2; eta = eta2; b = b2; M = M2
+        q_ = q_2; q = q2; u_ = u_2; u = u2; eta_ = eta_2; eta = eta2; b = b2; M = M2
 
-    ########################## WEAK PROBLEM ###########################
+    ##################################################### WEAK PROBLEM ########################################################
 
     # Build the weak form of the timestepping algorithm, expressed as a 
     # mixed nonlinear problem:
@@ -227,38 +214,29 @@ while (t < T-0.5*dt):
 
     # Establish forms, noting we only have a linear equation if the
     # stong form is written in terms of a matrix:
-    L = (
-        (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + \
-        inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
-        )
+    L = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
 
     # Set up the variational problem
     q_prob = NonlinearVariationalProblem(L, q)
-    q_solve = NonlinearVariationalSolver(q_prob,
-            solver_parameters={
-                            'mat_type': 'matfree',
-                            'snes_type': 'ksponly',
-                            'pc_type': 'python',
-                            'pc_python_type': 'firedrake.AssembledPC',
-                            'assembled_pc_type': 'lu',
-                            'snes_lag_preconditioner': -1, 
-                            'snes_lag_preconditioner_persists': True,
-                            })
+    q_solve = NonlinearVariationalSolver(q_prob, solver_parameters={'mat_type': 'matfree',
+                                                                    'snes_type': 'ksponly',
+                                                                    'pc_type': 'python',
+                                                                    'pc_python_type': 'firedrake.AssembledPC',
+                                                                    'assembled_pc_type': 'lu',
+                                                                    'snes_lag_preconditioner': -1,
+                                                                    'snes_lag_preconditioner_persists': True,})
 
     # The function 'split' has two forms: now use the form which splits
     # a function in order to access its data
-    u_, eta_ = q_.split()
-    u, eta = q.split()
+    u_, eta_ = q_.split(); u, eta = q.split()
 
     # Store multiple functions
-    u.rename('Fluid velocity')
-    eta.rename('Free surface displacement')
+    u.rename('Fluid velocity'); eta.rename('Free surface displacement')
 
-    ######################### INNER TIMESTEP ##########################
+    ################################################### INNER TIMESTEP ########################################################
 
     # Set up files:
-    q_file = File('prob1_test_outputs/prob1_step_{y}_adapt.pvd'\
-                 .format(y=mn))
+    q_file = File('prob1_test_outputs/prob1_step_{y}_adapt.pvd'.format(y=mn))
     if (t == 0.0):
         q_file.write(u, eta, time=t)
     cnt = 0

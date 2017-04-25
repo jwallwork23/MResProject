@@ -82,18 +82,42 @@ def construct_hessian(mesh, eta):
 
     return H
 
-def compute_steady_metric(mesh, H, sol):
+def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3,
+                          a = 1000):
     '''A function which computes the steady metric for remeshing,
     provided with the current mesh, hessian and free surface. Based on
     Nicolas Barral's function ``computeSteadyMetric``, from
     ``adapt.py``.'''
+
+    ia = 1./(a**2)
+    ihmin2 = 1./(h_min**2)
+    ihmax2 = 1./(h_max**2)
     M = H
-
+    
     for i in range(mesh.topology.num_vertices()):
-        H_loc = H.dat.data[i]*1/max(abs(sol.dat.data[i]), 0.01)*1000
         
+        # Generate local Hessian and edit values:
+        H_loc = H.dat.data[i]*1/max(abs(sol.dat.data[i]), 0.01)*1000
+        mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
+        H_loc[0][1] = mean_diag; H_loc[1][0] = mean_diag
 
-    # ...
+        # Find eigenpairs and truncate eigenvalues:
+        lbd, v = LA.eig(H_loc)
+        v1, v2 = v[0], v[1]
+        lbd1 = min(ihmin2, max(ihmax2, abs(lbd[0])))
+        lbd2 = min(ihmin2, max(ihmax2, abs(lbd[1])))
+        lbd_max = max(lbd1, lbd2)
+        lbd1 = max(lbd1, ia * lbd_max)
+        lbd2 = max(lbd2, ia * lbd_max)
+
+        # Reconstruct abs(H):
+        M.dat.data[i][0,0] = lbd1 * v1[0] * v1[0] + \
+                             lbd2 * v2[0] * v2[0]
+        M.dat.data[i][0,1] = lbd1 * v1[0] * v1[1] + \
+                             lbd2 * v2[0] * v2[1]
+        M.dat.data[i][1,0] = M.dat.data[i][0,1]
+        M.dat.data[i][1,1] = lbd1 * v1[1] * v1[1] + \
+                             lbd2 * v2[1] * v2[1]
 
     return M
     

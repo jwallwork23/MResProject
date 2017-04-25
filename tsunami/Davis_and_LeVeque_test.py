@@ -68,15 +68,13 @@ L1 = ((eta-eta_) * ze - Dt * mu * ze.dx(0) + (mu-mu_) * nu + Dt * g * b * eta.dx
 
 # Set up the variational problem:
 q_prob = NonlinearVariationalProblem(L1, q)
-q_solve = NonlinearVariationalSolver(q_prob, solver_parameters={
-                            'mat_type': 'matfree',
-                            'snes_type': 'ksponly',
-                            'pc_type': 'python',
-                            'pc_python_type': 'firedrake.AssembledPC',
-                            'assembled_pc_type': 'lu',
-                            'snes_lag_preconditioner': -1, 
-                            'snes_lag_preconditioner_persists': True,
-                            })
+q_solve = NonlinearVariationalSolver(q_prob, solver_parameters={'mat_type': 'matfree',
+                                                                'snes_type': 'ksponly',
+                                                                'pc_type': 'python',
+                                                                'pc_python_type': 'firedrake.AssembledPC',
+                                                                'assembled_pc_type': 'lu',
+                                                                'snes_lag_preconditioner': -1,
+                                                                'snes_lag_preconditioner_persists': True,})
 
 # The function 'split' has two forms: now use the form which splits a 
 # function in order to access its data:
@@ -154,15 +152,13 @@ L2 = ((le-le_) * w + Dt * g * b * lm * w.dx(0) + (lm-lm_) * v - Dt * le.dx(0) * 
 
 # Set up the variational problem:
 lam_prob = NonlinearVariationalProblem(L2, lam)
-lam_solve = NonlinearVariationalSolver(lam_prob, solver_parameters={
-                            'mat_type': 'matfree',
-                            'snes_type': 'ksponly',
-                            'pc_type': 'python',
-                            'pc_python_type': 'firedrake.AssembledPC',
-                            'assembled_pc_type': 'lu',
-                            'snes_lag_preconditioner': -1, 
-                            'snes_lag_preconditioner_persists': True,
-                            })
+lam_solve = NonlinearVariationalSolver(lam_prob, solver_parameters={'mat_type': 'matfree',
+                                                                    'snes_type': 'ksponly',
+                                                                    'pc_type': 'python',
+                                                                    'pc_python_type': 'firedrake.AssembledPC',
+                                                                    'assembled_pc_type': 'lu',
+                                                                    'snes_lag_preconditioner': -1,
+                                                                    'snes_lag_preconditioner_persists': True,})
 
 # Split functions in order to access their data:
 lm_, le_ = lam_.split(); lm, le = lam.split()

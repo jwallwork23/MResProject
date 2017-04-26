@@ -83,8 +83,8 @@ def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3, a = 100):
     for i in range(mesh.topology.num_vertices()):
         
         # Generate local Hessian, scaling to avoid roundoff error and editing values:
-        H_loc = H.dat.data[i] * 1/max(abs(sol.dat.data[i]), sol_min) * n
-## TODO:                         what is this mysterious scale factor? ^
+        H_loc = H.dat.data[i] * 1/max(abs(sol.dat.data[i]), sol_min) * n2
+## TODO:                         what is this mysterious scale factor? ^^
         mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
         H_loc[0][1] = mean_diag; H_loc[1][0] = mean_diag
 
@@ -130,7 +130,8 @@ def update_FE(mesh, u_, u, eta_, eta, b):
     return q_2, q2, u_2, u2, eta_2, eta2, b2, Vq
     
 
-def forward_solver(q_, q, u_, eta_, b, Vq):
+def forward_linear_solver(q_, q, u_, eta_, b, Vq):
+    '''A function which solves the forward linear shallow water equations.'''
 
     # Build the weak form of the timestepping algorithm, expressed as a 
     # mixed nonlinear problem:
@@ -179,7 +180,7 @@ depth = 0.1     # Tank water depth (m)
 ndump = 1       # Timesteps per data dump
 rm = 5          # Timesteps per remesh
 
-######################################## INITIAL FE SETUP AND BOUNDARY CONDITIONS##############################################
+######################################## INITIAL FE SETUP AND BOUNDARY CONDITIONS #############################################
 
 # Define domain and mesh:
 lx = 4; ly = 1; nx = lx*n; ny = ly*n
@@ -233,7 +234,7 @@ while (t < T-0.5*dt):
         q_, q, u_, u, eta_, eta, b, Vq = update_FE(mesh, u_, u, eta_, eta, b)
 
     # Solve weak problem:
-    q_, q, u_, u, eta_, eta, q_solve = forward_solver(q_, q, u_, eta_, b, Vq)
+    q_, q, u_, u, eta_, eta, q_solve = forward_linear_solver(q_, q, u_, eta_, b, Vq)
 
     # Set up files:
     q_file = File('prob1_test_outputs/prob1_step_{y}_adapt.pvd'.format(y=mn))

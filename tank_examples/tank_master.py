@@ -5,26 +5,24 @@ import matplotlib.pyplot as plt
 
 ###################################################### USEFUL FUNCTIONS #######################################################
 
-def zero_boundary_nonlinear_form():
+def nonlinear_form():
     '''Weak residual form of the nonlinear shallow water equations'''
     
-    L = (
-        (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + inner(u-u_, v) + Dt * inner(dot(u, nabla_grad(u)), v) + \
+    L = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + inner(u-u_, v) + Dt * inner(dot(u, nabla_grad(u)), v) + \
          nu * inner(grad(u), grad(v)) + Dt * g * inner(grad(eta), v) + \
          Dt * Cb * sqrt(dot(u_, u_)) * inner(u/(eta+b), v)) * dx(degree=4)
-        )
     
     return L
 
-def zero_boundary_linear_form():
+def linear_form():
     '''Weak residual form of the linear shallow water equations'''
     
     L = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
     
     return L
 
-def nonzero_boundary_nonlinear_form():
-    '''Weak residual form of the nonlinear shallow water equations'''
+def nonlinear_form_out():
+    '''Weak residual form of the nonlinear shallow water equations, with outflow boundary conditions.'''
     
     # Define the outward pointing normal to the mesh
     n = FacetNormal(mesh)
@@ -40,8 +38,8 @@ def nonzero_boundary_nonlinear_form():
     # Establish the bilinear form using the above integrals:
     return Lu_int + Le_int + L_side1 + L_side2
 
-def nonzero_boundary_linear_form():
-    '''Weak residual form of the linear shallow water equations'''
+def linear_form_out():
+    '''Weak residual form of the linear shallow water equations, with outflow boundary conditions.'''
     
     # Define the outward pointing normal to the mesh
     n = FacetNormal(mesh)
@@ -149,14 +147,14 @@ u_, eta_ = split(q_)
 # Establish form:
 if (mode == 'l'):
     if (waves == 'n'):
-        L = zero_boundary_linear_form()
+        L = linear_form()
     else:
-        L = nonzero_boundary_linear_form()
+        L = linear_form_out()
 else:
     if (waves == 'n'):
-        L = zero_boundary_nonlinear_form()
+        L = nonlinear_form()
     else:
-        L = nonzero_boundary_nonlinear_form()
+        L = nonlinear_form_out()
 
 # Set up the variational problem:
 if (waves == 'n'):

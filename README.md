@@ -10,7 +10,7 @@ standalone code to solve this problem, the script makes use of the coastal
 and esturarine solver Thetis. This enables the user to generate an accurate
 approximation to the true fluid dynamics in the tank, to which the standalone
 solution can be compared. This directory also contains a test script
-``linear1.py'', within the sub-directory ``problem1'', which begins to apply
+``linear1.py``, within the sub-directory ``problem1``, which begins to apply
 anisotropic mesh optimisation to the flat bathymetry wave tank problem, with
 no wave generator. This will later be incorporated into the master script.
 

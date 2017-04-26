@@ -1,5 +1,6 @@
 from firedrake import *
 from thetis import *
+
 import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
 from math import radians
@@ -10,16 +11,14 @@ from time import clock
 ####################################################### VARIOUS FUNCTIONS #####################################################
 
 def earth_radius(lat):
-    '''A function which calculates the radius of the Earth for a given
-    latitude.'''
+    '''A function which calculates the radius of the Earth for a given latitude.'''
     K = 1./298.257  # Earth flatness constant
     a = 6378136.3   # Semi-major axis of the Earth (m)
     return (1 - K * (sin(radians(lat))**2)) * a
 
 def lonlat2tangentxy(lon, lat, lon0, lat0):
-    '''A function which projects longitude-latitude coordinates onto a
-    tangent plane at (lon0, lat0) in Cartesian coordinates (x,y), with
-    units being metres.'''
+    '''A function which projects longitude-latitude coordinates onto a tangent plane at (lon0, lat0) in Cartesian coordinates
+    (x,y), with units being metres.'''
     Re = earth_radius(lat)
     Rphi = Re * cos(radians(lat))
     x = Rphi * sin(radians(lon-lon0))
@@ -27,9 +26,8 @@ def lonlat2tangentxy(lon, lat, lon0, lat0):
     return x, y
 
 def vectorlonlat2tangentxy(lon, lat, lon0, lat0):
-    '''A function which projects vectors containing longitude-latitude
-    coordinates onto a tangent plane at (lon0, lat0) in Cartesian
-    coordinates (x,y), with units being metres.'''
+    '''A function which projects vectors containing longitude-latitude coordinates onto a tangent plane at (lon0, lat0) in
+    Cartesian coordinates (x,y), with units being metres.'''
     x = np.zeros((len(lon), 1))
     y = np.zeros((len(lat), 1))
     assert (len(x) == len(y))
@@ -38,8 +36,7 @@ def vectorlonlat2tangentxy(lon, lat, lon0, lat0):
     return x, y
 
 def mesh_converter(meshfile, lon0, lat0):
-    '''A function which reads in a .msh file in longitude-latitude
-    coordinates and outputs a tangent-plane projection in
+    '''A function which reads in a .msh file in longitude-latitude coordinates and outputs a tangent-plane projection in
     Cartesian coordinates.'''
     mesh1 = open(meshfile, 'r') # Lon-lat mesh to be converted
     mesh2 = open('meshes/CartesianTohoku.msh', 'w')
@@ -134,8 +131,8 @@ elif (res == 'c'):
     mesh_converter('meshes/LonLatTohokuCoarse.msh', 143., 37.)
 mesh = Mesh('meshes/CartesianTohoku.msh')       # Japanese coastline
 mesh_coords = mesh.coordinates.dat.data
-Vu = VectorFunctionSpace(mesh, 'CG', 2)         # \ Use Taylor-Hood 
-Ve = FunctionSpace(mesh, 'CG', 1)               # / elements
+Vu = VectorFunctionSpace(mesh, 'CG', 2)         # \ Use Taylor-Hood elements
+Ve = FunctionSpace(mesh, 'CG', 1)               # / 
 Vq = MixedFunctionSpace((Vu, Ve))               # Mixed FE problem
 
 # Construct functions to store forward and adjoint variables, along with bathymetry:

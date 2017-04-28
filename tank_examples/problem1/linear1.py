@@ -69,7 +69,7 @@ def construct_hessian(mesh, sol):
     return H
 
 
-def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3, a = 100):
+def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.1, a = 100):
     '''A function which computes the steady metric for remeshing, provided with the current mesh, hessian and free surface.
     Here h_min and h_max denote the respective minimum and maxiumum tolerated side-lengths, while a denotes the maximum
     tolerated aspect ratio. This code is based on Nicolas Barral's function ``computeSteadyMetric``, from ``adapt.py``.'''
@@ -110,8 +110,8 @@ def update_FE(mesh, u_, u, eta_, eta, b):
     '''A function which updates solution fields and bathymetry from one mesh to another.'''
     
     # Establish function spaces on the new mesh:
-    Vm = TensorFunctionSpace(mesh, 'CG', 1)     # \ TODO: use Taylor-Hood
-    Vu = VectorFunctionSpace(mesh, 'CG', 1)     # / 
+    Vm = TensorFunctionSpace(mesh, 'CG', 1)
+    Vu = VectorFunctionSpace(mesh, 'CG', 1)
     Ve = FunctionSpace(mesh, 'CG', 1)
     Vq = MixedFunctionSpace((Vu, Ve))
 
@@ -178,7 +178,7 @@ if ((remesh != 'y') & (remesh != 'n')):
 g = 9.81        # Gravitational acceleration (m s^{-2})
 depth = 0.1     # Tank water depth (m)
 ndump = 1       # Timesteps per data dump
-rm = 5          # Timesteps per remesh
+rm = 6          # Timesteps per remesh
 
 ######################################## INITIAL FE SETUP AND BOUNDARY CONDITIONS #############################################
 

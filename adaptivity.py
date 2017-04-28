@@ -2,8 +2,6 @@ from firedrake import *
 import numpy as np
 from numpy import linalg as LA
 
-################################################################################################################################
-
 def adapt(mesh, metric):
     '''A function which generates a new mesh, provided with a previous mesh and an adaptivity metric. Courtesy of Nicolas
     Barral.'''
@@ -11,22 +9,32 @@ def adapt(mesh, metric):
     dim = mesh._topological_dimension
     entity_dofs = np.zeros(dim+1, dtype=np.int32)
     entity_dofs[0] = mesh.geometric_dimension()
-    coordSection = mesh._plex.createSection([1], entity_dofs, perm=mesh.topology._plex_renumbering)
+    coordSection = mesh._plex.createSection(\
+        [1], entity_dofs, perm=mesh.topology._plex_renumbering)
     
     plex = mesh._plex
     vStart, vEnd = plex.getDepthStratum(0)
     nbrVer = vEnd - vStart
+##    print  "DEBUG  vStart: %d  vEnd: %d" % (vStart, vEnd)
+##    coordSection.view()
     
     dmCoords = mesh.topology._plex.getCoordinateDM()
     dmCoords.setDefaultSection(coordSection)    
+##    dmCoords.setDefaultSection(\
+##        mesh.coordinates.function_space()._dm.getDefaultSection())
+
+    #### TEMPORARY (?) HACK to sort the metric in the right order
+    ####                (waiting for Matt Knepley fix in plexadapt)
     
-    met = np.ndarray(shape=metric.dat.data.shape, dtype=metric.dat.data.dtype, order='C');
+    met = np.ndarray(shape=metric.dat.data.shape, \
+                     dtype=metric.dat.data.dtype, order='C');
     for iVer in range(nbrVer):
         off = coordSection.getOffset(iVer+vStart)/dim
-
+#        print "DEBUG  iVer: %d  off: %d   nbrVer: %d" %(iVer, off, nbrVer)
         met[iVer] = metric.dat.data[off]
     for iVer in range(nbrVer):
         metric.dat.data[iVer] = met[iVer]
+#    metric.dat.data.data = met.data
 
     with mesh.coordinates.dat.vec_ro as coords:
         mesh.topology._plex.setCoordinatesLocal(coords)
@@ -37,13 +45,13 @@ def adapt(mesh, metric):
 
     return newmesh
 
-
 def construct_hessian(mesh, sol):
     '''A function which computes the hessian of a scalar solution field with respect to the current mesh.'''
 
-    # Construct functions:
-    H = Function(V1)            # Hessian-to-be
-    sigma = TestFunction(V1)
+    # Construct function spaces and functions:
+    V = TensorFunctionSpace(mesh, 'CG', 1)
+    H = Function(V)            # Hessian-to-be
+    sigma = TestFunction(V)
     nhat = FacetNormal(mesh)    # Normal vector
 
     # Establish and solve a variational problem associated with the Monge-Ampere equation:
@@ -65,23 +73,26 @@ def construct_hessian(mesh, sol):
 
     return H
 
-
-def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3, a = 100):
+def compute_steady_metric(mesh, H, sol, unknown, h_min = 0.005, h_max = 0.1, a = 100):
     '''A function which computes the steady metric for remeshing, provided with the current mesh, hessian and free surface.
     Here h_min and h_max denote the respective minimum and maxiumum tolerated side-lengths, while a denotes the maximum
     tolerated aspect ratio. This code is based on Nicolas Barral's function ``computeSteadyMetric``, from ``adapt.py``.'''
 
+    # Set maximum and minimum parameters:
     sol_min = 0.01
     ia = 1./(a**2)
     ihmin2 = 1./(h_min**2)
     ihmax2 = 1./(h_max**2)
+
+    # Establish metric object:
+    V = TensorFunctionSpace(mesh, 'CG', 1)
+    M = Function(V)
     M = H
     
     for i in range(mesh.topology.num_vertices()):
         
         # Generate local Hessian, scaling to avoid roundoff error and editing values:
-        H_loc = H.dat.data[i] * 1/max(abs(sol.dat.data[i]), sol_min) * 500
-## TODO:                         what is this mysterious scale factor? ^^
+        H_loc = H.dat.data[i] * 1/max(abs(sol.dat.data[i]), sol_min) * unknown # TODO: what is this mysterious scale factor?
         mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
         H_loc[0][1] = mean_diag; H_loc[1][0] = mean_diag
 
@@ -101,41 +112,3 @@ def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3, a = 100):
         M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
 
     return M
-
-################################################################################################################################
-
-# Define original mesh, with a metric function space:
-mesh1 = SquareMesh(30, 30, 2, 2)
-x, y = SpatialCoordinate(mesh1)
-V1 = TensorFunctionSpace(mesh1, 'CG', 1)
-M = Function(V1)
-
-# Define sensors:
-F = FunctionSpace(mesh1, 'CG', 1)
-f1 = Function(F); f2 = Function(F); f3 = Function(F); f4 = Function(F)
-f1.interpolate((x-1)**2 + (y-1)**2)
-f2.interpolate(Expression('abs((x[0]-1)*(x[1]-1)) >= pi/25. ? 0.01*sin(50*(x[0]-1)*(x[1]-1)) : sin(50*(x[0]-1)*(x[1]-1)'))
-f3.interpolate(0.1*sin(50*(x-1)) + atan(0.1/(sin(5*(y-1))-2*(x-1))))
-f4.interpolate(atan(0.1/(sin(5*(y-1))-2*(x-1))) + atan(0.5/(sin(3*(y-1))-7*(x-1))))
-
-f = {1: f1, 2: f2, 3: f3, 4: f4}
-
-for i in f:
-
-    # Compute Hessian and metric:
-    H = construct_hessian(mesh1, f[i])
-    M = compute_steady_metric(mesh1, H, f[i])
-
-    # Adapt mesh and set up new function spaces:
-    mesh2 = adapt(mesh1, M)
-    V2 = TensorFunctionSpace(mesh2, 'CG', 1)
-    metric2 = Function(V2)
-    G = FunctionSpace(mesh2, 'CG', 1)
-
-    # Interpolate functions onto new mesh:
-    g = Function(G)
-    g.dat.data[:] = f[i].at(mesh2.coordinates.dat.data)
-
-    # Plot results:
-    File('adapt_plots/sensor_test{y}a.pvd'.format(y=i)).write(f[i])
-    File('adapt_plots/sensor_test{y}b.pvd'.format(y=i)).write(g)

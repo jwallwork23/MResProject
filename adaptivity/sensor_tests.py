@@ -80,7 +80,7 @@ def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3, a = 100):
     for i in range(mesh.topology.num_vertices()):
         
         # Generate local Hessian, scaling to avoid roundoff error and editing values:
-        H_loc = H.dat.data[i] * 1/max(abs(sol.dat.data[i]), sol_min) * 900
+        H_loc = H.dat.data[i] * 1/max(abs(sol.dat.data[i]), sol_min) * 500
 ## TODO:                         what is this mysterious scale factor? ^^
         mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
         H_loc[0][1] = mean_diag; H_loc[1][0] = mean_diag
@@ -105,26 +105,26 @@ def compute_steady_metric(mesh, H, sol, h_min = 0.005, h_max = 0.3, a = 100):
 ################################################################################################################################
 
 # Define original mesh, with a metric function space:
-mesh1 = SquareMesh(30, 30, 1, 1)
+mesh1 = SquareMesh(30, 30, 2, 2)
 x, y = SpatialCoordinate(mesh1)
 V1 = TensorFunctionSpace(mesh1, 'CG', 1)
 M = Function(V1)
 
 # Define sensors:
 F = FunctionSpace(mesh1, 'CG', 1)
-f = Function(F); f1 = Function(F); f2 = Function(F); f3 = Function(F); f4 = Function(F)
-f1.interpolate(x**2 + y**2)
-f2.interpolate(Expression('abs(x[0]*x[1]) >= pi/25. ? 0.01*sin(50*x[0]*x[1]) : sin(50*x[0]*x[1])'))
-f3.interpolate(0.1*sin(50*x) + atan(0.1/(sin(5*y)-2*x)))
-f4.interpolate(atan(0.1/(sin(5*y)-2*x)) + atan(0.5/(sin(3*y)-7*x)))
+f1 = Function(F); f2 = Function(F); f3 = Function(F); f4 = Function(F)
+f1.interpolate((x-1)**2 + (y-1)**2)
+f2.interpolate(Expression('abs((x[0]-1)*(x[1]-1)) >= pi/25. ? 0.01*sin(50*(x[0]-1)*(x[1]-1)) : sin(50*(x[0]-1)*(x[1]-1)'))
+f3.interpolate(0.1*sin(50*(x-1)) + atan(0.1/(sin(5*(y-1))-2*(x-1))))
+f4.interpolate(atan(0.1/(sin(5*(y-1))-2*(x-1))) + atan(0.5/(sin(3*(y-1))-7*(x-1))))
 
-for fi in (f1, f2, f3, f4):
+f = {1: f1, 2: f2, 3: f3, 4: f4}
 
-    # Generate Hessian:
-    H = construct_hessian(mesh1, fi)
+for i in f:
 
-    # Compute metric:
-    M = compute_steady_metric(mesh1, H, fi)
+    # Compute Hessian and metric:
+    H = construct_hessian(mesh1, f[i])
+    M = compute_steady_metric(mesh1, H, f[i])
 
     # Adapt mesh and set up new function spaces:
     mesh2 = adapt(mesh1, M)
@@ -134,8 +134,8 @@ for fi in (f1, f2, f3, f4):
 
     # Interpolate functions onto new mesh:
     g = Function(G)
-    g.dat.data[:] = f.at(mesh2.coordinates.dat.data)
+    g.dat.data[:] = f[i].at(mesh2.coordinates.dat.data)
 
     # Plot results:
-    File('adapt_plots/sensor_test{y}a.pvd'.format(y=fi)).write(f)
-    File('adapt_plots/sensor_test{y}b.pvd'.format(y=fi)).write(g)
+    File('adapt_plots/sensor_test{y}a.pvd'.format(y=i)).write(f[i])
+    File('adapt_plots/sensor_test{y}b.pvd'.format(y=i)).write(g)

@@ -237,7 +237,7 @@ while (t < T-0.5*dt):
     q_, q, u_, u, eta_, eta, q_solve = forward_linear_solver(q_, q, u_, eta_, b, Vq)
 
     # Set up files:
-    q_file = File('prob1_test_outputs/prob1_step_{y}_adapt.pvd'.format(y=mn))
+    q_file = File('prob1_test_outputs/prob1_adapt.pvd'.format(y=mn))
     if (t == 0.0):
         q_file.write(u, eta, time=t)
     cnt = 0

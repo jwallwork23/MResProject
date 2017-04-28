@@ -210,6 +210,7 @@ eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
 t = 0.0; dumpn = 0; mn = 0
 q = Function(Vq)
 q.assign(q_)
+q_file = File('prob1_test_outputs/prob1_adapt.pvd'.format(y=mn))
 
 while (t < T-0.5*dt):
 
@@ -236,8 +237,6 @@ while (t < T-0.5*dt):
     # Solve weak problem:
     q_, q, u_, u, eta_, eta, q_solve = forward_linear_solver(q_, q, u_, eta_, b, Vq)
 
-    # Set up files:
-    q_file = File('prob1_test_outputs/prob1_adapt.pvd'.format(y=mn))
     if (t == 0.0):
         q_file.write(u, eta, time=t)
     cnt = 0

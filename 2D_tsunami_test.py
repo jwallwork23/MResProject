@@ -79,7 +79,7 @@ mu.rename('Fluid momentum'); eta.rename('Free surface displacement')
 ################################################### FORWARD TIMESTEPPING ######################################################
 
 # Initialise files and dump counter:
-ufile1 = File('adjoint_test_outputs/linear_forward.pvd')
+ufile1 = File('plots/adjoint_test_outputs/linear_forward.pvd')
 t = 0.0; i = 0; dumpn = 0
 ufile1.write(mu, eta, time=t)
 
@@ -168,9 +168,9 @@ q_dot_lam.dat.data[:] = ql_vals[i,:]
 # Initialise dump counter and files:
 if (dumpn == 0):
     dumpn = ndump
-ufile2 = File('adjoint_test_outputs/linear_adjoint.pvd')
+ufile2 = File('plots/adjoint_test_outputs/linear_adjoint.pvd')
 ufile2.write(lm, le, time=0)
-ufile3 = File('adjoint_test_outputs/inner_product.pvd')
+ufile3 = File('plots/adjoint_test_outputs/inner_product.pvd')
 ufile3.write(q_dot_lam, time=0)
 
 # Enter the backward timeloop:
@@ -213,4 +213,4 @@ plt.annotate('No damage', xy=(0.7*T, -1), xytext=(0.72*T, -0.8), arrowprops=dict
 plt.xlabel(r'Time (s)')
 plt.ylabel(r'm (dimensionless)')
 plt.title(r'Damage measures')
-plt.savefig('tsunami_outputs/screenshots/2Ddamage_measures.png')
+plt.savefig('plots/tsunami_outputs/screenshots/2Ddamage_measures.png')

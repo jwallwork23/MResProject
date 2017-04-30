@@ -66,7 +66,7 @@ if (bath == 'n'):
     b.assign(depth)
 elif (bath == 'y'):
     b.interpolate(0.1 + 0.04 * sin(2*pi*x[0]) * sin(2*pi*x[1]))
-    File('screenshots/tank_bathymetry.pvd').write(b)
+    File('plots/screenshots/tank_bathymetry.pvd').write(b)
 
 ############################################## INITIAL CONDITIONS AND BATHYMETRY ##############################################
 
@@ -138,25 +138,25 @@ u.rename('Fluid velocity'); eta.rename('Free surface displacement')
 if (bath == 'n'):
     if (waves == 'n'):
         if (mode == 'l'):
-            q_file = File('tank_outputs/model_prob1_linear.pvd')
+            q_file = File('plots/tank_outputs/model_prob1_linear.pvd')
         else:
-            q_file = File('tank_outputs/model_prob1_nonlinear.pvd')
+            q_file = File('plots/tank_outputs/model_prob1_nonlinear.pvd')
     else:
         if (mode == 'l'):
-            q_file = File('tank_outputs/model_prob2_linear.pvd')
+            q_file = File('plots/tank_outputs/model_prob2_linear.pvd')
         else:
-            q_file = File('tank_outputs/model_prob2_nonlinear.pvd')
+            q_file = File('plots/tank_outputs/model_prob2_nonlinear.pvd')
 elif (bath == 'y'):
     if (waves == 'n'):
         if (mode == 'l'):
-            q_file = File('tank_outputs/model_prob3_linear.pvd')
+            q_file = File('plots/tank_outputs/model_prob3_linear.pvd')
         else:
-            q_file = File('tank_outputs/model_prob3_nonlinear.pvd')
+            q_file = File('plots/tank_outputs/model_prob3_nonlinear.pvd')
     else:
         if (mode == 'l'):
-            q_file = File('tank_outputs/model_prob4_linear.pvd')
+            q_file = File('plots/tank_outputs/model_prob4_linear.pvd')
         else:
-            q_file = File('tank_outputs/model_prob4_nonlinear.pvd')
+            q_file = File('plots/tank_outputs/model_prob4_nonlinear.pvd')
 
 # Initialise time, arrays and dump counter:
 t = 0.0; dumpn = 0; i = 0
@@ -194,7 +194,7 @@ if (compare != 's'):
     options = solver_obj.options
     options.t_export = t_export
     options.t_end = T
-    options.outputdir = 'tank_outputs'
+    options.outputdir = 'plots/tank_outputs'
 
     # Specify integrator of choice:
     options.timestepper_type = 'backwardeuler'  # Implicit timestepping
@@ -279,4 +279,4 @@ if (compare == 'b'):
     plt.xlim([0, 7200])
     plt.xlabel(r'Time (s)')
     plt.ylabel(r'L2 error')
-    plt.savefig('tank_outputs/graphs/error_{y1}_{y2}_{y3}.png'.format(y1=mode, y2=bath, y3=waves))
+    plt.savefig('plots/tank_outputs/graphs/error_{y1}_{y2}_{y3}.png'.format(y1=mode, y2=bath, y3=waves))

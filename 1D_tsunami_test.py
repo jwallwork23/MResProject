@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rc
 
+from forms import *
+
 # Font formatting:
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 rc('text', usetex=True)
@@ -20,8 +22,6 @@ vid = raw_input('Show video output? (y/n, default n): ') or 'n'
 if ((vid != 'y') & (vid != 'n')):
     raise ValueError('Please try again, choosing y or n.')
 
-# Set problem parameters:
-g = 9.81    # Gravitational acceleration (m s^{-2})
 ndump = 40  # Timesteps per data dump
 
 ######################################################### FE SETUP ############################################################
@@ -64,7 +64,7 @@ mu_, eta_ = split(q_)    # / it can be inserted into a UFL expression
 # Establish forms (functions of the forward variable q), noting we only
 # have a linear equation if the stong form is written in terms of a
 # matrix:
-L1 = ((eta-eta_) * ze - Dt * mu * ze.dx(0) + (mu-mu_) * nu + Dt * g * b * eta.dx(0) * nu) * dx
+L1 = linear_form_1d(mu, mu_, eta, eta_, nu, ze, b, Dt)
 
 # Set up the variational problem:
 q_prob = NonlinearVariationalProblem(L1, q)
@@ -150,7 +150,7 @@ lm, le = split(lam)
 lm_, le_ = split(lam_)
 
 # Establish forms (functions of the adjoint variable lam):
-L2 = ((le-le_) * w + Dt * g * b * lm * w.dx(0) + (lm-lm_) * v - Dt * le.dx(0) * v) * dx
+L2 = adj_linear_form_1d(lm, lm_, le, le_, v, w, b, Dt)
 
 # Set up the variational problem:
 lam_prob = NonlinearVariationalProblem(L2, lam)

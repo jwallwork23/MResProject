@@ -5,25 +5,45 @@ nu = 1e-3           # Viscosity (kg s^{-1} m^{-1})
 g = 9.81            # Gravitational acceleration (m s^{-2})
 Cb = 0.0025         # Bottom friction coefficient (dimensionless)
 
+def linear_form_1d(mu, mu_, eta, eta_, nu, ze, b, Dt):
+    '''Weak residual form of the 1D linear shallow water equations in momentum form.'''
+    L = ((eta-eta_) * ze - Dt * mu * ze.dx(0) + (mu-mu_) * nu + Dt * g * b * eta.dx(0) * nu) * dx
+    return L
+
+def linear_form_2d(mu, mu_, eta, eta_, nu, ze, b, Dt):
+    '''Weak residual form of the 2D linear shallow water equations in momentum form.'''
+    L = ((eta-eta_) * ze - Dt * inner(mu, grad(ze)) + inner(mu-mu_, nu) + Dt * g * b * (inner(grad(eta), nu))) * dx
+    return L
+
 def nonlinear_form(u, u_, eta, eta_, v, ze, b, Dt):
-    '''Weak residual form of the nonlinear shallow water equations'''
+    '''Weak residual form of the nonlinear shallow water equations.'''
     L = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + inner(u-u_, v) + Dt * inner(dot(u, nabla_grad(u)), v) + \
          nu * inner(grad(u), grad(v)) + Dt * g * inner(grad(eta), v) + \
          Dt * Cb * sqrt(dot(u_, u_)) * inner(u/(eta+b), v)) * dx(degree=4)   
     return L
 
 def linear_form(u, u_, eta, eta_, v, ze, b, Dt):
-    '''Weak residual form of the linear shallow water equations'''
+    '''Weak residual form of the linear shallow water equations.'''
     L = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
     return L
 
+def adj_linear_form_1d(lm, lm_, le, le_, v, w, b, Dt):
+    '''Weak residual form of the 1D linear adjoint shallow water equations in momentum form.'''
+    L = ((le-le_) * w + Dt * g * b * lm * w.dx(0) + (lm-lm_) * v - Dt * le.dx(0) * v) * dx
+    return L
+
+def adj_linear_form_2d(lm, lm_, le, le_, v, w, b, Dt):
+    '''Weak residual form of the 2D linear adjoint shallow water equations in momentum form.'''
+    L = ((le-le_) * xi - Dt * g * b * inner(lm, grad(xi)) + inner(lm-lm_, w) + Dt * inner(grad(le), w)) * dx
+    return L
+                                                                                           # + J derivative term?
 def adj_nonlinear_form(w, xi):   # TODO: Needs changing!
-    '''Weak residual form of the nonlinear adjoint shallow water equations'''
+    '''Weak residual form of the nonlinear adjoint shallow water equations.'''
     L = ((le-le_) * xi - Dt * g * b * inner(lm, grad(xi)) + inner(lm-lm_, w) + Dt * inner(grad(le), w)) * dx
     return L                                                                                        # + J derivative term?
 
 def adj_linear_form(lm, lm_, le, le_, w, xi, b, Dt):
-    '''Weak residual form of the linear adjoint shallow water equations'''
+    '''Weak residual form of the linear adjoint shallow water equations.'''
     L = ((le-le_) * xi - Dt * g * b * inner(lm, grad(xi)) + inner(lm-lm_, w) + Dt * inner(grad(le), w)) * dx
     return L                                                                                        # + J derivative term?
 

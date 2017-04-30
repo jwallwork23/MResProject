@@ -2,6 +2,8 @@ from firedrake import *
 import numpy as np
 import matplotlib.pyplot as plt
 
+from forms import *
+
 ######################################################## PARAMETERS ###########################################################
 
 # Specify problem parameters:
@@ -55,7 +57,7 @@ mu_, eta_ = split(q_)
 
 # Establish forms (functions of the output q), noting we only have a linear equation if the stong form is written in terms of
 # a matrix:
-L1 = ((eta-eta_) * ze - Dt * inner(mu, grad(ze)) + inner(mu-mu_, nu) + Dt * g * b * (inner(grad(eta), nu))) * dx
+L1 = linear_form_2d(mu, mu_, eta, eta_, nu, ze, b, Dt)
 
 # Set up the variational problem:
 params = {'mat_type': 'matfree',
@@ -134,8 +136,8 @@ lm, le = split(lam)
 lm_, le_ = split(lam_)
 
 # Establish forms (functions of the adjoint output lam):
-L2 = ((le-le_) * xi - Dt * g * b * inner(lm, grad(xi)) + inner(lm-lm_, w) + Dt * inner(grad(le), w)) * dx
-                                                                                           # + J derivative term?
+L2 = adj_linear_form_2d(lm, lm_, le, le_, v, w, b, Dt)
+
 # Set up the variational problem
 uprob2 = NonlinearVariationalProblem(L2, lam)
 usolver2 = NonlinearVariationalSolver(uprob2, solver_parameters=params)

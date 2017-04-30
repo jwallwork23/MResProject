@@ -21,7 +21,7 @@ def interpol(u, meshd, unew, meshdnew):
         except PointNotInDomainError :
             print "####  New vertex not in domain: %f %f" % (newCrd[0], newCrd[1])
             val = 0.
-            notInDomain.append([v,INF,-1])   #TODO  I should store newCrd here instead of v
+            notInDomain.append([v,INF,-1])   # TODO: I should store newCrd here instead of v
         finally :
             unew.dat.data[offnew] = val
     

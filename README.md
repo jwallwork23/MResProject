@@ -1,7 +1,7 @@
 ## Welcome to Joe Wallwork's MRes project GitHub page!
 
-Here you will find five main script files, ``1D_tsunami_test'',
-``2D_tsunami_test'', ``tohoku_master``, ``tank_master`` and ``tank_adaptive''.
+Here you will find five main script files, ``1D_tsunami_test``,
+``2D_tsunami_test``, ``tohoku_master``, ``tank_master`` and ``tank_adaptive``.
 
 The first script test file comes from Brisa Davis and Randall LeVeque's 2016
 paper 'Adjoint methods for guiding adaptive mesh refinement in tsunami
@@ -18,7 +18,7 @@ the script makes use of the coastal and esturarine solver Thetis. This enables
 the user to generate an accurate approximation to the true fluid dynamics in
 the tank, to which the standalone solution can be compared.
 
-The test script ``tank_adaptive'' begins to apply anisotropic mesh
+The test script ``tank_adaptive`` begins to apply anisotropic mesh
 optimisation to the flat bathymetry wave tank problem, with no wave generator.
 This will later be incorporated into the master script.
 

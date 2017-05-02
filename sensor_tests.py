@@ -5,7 +5,7 @@ from numpy import linalg as LA
 from adaptivity import *
 
 # Define original mesh, with a metric function space:
-mesh1 = SquareMesh(30, 30, 2, 2)
+mesh1 = SquareMesh(30, 30, 1, 1)
 x, y = SpatialCoordinate(mesh1)
 V1 = TensorFunctionSpace(mesh1, 'CG', 1)
 M = Function(V1)
@@ -13,10 +13,10 @@ M = Function(V1)
 # Define sensors:
 F = FunctionSpace(mesh1, 'CG', 1)
 f1 = Function(F); f2 = Function(F); f3 = Function(F); f4 = Function(F)
-f1.interpolate((x-1)**2 + (y-1)**2)
-f2.interpolate(Expression('abs((x[0]-1)*(x[1]-1)) >= pi/25. ? 0.01*sin(50*(x[0]-1)*(x[1]-1)) : sin(50*(x[0]-1)*(x[1]-1)'))
-f3.interpolate(0.1*sin(50*(x-1)) + atan(0.1/(sin(5*(y-1))-2*(x-1))))
-f4.interpolate(atan(0.1/(sin(5*(y-1))-2*(x-1))) + atan(0.5/(sin(3*(y-1))-7*(x-1))))
+f1.interpolate(x**2 + y**2)
+f2.interpolate(Expression('abs(x[0]*x[1]) >= pi/25. ? 0.01*sin(50*x[0]*x[1]) : sin(50*x[0]*x[1]'))
+f3.interpolate(0.1*sin(50*x) + atan(0.1/(sin(5*y)-2*x)))
+f4.interpolate(atan(0.1/(sin(5*y)-2*x)) + atan(0.5/(sin(3*y)-7*x)))
 
 f = {1: f1, 2: f2, 3: f3, 4: f4}
 

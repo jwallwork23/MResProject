@@ -80,3 +80,29 @@ def linear_form_out(u, u_, eta, eta_, v, ze, b, Dt, mesh):
     # Establish the bilinear form using the above integrals:
     
     return Lu_int + Le_int + L_side1 + L_side2
+
+def forward_linear_solver(q_, q, u_, eta_, b, Dt, Vq, params):
+    '''A function which solves the forward linear shallow water equations.'''
+
+    # Build the weak form of the timestepping algorithm, expressed as a 
+    # mixed nonlinear problem:
+    v, ze = TestFunctions(Vq)
+    u, eta = split(q)      
+    u_, eta_ = split(q_)
+
+    # Establish forms, noting we only have a linear equation if the
+    # stong form is written in terms of a matrix:
+    L = linear_form(u, u_, eta, eta_, v, ze, b, Dt)
+
+    # Set up the variational problem
+    q_prob = NonlinearVariationalProblem(L, q)
+    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
+
+    # The function 'split' has two forms: now use the form which splits
+    # a function in order to access its data
+    u_, eta_ = q_.split(); u, eta = q.split()
+
+    # Store multiple functions
+    u.rename('Fluid velocity'); eta.rename('Free surface displacement')
+
+    return q_, q, u_, u, eta_, eta, q_solv

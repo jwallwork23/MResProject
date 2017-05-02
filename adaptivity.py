@@ -112,3 +112,27 @@ def compute_steady_metric(mesh, H, sol, unknown, h_min = 0.005, h_max = 0.1, a =
         M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
 
     return M
+
+def update_SW_FE(mesh, u_, u, eta_, eta, b):
+    '''A function which updates shallow water solution fields and bathymetry from one mesh to another.'''
+    
+    # Establish function spaces on the new mesh:
+    Vm = TensorFunctionSpace(mesh, 'CG', 1)
+    Vu = VectorFunctionSpace(mesh, 'CG', 1)
+    Ve = FunctionSpace(mesh, 'CG', 1)
+    Vq = MixedFunctionSpace((Vu, Ve))
+
+    # Establish functions in the new spaces:
+    q_2 = Function(Vq); u_2, eta_2 = q_2.split()
+    q2 = Function(Vq); u2, eta2 = q2.split()
+    b2 = Function(Ve)
+
+    # Interpolate across from the previous mesh:
+    coords = mesh.coordinates.dat.data
+    u_2.dat.data[:] = u_.at(coords)
+    u2.dat.data[:] = u.at(coords)
+    eta_2.dat.data[:] = eta_.at(coords)
+    eta2.dat.data[:] = eta.at(coords)
+    b2.dat.data[:] = b.at(coords)
+
+    return q_2, q2, u_2, u2, eta_2, eta2, b2, Vq

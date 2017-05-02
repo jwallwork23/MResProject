@@ -3,6 +3,7 @@ from thetis import *
 import numpy as np
 import matplotlib.pyplot as plt
 
+from domain import *
 from forms import *
 
 ###################################################### USEFUL FUNCTIONS #######################################################
@@ -41,46 +42,12 @@ T = float(raw_input('Specify simulation duration in s (default 40): ') or 40.)
 A = 0.01            # 'Tide' amplitude (m)
 p = 0.5             # 'Tide' period (s)
 in_flux = 0         # Flux into domain
-depth = 0.1         # Specify tank water depth (m)
 
 ######################################################### FE SETUP ############################################################
 
 # Define domain and mesh:
-lx = 4; ly = 1; nx = lx*n; ny = ly*n
-mesh = RectangleMesh(nx, ny, lx, ly)
-x = SpatialCoordinate(mesh)
-
-# Define function spaces:
-Vu  = VectorFunctionSpace(mesh, 'CG', 2)    # \ Use Taylor-Hood elements
-Ve = FunctionSpace(mesh, 'CG', 1)           # / 
-Vq = MixedFunctionSpace((Vu, Ve))
-
-# Construct a function to store our two variables at time n:
-q_ = Function(Vq)       
-u_, eta_ = q_.split()
-
-# Interpolate bathymetry:
-b = Function(Ve, name = 'Bathymetry')
-if (bath == 'n'):
-    # Construct a (constant) bathymetry function:
-    b.assign(depth)
-elif (bath == 'y'):
-    b.interpolate(0.1 + 0.04 * sin(2*pi*x[0]) * sin(2*pi*x[1]))
-    File('plots/screenshots/tank_bathymetry.pvd').write(b)
-
-############################################## INITIAL CONDITIONS AND BATHYMETRY ##############################################
-
-# Interpolate ICs:
-u_.interpolate(Expression([0, 0]))
-if (waves == 'n'):
-    eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
-else:
-    eta_.interpolate(Expression(0))
-    # Establish a BC object for the oscillating inflow condition:
-    bcval = Constant(0.0)
-    bc1 = DirichletBC(Vq.sub(1), bcval, 1)
-    # Apply no-slip BC to eta on the right end of the domain:
-    bc2 = DirichletBC(Vq.sub(1), (0.0), 2)
+mesh, Vq, q_, u_, eta_, b = tank_domain(n, 2, bath)
+nx = 4*n; ny = n    # TODO: avoid this
 
 ########################################################## WEAK PROBLEM #######################################################
 

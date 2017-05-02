@@ -25,7 +25,7 @@ ndump = 1       # Timesteps per data dump
 rm = 6          # Timesteps per remesh
 
 # Establish tank domain
-mesh, Vq, q_, u_, eta_, b = tank_domain_wp(n)   # TODO: use Taylor-Hood
+mesh, Vq, q_, u_, eta_, b = tank_domain(n, 1)   # TODO: use Taylor-Hood
 
 # Initialisation:
 t = 0.0; dumpn = 0; mn = 0

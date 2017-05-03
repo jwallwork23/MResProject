@@ -10,7 +10,7 @@ def interp(u, mesh, unew, meshnew):
     vStart, vEnd = plexnew.getDepthStratum(0)
 
     entity_dofs = np.zeros(meshnew._topological_dimension+1, dtype=np.int32)
-##    entity_dofs[0] = meshnew.geometric_dimension
+    entity_dofs[0] = meshnew.geometric_dimension()
             
     notInDomain = []
     for v in range(vStart, vEnd):

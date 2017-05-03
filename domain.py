@@ -1,11 +1,45 @@
 from firedrake import *
+
 import numpy as np
+import scipy.interpolate as si
+from scipy.io.netcdf import NetCDFFile
 
 from projection import *
 
-depth = 0.1 # Tank water depth (m)
+def domain_1d(n):
+    '''A function which sets up a uniform mesh and associated functions for the 1D tsunami test problem.'''
+    
+    # Define domain and mesh:
+    lx = 4e5; nx = int(lx*n)    # 400 km ocean domain, uniform grid spacing
+    mesh = IntervalMesh(nx, lx)
 
-def tank_domain(n, bath='n', waves='n', test2d='n'):
+    # Define function spaces:
+    Vmu = FunctionSpace(mesh, 'CG', 2)      # \ Use Taylor-Hood elements
+    Ve = FunctionSpace(mesh, 'CG', 1)       # /
+    Vq = MixedFunctionSpace((Vmu, Ve))      # We have a mixed FE problem
+
+    # Construct functions to store forward and adjoint variables:
+    q_ = Function(Vq)       # Forward solution tuple
+    lam_ = Function(Vq)     # Adjoint solution tuple
+    mu_, eta_ = q_.split()  # \ Split means we can interpolate the initial condition into the two components
+    lm_, le_ = lam_.split() # /
+
+    # Interpolate initial conditions:
+    mu_.interpolate(Expression(0.))
+    eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? 0.4*sin(pi*(x[0]-1e5)/5e4) : 0.0'))
+
+    # Interpolate final-time conditions:
+    lm_.interpolate(Expression(0.))
+    le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) ? 0.4 : 0.0'))
+
+    # Interpolate bathymetry:
+    b = Function(Ve, name = 'Bathymetry')
+    b.interpolate(Expression('x[0] <= 50000.0 ? 200.0 : 4000.0'))
+
+    return mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b
+
+
+def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
     '''A function which sets up a uniform mesh and associated functions for the tank test problem.'''
 
     # Define domain and mesh:
@@ -23,10 +57,10 @@ def tank_domain(n, bath='n', waves='n', test2d='n'):
     Vq = MixedFunctionSpace((Vu, Ve))       # Mixed FE problem
 
     # Construct a function to store our two variables at time n:
-    q_ = Function(Vq)       # Forward solution tuple
-    lam_ = Function(Vq)     # Adjoint solution tuple
-    u_, eta_ = q_.split()   # \ Split means we can interpolate the initial condition onto the two components
-    lu_, le_ = lam_.split() # /
+    q_ = Function(Vq)           # Forward solution tuple
+    lam_ = Function(Vq)         # Adjoint solution tuple
+    u_, eta_ = q_.split()       # \ Split means we can interpolate the initial condition onto the two components
+    lu_, le_ = lam_.split()     # /
 
     # Establish bathymetry function:
     b = Function(Ve, name = 'Bathymetry')
@@ -35,17 +69,16 @@ def tank_domain(n, bath='n', waves='n', test2d='n'):
         File('plots/screenshots/tank_bathymetry.pvd').write(b)
     elif (test2d == 'n'):
         # Construct a (constant) bathymetry function:
-        b.assign(depth)
+        b.assign(0.1)   # Tank water depth 10 cm
     else:
-        b.interpolate(Expression('x[0] <= 50000.0 ? 200.0 : 4000.0'))
+        b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))  # Shelf break bathymetry
 
     # Interpolate forward and adjoint initial and boundary conditions:
     u_.interpolate(Expression([0, 0]))
+    lu_.interpolate(Expression([0, 0]))
     BCs = []
     if (waves == 'y'):
         eta_.interpolate(Expression(0))
-        # Establish a BC object for the oscillating inflow condition:
-        bcval = Constant(0.0)
         bc1 = DirichletBC(Vq.sub(1), bcval, 1)
         # Apply no-slip BC to eta on the right end of the domain:
         bc2 = DirichletBC(Vq.sub(1), (0.0), 2)
@@ -53,18 +86,15 @@ def tank_domain(n, bath='n', waves='n', test2d='n'):
     elif (test2d == 'n'):
         eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
     else:
-        eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? 4 * sin(pi*(x[0]-1e5)*2e-5) : 0.0'))
+        eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? 4 * sin(pi*(x[0]-1e5)*2e-5) : 0.'))
         # NOTE: higher magnitude wave used due to geometric spreading. ^
-        lu_.interpolate(Expression([0, 0]))
-        le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) ? 0.4 : 0.0'))
+        le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) ? 0.4 : 0.'))
 
     return mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs
 
 def Tohoku_domain(res='c'):
-    '''A function which sets up a mesh, along with function spaces and functions, for the ocean domain associated for the Tohoku tsunami problem.'''
-
-    import scipy.interpolate as si
-    from scipy.io.netcdf import NetCDFFile
+    '''A function which sets up a mesh, along with function spaces and functions, for the ocean domain associated
+    for the Tohoku tsunami problem.'''
 
     # Define mesh and function spaces:
     if (res == 'f'):
@@ -113,10 +143,14 @@ def Tohoku_domain(res='c'):
         b_vec[i] = - interpolator_surf(p[1], p[0]) - interpolator_bath(p[1], p[0])
 
     # Assign initial surface and post-process the bathymetry to have a minimum depth of 30m:
+    u_.interpolate(Expression([0, 0]))
+    lm_.interpolate(Expression([0, 0]))
     eta_.assign(eta0)
+    le_.interpolate(Expression(0))              # TODO: include some initial adjoint surface
     b.assign(conditional(lt(30, b), b, 30))
 
     # Plot initial surface and bathymetry profiles:
-    File('plots/tsunami_outputs/init_surf.pvd').write(eta0); File('plots/tsunami_outputs/tsunami_bathy.pvd').write(b)
+    File('plots/tsunami_outputs/init_surf.pvd').write(eta0)
+    File('plots/tsunami_outputs/tsunami_bathy.pvd').write(b)
 
-    return mesh, Vq, q_, u_, eta_, b
+    return mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b

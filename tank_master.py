@@ -42,62 +42,53 @@ T = float(raw_input('Specify simulation duration in s (default 40): ') or 40.)
 A = 0.01            # 'Tide' amplitude (m)
 p = 0.5             # 'Tide' period (s)
 in_flux = 0         # Flux into domain
+bcvals = Constant(0.0)
 
 ######################################################### FE SETUP ############################################################
 
 # Define domain and mesh:
-mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs = tank_domain(n, bath=bathy)
+mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs = tank_domain(n, bath=bathy, bcval=bcvals)
 nx = 4*n; ny = n    # TODO: avoid this
-
-########################################################## WEAK PROBLEM #######################################################
-
-# Build the weak form of the timestepping algorithm, expressed as a mixed nonlinear problem:
-v, ze = TestFunctions(Vq)
 q = Function(Vq)
 q.assign(q_)
-u, eta = split(q)
-u_, eta_ = split(q_)
+nhat = FacetNormal(mesh)    # Outward pointing normal to the mesh
+
+########################################################## WEAK PROBLEM #######################################################
 
 # Establish form:
 if (mode == 'l'):
     if (waves == 'n'):
-        L = linear_form(u, u_, eta, eta_, v, ze, b, Dt)
+        L = linear_form
     else:
-        L = linear_form_out(u, u_, eta, eta_, v, ze, b, Dt, mesh)
+        L = linear_form_out
 else:
     if (waves == 'n'):
-        L = nonlinear_form(u, u_, eta, eta_, v, ze, b, Dt)
+        L = nonlinear_form
     else:
-        L = nonlinear_form_out(u, u_, eta, eta_, v, ze, b, Dt, mesh)
+        L = nonlinear_form_out
 
-# Set up the variational problem:
+# Specify solver parameters:
 if (waves == 'n'):
-    q_prob = NonlinearVariationalProblem(L, q)
-    q_solve = NonlinearVariationalSolver(q_prob, solver_parameters={'mat_type': 'matfree',
-                                                                    'snes_type': 'ksponly',
-                                                                    'pc_type': 'python',
-                                                                    'pc_python_type': 'firedrake.AssembledPC',
-                                                                    'assembled_pc_type': 'lu',
-                                                                    'snes_lag_preconditioner': -1,
-                                                                    'snes_lag_preconditioner_persists': True,})
+     params={'mat_type': 'matfree',
+             'snes_type': 'ksponly',
+             'pc_type': 'python',
+             'pc_python_type': 'firedrake.AssembledPC',
+             'assembled_pc_type': 'lu',
+             'snes_lag_preconditioner': -1,
+             'snes_lag_preconditioner_persists': True,}
 else:
-    q_prob = NonlinearVariationalProblem(L, q, bcs=BCs)
-    q_solve = NonlinearVariationalSolver(q_prob, solver_parameters={'ksp_type': 'gmres',
-                                                                    'ksp_rtol': '1e-8',
-                                                                    'pc_type': 'fieldsplit',
-                                                                    'pc_fieldsplit_type': 'schur',
-                                                                    'pc_fieldsplit_schur_fact_type': 'full',
-                                                                    'fieldsplit_0_ksp_type': 'cg',
-                                                                    'fieldsplit_0_pc_type': 'lu',
-                                                                    'fieldsplit_1_ksp_type': 'cg',
-                                                                    'fieldsplit_1_pc_type': 'hypre',
-                                                                    'pc_fieldsplit_schur_precondition': 'selfp',})
+    params={'ksp_type': 'gmres',
+            'ksp_rtol': '1e-8',
+            'pc_type': 'fieldsplit',
+            'pc_fieldsplit_type': 'schur',
+            'pc_fieldsplit_schur_fact_type': 'full',
+            'fieldsplit_0_ksp_type': 'cg',
+            'fieldsplit_0_pc_type': 'lu',
+            'fieldsplit_1_ksp_type': 'cg',
+            'fieldsplit_1_pc_type': 'hypre',
+            'pc_fieldsplit_schur_precondition': 'selfp',}
 
-# Split functions in order to access their data:
-u_, eta_ = q_.split(); u, eta = q.split()
-
-# Store multiple functions
-u.rename('Fluid velocity'); eta.rename('Free surface displacement')
+q_, q, u_, u, eta_, eta, q_solv = SW_solve(q_, q, u_, eta_, b, Dt, Vq, params, L, BCs, nhat) 
 
 ######################################################## TIMESTEPPING #########################################################
 
@@ -140,8 +131,8 @@ if (compare != 't'):
     while (t < T - 0.5*dt):     
         t += dt
         if (waves == 'y'):
-            bcval.assign(wave_machine(t, A, p, in_flux))    # Update BC
-        q_solve.solve()
+            bcvals.assign(wave_machine(t, A, p, in_flux))    # Update BC
+        q_solv.solve()
         q_.assign(q)
         dumpn += 1
         # Dump data:

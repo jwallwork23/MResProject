@@ -80,26 +80,11 @@ print 'Forward problem solved.... now for the adjoint problem.'
 
 ###################################################### ADJOINT WEAK PROBLEM ###################################################
 
-# Establish test functions and split adjoint variables:
-w, xi = TestFunctions(Vq)
 lam = Function(Vq)
 lam.assign(lam_)
-lm, le = split(lam)      
-lm_, le_ = split(lam_)
-
-# Establish forms (functions of the adjoint output lam):
-L2 = adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt)
-
-# Set up the variational problem
-uprob2 = NonlinearVariationalProblem(L2, lam)
-usolver2 = NonlinearVariationalSolver(uprob2, solver_parameters=params)
-
-# Split functions in order to access their data:
-lm_, le_ = lam_.split()
-lm, le = lam.split()
-
-# Store multiple functions:
-lm.rename('Adjoint fluid momentum'); le.rename('Adjoint free surface displacement')
+lam_, lam, lm_, lm, le_, le, lam_solv = SW_solve(lam_, lam, lm_, le_, b, Dt, Vq, params, adj_linear_form_2d)
+lm.rename('Adjoint fluid momentum')
+le.rename('Adjoint free surface displacement')
 
 ###################################################### BACKWARD TIMESTEPPING ##################################################
 
@@ -131,7 +116,7 @@ ufile3.write(q_dot_lam, time=0)
 while (t > 0):
     t -= dt
     print 't = ', t, ' seconds'
-    usolver2.solve()
+    lam_solv.solve()
     lam_.assign(lam)
     dumpn -= 1
     # Dump data:

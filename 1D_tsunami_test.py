@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rc
 
+from domain import *
 from forms import *
 
 # Font formatting:
@@ -24,66 +25,25 @@ if ((vid != 'y') & (vid != 'n')):
 
 ndump = 40  # Timesteps per data dump
 
-######################################################### FE SETUP ############################################################
+# Establish problem domain and variables:
+mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b = domain_1d(n)
+nx = int(4e5*n)     # TODO: avoid this
 
-# Define domain and mesh:
-lx = 4e5; nx = int(lx*n)    # 400 km ocean domain, uniform grid spacing
-mesh = IntervalMesh(nx, lx)
+######################################################## FORWARD SOLVER #######################################################
 
-# Define function spaces:
-Vmu = FunctionSpace(mesh, 'CG', 2)      # \ Use Taylor-Hood elements
-Ve = FunctionSpace(mesh, 'CG', 1)       # /
-Vq = MixedFunctionSpace((Vmu, Ve))      # We have a mixed FE problem
-
-# Construct functions to store forward and adjoint variables:
-q_ = Function(Vq) 
-lam_ = Function(Vq)
-mu_, eta_ = q_.split()  # \ Split means we can interpolate the
-lm_, le_ = lam_.split() # / initial condition into the two components
-
-############################################## INITIAL CONDITIONS AND BATHYMETRY ##############################################
-
-# Interpolate ICs:
-mu_.interpolate(Expression(0.))
-eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? 0.4*sin(pi*(x[0]-1e5)/5e4) : 0.0'))
-
-# Interpolate bathymetry:
-b = Function(Ve, name = 'Bathymetry')
-b.interpolate(Expression('x[0] <= 50000.0 ? 200.0 : 4000.0'))
-
-##################################################### FORWARD WEAK PROBLEM ####################################################
-
-# Build the weak form of the timestepping algorithm, expressed as a 
-# mixed nonlinear problem:
-nu, ze = TestFunctions(Vq)
+# Set up forward problem solver:
 q = Function(Vq)
 q.assign(q_)
-mu, eta = split(q)       # \ Here split means we split up a function so
-mu_, eta_ = split(q_)    # / it can be inserted into a UFL expression
-
-# Establish forms (functions of the forward variable q), noting we only
-# have a linear equation if the stong form is written in terms of a
-# matrix:
-L1 = linear_form_1d(mu, mu_, eta, eta_, nu, ze, b, Dt)
-
-# Set up the variational problem:
-q_prob = NonlinearVariationalProblem(L1, q)
-q_solve = NonlinearVariationalSolver(q_prob, solver_parameters={'mat_type': 'matfree',
-                                                                'snes_type': 'ksponly',
-                                                                'pc_type': 'python',
-                                                                'pc_python_type': 'firedrake.AssembledPC',
-                                                                'assembled_pc_type': 'lu',
-                                                                'snes_lag_preconditioner': -1,
-                                                                'snes_lag_preconditioner_persists': True,})
-
-# The function 'split' has two forms: now use the form which splits a 
-# function in order to access its data:
-mu_, eta_ = q_.split(); mu, eta = q.split()
-
-# Store multiple functions:
-mu.rename('Fluid momentum'); eta.rename('Free surface displacement')
-
-#################################################### FORWARD TIMESTEPPING #####################################################
+L1 = linear_form_1d
+params = {'mat_type': 'matfree',
+          'snes_type': 'ksponly',
+          'pc_type': 'python',
+          'pc_python_type': 'firedrake.AssembledPC',
+          'assembled_pc_type': 'lu',
+          'snes_lag_preconditioner': -1,
+          'snes_lag_preconditioner_persists': True,}
+q_, q, mu_, mu, eta_, eta, q_solv = SW_solve(q_, q, mu_, eta_, b, Dt, Vq, params, L1)
+mu.rename('Fluid momentum');
 
 # Initialise time, counters and function arrays:
 t = 0.0; i = 0; dumpn = 0
@@ -109,7 +69,7 @@ for j in range(nx+1):
 while (t < T - 0.5*dt):
     t += dt
     print 't = ', t, ' seconds'
-    q_solve.solve()
+    q_solv.solve()
     q_.assign(q)
     dumpn += 1
     if (dumpn == ndump):
@@ -134,41 +94,15 @@ while (t < T - 0.5*dt):
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
-################################################ ADJOINT 'INITIAL' CONDITIONS #################################################
+######################################################## ADJOINT SOLVER #######################################################
 
-# Interpolate final-time conditions:
-lm_.interpolate(Expression(0.))
-le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) ? 0.4 : 0.0'))
-
-#################################################### ADJOINT WEAK PROBLEM #####################################################
-
-# Establish test functions and split adjoint variables:
-v, w = TestFunctions(Vq)
+# Set up adjoint problem solver:
 lam = Function(Vq)
 lam.assign(lam_)
-lm, le = split(lam)
-lm_, le_ = split(lam_)
-
-# Establish forms (functions of the adjoint variable lam):
-L2 = adj_linear_form_1d(lm, lm_, le, le_, v, w, b, Dt)
-
-# Set up the variational problem:
-lam_prob = NonlinearVariationalProblem(L2, lam)
-lam_solve = NonlinearVariationalSolver(lam_prob, solver_parameters={'mat_type': 'matfree',
-                                                                    'snes_type': 'ksponly',
-                                                                    'pc_type': 'python',
-                                                                    'pc_python_type': 'firedrake.AssembledPC',
-                                                                    'assembled_pc_type': 'lu',
-                                                                    'snes_lag_preconditioner': -1,
-                                                                    'snes_lag_preconditioner_persists': True,})
-
-# Split functions in order to access their data:
-lm_, le_ = lam_.split(); lm, le = lam.split()
-
-# Store multiple functions:
-lm.rename('Adjoint fluid momentum'); le.rename('Adjoint free surface displacement')
-
-#################################################### BACKWARD TIMESTEPPING ####################################################
+L2 = adj_linear_form_1d
+lam_, lam, lm_, lm, le_, le, lam_solv = SW_solve(lam_, lam, lm_, le_, b, Dt, Vq, params, L2)
+lm.rename('Adjoint fluid momentum')
+le.rename('Adjoint free surface displacement')
 
 # Initialise dump counter and function arrays:
 if (dumpn == 0):
@@ -184,8 +118,7 @@ q_dot_lam = np.zeros((int(T/(ndump*dt))+1, nx+1))   # /
 lm_vals[i,:] = lm.dat.data
 le_vals[i,:] = le.dat.data
 
-# Evaluate forward-adjoint inner products (noting mu and lm are in P2,
-# while eta and le are in P1, so we need to evaluate at nodes):
+# Evaluate forward-adjoint inner products (NOTE mu, lm are in P2, while eta, le are in P1, so we need to evaluate at nodes):
 q_dot_lam[i,:] = mu_vals[i,0::2] * lm_vals[i,0::2] + eta_vals[i,:] * le_vals[i,:]
 
 # Determine significant values:
@@ -201,7 +134,7 @@ for j in range(nx+1):
 while (t > 0):
     t -= dt
     print 't = ', t, ' seconds'
-    lam_solve.solve()
+    lam_solv.solve()
     lam_.assign(lam)
     dumpn -= 1
     if (dumpn == 0):

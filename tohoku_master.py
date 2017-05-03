@@ -1,15 +1,12 @@
 from firedrake import *
 from thetis import *
 
-from math import radians
 import numpy as np
 import matplotlib.pyplot as plt
 from time import clock
 
 from domain import *
 from forms import *
-
-######################################################## PARAMETERS ###########################################################
 
 # Specify solver parameters:
 compare = raw_input('Use standalone, Thetis or both? (s/t/b): ') or 's'
@@ -33,44 +30,27 @@ tmode = raw_input('Time-averaging mode? (y/n, default n): ') or 'n'
 if ((tmode != 'y') & (tmode != 'n')):
     raise ValueError('Please try again, choosing y or n.')
 
-########################################################### SETUP #############################################################
+# Establish problem domain and variables:
+mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
 
-mesh, Vq, q_, u_, eta_, b = Tohoku_domain(res)
-
-##################################################### FORWARD WEAK PROBLEM ####################################################
+############################################## FORWARD STANDALONE SOLVER ######################################################
 
 if (compare != 't'):
-    # Build the weak form of the timestepping algorithm, expressed as a mixed nonlinear problem:
-    v, ze = TestFunctions(Vq)
+
+    # Set up forward problem solver:
     q = Function(Vq)
     q.assign(q_)
-    u, eta = split(q)
-    u_, eta_ = split(q_)
-
-    # Establish form:
-    if (mode == 'l'):
-        L1 = linear_form(u, u_, eta, eta_, v, ze, b, Dt)
-    elif (mode == 'n'):
-        L1 = nonlinear_form(u, u_, eta, eta_, v, ze, b, Dt)
-
-    # Set up the variational problem:
     params = {'ksp_type': 'gmres', 'ksp_rtol': '1e-8',
               'pc_type': 'fieldsplit', 'pc_fieldsplit_type': 'schur',
               'pc_fieldsplit_schur_fact_type': 'full',
               'fieldsplit_0_ksp_type': 'cg', 'fieldsplit_0_pc_type': 'ilu',
               'fieldsplit_1_ksp_type': 'cg', 'fieldsplit_1_pc_type': 'hypre',
               'pc_fieldsplit_schur_precondition': 'selfp',}
-    q_prob = NonlinearVariationalProblem(L1, q)
-    q_solve = NonlinearVariationalSolver(q_prob, solver_parameters=params)
-
-    # Split functions in order to access their data:
-    u_, eta_ = q_.split()
-    u, eta = q.split()
-
-    # Store multiple functions:
-    u.rename('Fluid velocity'); eta.rename('Free surface displacement')
-
-    ################################################ FORWARD TIMESTEPPING #####################################################
+    if (mode == 'l'):
+        L1 = linear_form
+    elif (mode == 'n'):
+        L1 = nonlinear_form
+    q_, q, u_, u, eta_, eta, q_solv = SW_solve(q_, q, u_, eta_, b, Dt, Vq, params, L1) 
 
     # Initialise output directory and dump counter:
     if (mode == 'l'):
@@ -81,16 +61,16 @@ if (compare != 't'):
     q_file.write(u, eta, time=t)
 
     # Initialise arrays for storage:
-    eta_vals = np.zeros((int(T/(ndump*dt))+1, 1099))    # \ TODO: Make  
-    u_vals = np.zeros((int(T/(ndump*dt))+1, 4067, 2))   # \ more general to
-    eta_vals[i,:] = eta.dat.data                        #   apply in fine
-    u_vals[i,:,:] = u.dat.data                          #   and med cases
+    eta_vals = np.zeros((int(T/(ndump*dt))+1, 1099))    # \ TODO: Make more general to apply in fine and med cases
+    u_vals = np.zeros((int(T/(ndump*dt))+1, 4067, 2))   # / 
+    eta_vals[i,:] = eta.dat.data
+    u_vals[i,:,:] = u.dat.data 
 
     tic1 = clock()
     # Enter the timeloop:
     while (t < T - 0.5*dt):     
         t += dt
-        q_solve.solve()
+        q_solv.solve()
         q_.assign(q)
         dumpn += 1
         # Dump data:
@@ -108,7 +88,7 @@ if (compare != 't'):
                   
 ## TODO: Implement damage measures
 
-################################################# FORWARD THETIS SETUP ########################################################
+################################################ FORWARD THETIS SOLVER ########################################################
 
 if (compare != 's'):
     # Construct solver:
@@ -180,69 +160,53 @@ if (compare == 'b'):
     plt.ylabel(r'Relative L2 error')
     plt.savefig('plots/tsunami_outputs/screenshots/error_{y1}_{y2}.png'.format(y1=mode, y2=res))
 
-################################################## ADJOINT 'INITIAL' CONDITIONS ###############################################
+############################################## ADJOINT STANDALONE SOLVER ######################################################
 
-# TODO: Specify some ICs
+if (compare != 't'):
 
-##################################################### ADJOINT WEAK PROBLEM ####################################################
+    # Set up adjoint problem solver:
+    lam = Function(Vq)
+    lam.assign(lam_)
+    if (mode == 'l'):
+        L2 = adj_linear_form
+    elif (mode == 'n'):     # TODO
+        L2 = adj_nonlinear_form
+    lam_, lam, lm_, lm, le_, le, lam_solv = SW_solve(lam_, lam, lm_, le_, b, Dt, Vq, params, L2) 
+    lm.rename('Adjoint fluid momentum')
+    le.rename('Adjoint free surface displacement')
 
-# Establish test functions and split adjoint variables:
-w, xi = TestFunctions(Vq)
-lam = Function(Vq)
-lam.assign(lam_)
-lm, le = split(lam)      
-lm_, le_ = split(lam_)
+    # Initialise some arrays for storage:
+    le_vals = np.zeros((int(T/(ndump*dt))+1, 1099))
+    lm_vals = np.zeros((int(T/(ndump*dt))+1, 4067, 2))
+    i -= 1
+    le_vals[i,:] = le.dat.data;
+    lm_vals[i,:] = lm.dat.data
 
-# Establish form:
-if (mode == 'l'):
-    L2 = adj_linear_form()
-elif (mode == 'n'):
-    L2 = adj_nonlinear_form()
-
-# Set up the variational problem
-lam_prob = NonlinearVariationalProblem(L2, lam)
-lam_solve = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
-
-# Split functions in order to access their data:
-lm_, le_ = lam_.split(); lm, le = lam.split()
-
-# Store multiple functions:
-lm.rename('Adjoint fluid momentum'); le.rename('Adjoint free surface displacement')
-
-##################################################### BACKWARD TIMESTEPPING ###################################################
-
-# Initialise some arrays for storage:
-le_vals = np.zeros((int(T/(ndump*dt))+1, 1099))
-lm_vals = np.zeros((int(T/(ndump*dt))+1, 4067, 2))
-i -= 1
-le_vals[i,:] = le.dat.data;
-lm_vals[i,:] = lm.dat.data
-
-# Initialise dump counter and files:
-if (dumpn == 0):
-    dumpn = ndump
-if (mode == 'l'):
-    lam_file = File('plots/tsunami_outputs/tohoku_linear_adj.pvd')
-else:
-    lam_file = File('plots/tsunami_outputs/tohoku_nonlinear_adj.pvd')
-lam_file.write(lm, le, time=0)
-
-# Enter the backward timeloop:
-while (t > 0):
-    t -= dt
-    print 't = ', t, ' seconds'
-    lam_solve.solve()
-    lam_.assign(lam)
-    dumpn -= 1
-    # Dump data:
+    # Initialise dump counter and files:
     if (dumpn == 0):
-        dumpn += ndump
-        i -= 1
-        lm_vals[i,:] = lm.dat.data
-        le_vals[i,:] = le.dat.data
-        # Note the time inversion in output:
-        lam_file.write(lm, le, time=T-t)
+        dumpn = ndump
+    if (mode == 'l'):
+        lam_file = File('plots/tsunami_outputs/tohoku_linear_adj.pvd')
+    else:
+        lam_file = File('plots/tsunami_outputs/tohoku_nonlinear_adj.pvd')
+    lam_file.write(lm, le, time=0)
 
-#################################################### ADJOINT THETIS SETUP #####################################################
+    # Enter the backward timeloop:
+    while (t > 0):
+        t -= dt
+        print 't = ', t/60, ' mins'
+        lam_solv.solve()
+        lam_.assign(lam)
+        dumpn -= 1
+        # Dump data:
+        if (dumpn == 0):
+            dumpn += ndump
+            i -= 1
+            lm_vals[i,:] = lm.dat.data
+            le_vals[i,:] = le.dat.data
+            # Note the time inversion in output:
+            lam_file.write(lm, le, time=T-t)
+
+################################################### ADJOINT THETIS SOLVER #####################################################
 
 # TODO : use Firedrake adjoint?

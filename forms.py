@@ -32,7 +32,7 @@ def adj_linear_form_1d(lm, lm_, le, le_, v, w, b, Dt):
     L = ((le-le_) * w + Dt * g * b * lm * w.dx(0) + (lm-lm_) * v - Dt * le.dx(0) * v) * dx
     return L
 
-def adj_linear_form_2d(lm, lm_, le, le_, v, w, b, Dt):
+def adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt):
     '''Weak residual form of the 2D linear adjoint shallow water equations in momentum form.'''
     L = ((le-le_) * xi - Dt * g * b * inner(lm, grad(xi)) + inner(lm-lm_, w) + Dt * inner(grad(le), w)) * dx
     return L
@@ -81,8 +81,8 @@ def linear_form_out(u, u_, eta, eta_, v, ze, b, Dt, mesh):
     
     return Lu_int + Le_int + L_side1 + L_side2
 
-def forward_linear_solver(q_, q, u_, eta_, b, Dt, Vq, params):
-    '''A function which solves the forward linear shallow water equations.'''
+def SW_solve(q_, q, u_, eta_, b, Dt, Vq, params, form, BCs=[]):
+    '''A function which solves shallow water type problems.'''
 
     # Build the weak form of the timestepping algorithm, expressed as a 
     # mixed nonlinear problem:
@@ -90,12 +90,11 @@ def forward_linear_solver(q_, q, u_, eta_, b, Dt, Vq, params):
     u, eta = split(q)      
     u_, eta_ = split(q_)
 
-    # Establish forms, noting we only have a linear equation if the
-    # stong form is written in terms of a matrix:
-    L = linear_form(u, u_, eta, eta_, v, ze, b, Dt)
+    # Establish form:
+    L = form(u, u_, eta, eta_, v, ze, b, Dt)
 
     # Set up the variational problem
-    q_prob = NonlinearVariationalProblem(L, q)
+    q_prob = NonlinearVariationalProblem(L, q, bcs=BCs)
     q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
     # The function 'split' has two forms: now use the form which splits

@@ -2,6 +2,7 @@ from firedrake import *
 import numpy as np
 import matplotlib.pyplot as plt
 
+from domain import *
 from forms import *
 
 ######################################################## PARAMETERS ###########################################################
@@ -18,48 +19,12 @@ ndump = 5           # Timesteps per data dump
 
 ######################################## INITIAL FE SETUP AND BOUNDARY CONDITIONS #############################################
 
-# Define domain and mesh:
-lx = 4e5
-ly = 1e5
-nx = int(lx*n)
-ny = int(ly*n)
-mesh = RectangleMesh(nx, ny, lx, ly)
-x = SpatialCoordinate(mesh)
-
-# Define function spaces:
-Vmu  = VectorFunctionSpace(mesh, 'CG', 2)   # \ Use Taylor-Hood elements
-Ve = FunctionSpace(mesh, 'CG', 1)           # / 
-Vq = MixedFunctionSpace((Vmu, Ve))            
-
-# Construct functions to store forward and adjoint variables:
-q_ = Function(Vq)
-lam_ = Function(Vq)
-mu_, eta_ = q_.split()
-lm_, le_ = lam_.split()
-
-# Interpolate ICs:
-mu_.interpolate(Expression([0, 0]))
-eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? 4 * sin(pi*(x[0]-1e5)*2e-5) : 0.0'))
-# NOTE: higher magnitude wave used due to geometric spreading. ^
-
-# Interpolate bathymetry:
-b = Function(Ve, name = 'Bathymetry')
-b.interpolate(Expression('x[0] <= 50000.0 ? 200.0 : 4000.0'))
-
-################################################ FORWARD WEAK PROBLEM #########################################################
-
-# Build the weak form of the timestepping algorithm, expressed as a mixed nonlinear problem:
-nu, ze = TestFunctions(Vq)
+mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b, BCs = tank_domain(n, test2d='y')
+nx = int(4e5*n); ny = int(1e5*n)    # TODO: avoid this
 q = Function(Vq)
 q.assign(q_)
-mu, eta = split(q)      
-mu_, eta_ = split(q_)
 
-# Establish forms (functions of the output q), noting we only have a linear equation if the stong form is written in terms of
-# a matrix:
-L1 = linear_form_2d(mu, mu_, eta, eta_, nu, ze, b, Dt)
-
-# Set up the variational problem:
+# Specify solver parameters:
 params = {'mat_type': 'matfree',
           'snes_type': 'ksponly',
           'pc_type': 'python',
@@ -67,16 +32,8 @@ params = {'mat_type': 'matfree',
           'assembled_pc_type': 'lu',
           'snes_lag_preconditioner': -1,
           'snes_lag_preconditioner_persists': True,}
- 
-uprob1 = NonlinearVariationalProblem(L1, q)
-usolver1 = NonlinearVariationalSolver(uprob1, solver_parameters=params)
 
-# Split functions to access their data:
-mu_, eta_ = q_.split()
-mu, eta = q.split()
-
-# Store multiple functions:
-mu.rename('Fluid momentum'); eta.rename('Free surface displacement')
+q_, q, mu_, mu, eta_, eta, q_solv = SW_solve(q_, q, mu_, eta_, b, Dt, Vq, params, linear_form_2d)
 
 ################################################### FORWARD TIMESTEPPING ######################################################
 
@@ -86,7 +43,7 @@ t = 0.0; i = 0; dumpn = 0
 ufile1.write(mu, eta, time=t)
 
 # Establish a BC object to get 'coastline'
-bc = DirichletBC(Ve, 0, 1)
+bc = DirichletBC(Vq.sub(1), 0, 1)
 b_nodes = bc.nodes
 
 # Initialise a CG1 version of mu and some arrays for storage:
@@ -104,7 +61,7 @@ m[i] = np.log2(max(max(eta_vals[i, b_nodes]), 0.5))
 while (t < T - 0.5*dt):     
     t += dt
     print 't = ', t, ' seconds'
-    usolver1.solve()
+    q_solv.solve()
     q_.assign(q)
     dumpn += 1
     if (dumpn == ndump):
@@ -120,11 +77,6 @@ while (t < T - 0.5*dt):
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
-################################################### ADJOINT 'INITIAL' CONDITIONS ##############################################
-
-# Interpolate ICs:
-lm_.interpolate(Expression([0, 0]))
-le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) ? 0.4 : 0.0'))
 
 ###################################################### ADJOINT WEAK PROBLEM ###################################################
 
@@ -136,7 +88,7 @@ lm, le = split(lam)
 lm_, le_ = split(lam_)
 
 # Establish forms (functions of the adjoint output lam):
-L2 = adj_linear_form_2d(lm, lm_, le, le_, v, w, b, Dt)
+L2 = adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt)
 
 # Set up the variational problem
 uprob2 = NonlinearVariationalProblem(L2, lam)
@@ -157,7 +109,7 @@ lm_cg1.interpolate(lm)
 le_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
 lm_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1), 2))
 ql_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
-q_dot_lam = Function(Ve)
+q_dot_lam = Function(Vq.sub(1))
 q_dot_lam.rename('Forward-adjoint inner product')
 le_vals[i,:] = le.dat.data
 lm_vals[i,:] = lm_cg1.dat.data

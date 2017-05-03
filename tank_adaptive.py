@@ -22,7 +22,7 @@ ndump = 1       # Timesteps per data dump
 rm = 6          # Timesteps per remesh
 
 # Establish tank domain
-mesh, Vq, q_, u_, eta_, b = tank_domain(n)
+mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs = tank_domain(n)
 
 # Initialisation:
 t = 0.0; dumpn = 0; mn = 0
@@ -60,7 +60,7 @@ while (t < T-0.5*dt):
         q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(mesh_, mesh, u_, u, eta_, eta, b)
 
     # Solve weak problem:
-    q_, q, u_, u, eta_, eta, q_solv = forward_linear_solver(q_, q, u_, eta_, b, Dt, Vq, params)
+    q_, q, u_, u, eta_, eta, q_solv = SW_solve(q_, q, u_, eta_, b, Dt, Vq, params, linear_form)
 
     if (t == 0.0):
         q_file.write(u, eta, time=t)

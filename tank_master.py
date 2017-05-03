@@ -25,8 +25,8 @@ if (compare != 't'):
         raise ValueError('Please try again, choosing l or n.')
 else:
     mode = 't'
-bath = raw_input('Consider non-trivial bathymetry? (y/n): ') or 'n'
-if ((bath != 'y') & (bath != 'n')):
+bathy = raw_input('Consider non-trivial bathymetry? (y/n): ') or 'n'
+if ((bathy != 'y') & (bathy != 'n')):
     raise ValueError('Please try again, choosing y or n.')
 waves = raw_input('Consider a wave generator? (y/n): ') or 'n'
 if ((waves != 'y') & (waves != 'n')):
@@ -46,7 +46,7 @@ in_flux = 0         # Flux into domain
 ######################################################### FE SETUP ############################################################
 
 # Define domain and mesh:
-mesh, Vq, q_, u_, eta_, b = tank_domain(n, 2, bath)
+mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs = tank_domain(n, bath=bathy)
 nx = 4*n; ny = n    # TODO: avoid this
 
 ########################################################## WEAK PROBLEM #######################################################
@@ -81,7 +81,7 @@ if (waves == 'n'):
                                                                     'snes_lag_preconditioner': -1,
                                                                     'snes_lag_preconditioner_persists': True,})
 else:
-    q_prob = NonlinearVariationalProblem(L, q, bcs=[bc1, bc2])
+    q_prob = NonlinearVariationalProblem(L, q, bcs=BCs)
     q_solve = NonlinearVariationalSolver(q_prob, solver_parameters={'ksp_type': 'gmres',
                                                                     'ksp_rtol': '1e-8',
                                                                     'pc_type': 'fieldsplit',
@@ -102,7 +102,7 @@ u.rename('Fluid velocity'); eta.rename('Free surface displacement')
 ######################################################## TIMESTEPPING #########################################################
 
 # Initialise output directory:
-if (bath == 'n'):
+if (bathy == 'n'):
     if (waves == 'n'):
         if (mode == 'l'):
             q_file = File('plots/tank_outputs/model_prob1_linear.pvd')
@@ -113,7 +113,7 @@ if (bath == 'n'):
             q_file = File('plots/tank_outputs/model_prob2_linear.pvd')
         else:
             q_file = File('plots/tank_outputs/model_prob2_nonlinear.pvd')
-elif (bath == 'y'):
+elif (bathy == 'y'):
     if (waves == 'n'):
         if (mode == 'l'):
             q_file = File('plots/tank_outputs/model_prob3_linear.pvd')

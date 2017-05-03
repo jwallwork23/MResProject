@@ -1,15 +1,13 @@
 from firedrake import *
 from thetis import *
 
-import scipy.interpolate as si
-from scipy.io.netcdf import NetCDFFile
 from math import radians
 import numpy as np
 import matplotlib.pyplot as plt
 from time import clock
 
+from domain import *
 from forms import *
-from projection import *
 
 ######################################################## PARAMETERS ###########################################################
 
@@ -35,62 +33,9 @@ tmode = raw_input('Time-averaging mode? (y/n, default n): ') or 'n'
 if ((tmode != 'y') & (tmode != 'n')):
     raise ValueError('Please try again, choosing y or n.')
 
-######################################################### FE SETUP ############################################################
+########################################################### SETUP #############################################################
 
-# Define mesh (courtesy of QMESH) and function spaces:
-if (res == 'f'):
-    mesh_converter('resources/meshes/LonLatTohokuFine.msh', 143., 37.)
-elif (res == 'm'):
-    mesh_converter('resources/meshes/LonLatTohokuMedium.msh', 143., 37.)
-elif (res == 'c'):
-    mesh_converter('resources/meshes/LonLatTohokuCoarse.msh', 143., 37.)
-mesh = Mesh('resources/meshes/CartesianTohoku.msh')
-mesh_coords = mesh.coordinates.dat.data
-Vu = VectorFunctionSpace(mesh, 'CG', 2)         # \ Use Taylor-Hood elements
-Ve = FunctionSpace(mesh, 'CG', 1)               # / 
-Vq = MixedFunctionSpace((Vu, Ve))               # Mixed FE problem
-
-# Construct functions to store forward and adjoint variables, along with bathymetry:
-q_ = Function(Vq)
-lam_ = Function(Vq)
-u_, eta_ = q_.split()
-lm_, le_ = lam_.split()
-eta0 = Function(Vq.sub(1), name='Initial surface')
-b = Function(Vq.sub(1), name='Bathymetry')
-
-############################################## INITIAL CONDITIONS AND BATHYMETRY ##############################################
-
-# Read and interpolate initial surface data (courtesy of Saito):
-nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap=False)
-lon1 = nc1.variables['x'][:]
-lat1 = nc1.variables['y'][:]
-x1, y1 = vectorlonlat2tangentxy(lon1, lat1, 143., 37.)
-elev1 = nc1.variables['z'][:,:]
-interpolator_surf = si.RectBivariateSpline(y1, x1, elev1)
-eta0vec = eta0.dat.data
-assert mesh_coords.shape[0]==eta0vec.shape[0]
-
-# Read and interpolate bathymetry data (courtesy of GEBCO):
-nc2 = NetCDFFile('resources/bathy_data/GEBCO_bathy.nc', mmap=False)
-lon2 = nc2.variables['lon'][:]
-lat2 = nc2.variables['lat'][:-1]
-x2, y2 = vectorlonlat2tangentxy(lon2, lat2, 143., 37.)
-elev2 = nc2.variables['elevation'][:-1,:]
-interpolator_bath = si.RectBivariateSpline(y2, x2, elev2)
-b_vec = b.dat.data
-assert mesh_coords.shape[0]==b_vec.shape[0]
-
-# Interpolate data onto initial surface and bathymetry profiles:
-for i,p in enumerate(mesh_coords):
-    eta0vec[i] = interpolator_surf(p[1], p[0])
-    b_vec[i] = - interpolator_surf(p[1], p[0]) - interpolator_bath(p[1], p[0])
-
-# Assign initial surface and post-process the bathymetry to have a minimum depth of 30m:
-eta_.assign(eta0)
-b.assign(conditional(lt(30, b), b, 30))
-
-# Plot initial surface and bathymetry profiles:
-File('plots/tsunami_outputs/init_surf.pvd').write(eta0); File('plots/tsunami_outputs/tsunami_bathy.pvd').write(b)
+mesh, Vq, q_, u_, eta_, b = Tohoku_domain(res)
 
 ##################################################### FORWARD WEAK PROBLEM ####################################################
 

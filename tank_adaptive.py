@@ -31,7 +31,7 @@ mesh, Vq, q_, u_, eta_, b = tank_domain(n, 1)   # TODO: use Taylor-Hood
 t = 0.0; dumpn = 0; mn = 0
 q = Function(Vq)
 q.assign(q_)
-q_file = File('prob1_test_outputs/prob1_adapt.pvd'.format(y=mn))
+q_file = File('plots/prob1_test_outputs/prob1_adapt.pvd'.format(y=mn))
 params = {'mat_type': 'matfree',
           'snes_type': 'ksponly',
           'pc_type': 'python',
@@ -51,9 +51,9 @@ while (t < T-0.5*dt):
         M = Function(Vm)
 
         # Build Hessian and (hence) metric:
-        H = construct_hessian(mesh, eta)
+        H, V = construct_hessian(mesh, eta)
         if (remesh == 'y'):
-            M = compute_steady_metric(mesh, H, eta, n2)
+            M = compute_steady_metric(mesh, V, H, eta, n2)
         else:
             M.interpolate(Expression([[n2, 0], [0, n2]]))
 

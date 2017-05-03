@@ -71,9 +71,9 @@ def construct_hessian(mesh, sol):
                                                                    'ksp_converged_reason': True,})
     H_solv.solve()
 
-    return H
+    return H, V
 
-def compute_steady_metric(mesh, H, sol, unknown, h_min = 0.005, h_max = 0.1, a = 100):
+def compute_steady_metric(mesh, V, H, sol, unknown, h_min = 0.005, h_max = 0.1, a = 100):
     '''A function which computes the steady metric for remeshing, provided with the current mesh, hessian and free surface.
     Here h_min and h_max denote the respective minimum and maxiumum tolerated side-lengths, while a denotes the maximum
     tolerated aspect ratio. This code is based on Nicolas Barral's function ``computeSteadyMetric``, from ``adapt.py``.'''
@@ -85,7 +85,6 @@ def compute_steady_metric(mesh, H, sol, unknown, h_min = 0.005, h_max = 0.1, a =
     ihmax2 = 1./(h_max**2)
 
     # Establish metric object:
-    V = TensorFunctionSpace(mesh, 'CG', 1)
     M = Function(V)
     M = H
     

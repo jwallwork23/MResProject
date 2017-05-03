@@ -3,6 +3,7 @@ import numpy as np
 from numpy import linalg as LA
 
 from adaptivity import *
+from interp import *
 
 # Define original mesh, with a metric function space:
 mesh1 = SquareMesh(30, 30, 2, 2)
@@ -32,7 +33,7 @@ for i in f:
 
     # Interpolate functions onto new mesh:
     g = Function(G)
-    g.dat.data[:] = f[i].at(mesh2.coordinates.dat.data)
+    interp(f[i], mesh1, g, mesh2)
 
     # Plot results:
     g.rename('Sensor {y}'.format(y=i))

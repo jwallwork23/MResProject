@@ -1,7 +1,4 @@
 from firedrake import *
-import pyop2 as op2             # Not currently used
-
-import sys, os, os.path         # Not currently used
 import numpy as np
 from numpy import linalg as LA
 
@@ -25,7 +22,7 @@ ndump = 1       # Timesteps per data dump
 rm = 6          # Timesteps per remesh
 
 # Establish tank domain
-mesh, Vq, q_, u_, eta_, b = tank_domain(n, 1)   # TODO: use Taylor-Hood
+mesh, Vq, q_, u_, eta_, b = tank_domain(n)
 
 # Initialisation:
 t = 0.0; dumpn = 0; mn = 0
@@ -58,8 +55,9 @@ while (t < T-0.5*dt):
             M.interpolate(Expression([[n2, 0], [0, n2]]))
 
         # Adapt mesh and update FE setup:
+        mesh_ = mesh
         mesh = adapt(mesh, M)
-        q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(mesh, u_, u, eta_, eta, b)
+        q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(mesh_, mesh, u_, u, eta_, eta, b)
 
     # Solve weak problem:
     q_, q, u_, u, eta_, eta, q_solv = forward_linear_solver(q_, q, u_, eta_, b, Dt, Vq, params)

@@ -2,7 +2,7 @@ from firedrake import *
 
 depth = 0.1 # Tank water depth (m)
 
-def tank_domain(n, p=2, bath='n', waves='n'):
+def tank_domain(n, bath='n', waves='n'):
     '''A function which sets up a uniform mesh and associated functions for the tank test problem.'''
 
     # Define domain and mesh:
@@ -11,9 +11,9 @@ def tank_domain(n, p=2, bath='n', waves='n'):
     x = SpatialCoordinate(mesh)
 
     # Define function spaces:
-    Vu = VectorFunctionSpace(mesh, 'CG', p)     # TODO: get rid of p
-    Ve = FunctionSpace(mesh, 'CG', 1)           
-    Vq = MixedFunctionSpace((Vu, Ve))           # Mixed FE problem
+    Vu = VectorFunctionSpace(mesh, 'CG', 2) # \ Taylor-Hood elements
+    Ve = FunctionSpace(mesh, 'CG', 1)       # /
+    Vq = MixedFunctionSpace((Vu, Ve))       # Mixed FE problem
 
     # Construct a function to store our two variables at time n:
     q_ = Function(Vq)       # \ Split means we can interpolate the initial condition onto the two components 

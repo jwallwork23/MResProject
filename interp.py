@@ -4,6 +4,7 @@ import numpy as np
 INF = float("inf")
 
 def interp(u, mesh, unew, meshnew):
+    '''A function which interpolates a function u onto a new mesh. Only slightly modified version of Nicolas Barral's function ``interpol``, from the Python script ``interpol.py``.'''
     
     dim = mesh._topological_dimension
     plexnew = meshnew._plex

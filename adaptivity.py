@@ -2,6 +2,8 @@ from firedrake import *
 import numpy as np
 from numpy import linalg as LA
 
+from interp import *
+
 def adapt(mesh, metric):
     '''A function which generates a new mesh, provided with a previous mesh and an adaptivity metric. Courtesy of Nicolas
     Barral.'''
@@ -50,9 +52,9 @@ def construct_hessian(mesh, sol):
 
     # Construct function spaces and functions:
     V = TensorFunctionSpace(mesh, 'CG', 1)
-    H = Function(V)            # Hessian-to-be
+    H = Function(V)                             # Hessian-to-be
     sigma = TestFunction(V)
-    nhat = FacetNormal(mesh)    # Normal vector
+    nhat = FacetNormal(mesh)                    # Normal vector
 
     # Establish and solve a variational problem associated with the Monge-Ampere equation:
     Lh = (
@@ -112,13 +114,13 @@ def compute_steady_metric(mesh, V, H, sol, unknown, h_min = 0.005, h_max = 0.1, 
 
     return M
 
-def update_SW_FE(mesh, u_, u, eta_, eta, b):
+def update_SW_FE(mesh1, mesh2, u_, u, eta_, eta, b):
     '''A function which updates shallow water solution fields and bathymetry from one mesh to another.'''
     
     # Establish function spaces on the new mesh:
-    Vm = TensorFunctionSpace(mesh, 'CG', 1)
-    Vu = VectorFunctionSpace(mesh, 'CG', 1)
-    Ve = FunctionSpace(mesh, 'CG', 1)
+    Vm = TensorFunctionSpace(mesh2, 'CG', 1)
+    Vu = VectorFunctionSpace(mesh2, 'CG', 1)
+    Ve = FunctionSpace(mesh2, 'CG', 1)
     Vq = MixedFunctionSpace((Vu, Ve))
 
     # Establish functions in the new spaces:
@@ -126,12 +128,11 @@ def update_SW_FE(mesh, u_, u, eta_, eta, b):
     q2 = Function(Vq); u2, eta2 = q2.split()
     b2 = Function(Ve)
 
-    # Interpolate across from the previous mesh:
-    coords = mesh.coordinates.dat.data
-    u_2.dat.data[:] = u_.at(coords)
-    u2.dat.data[:] = u.at(coords)
-    eta_2.dat.data[:] = eta_.at(coords)
-    eta2.dat.data[:] = eta.at(coords)
-    b2.dat.data[:] = b.at(coords)
+    # Interpolate functions across from the previous mesh:
+    interp(u_, mesh1, u_2, mesh2)
+    interp(u, mesh1, u2, mesh2)
+    interp(eta_, mesh1, eta_2, mesh2)
+    interp(eta, mesh1, eta2, mesh2)
+    interp(b, mesh1, b2, mesh2)
 
     return q_2, q2, u_2, u2, eta_2, eta2, b2, Vq

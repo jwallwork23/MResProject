@@ -75,7 +75,7 @@ def construct_hessian(mesh, sol):
 
     return H, V
 
-def compute_steady_metric(mesh, V, H, sol, unknown, h_min = 0.005, h_max = 0.1, a = 100):
+def compute_steady_metric(mesh, V, H, sol, epsilon = 0.01, h_min = 0.005, h_max = 0.1, a = 100.):
     '''A function which computes the steady metric for remeshing, provided with the current mesh, hessian and free surface.
     Here h_min and h_max denote the respective minimum and maxiumum tolerated side-lengths, while a denotes the maximum
     tolerated aspect ratio. This code is based on Nicolas Barral's function ``computeSteadyMetric``, from ``adapt.py``.'''
@@ -93,7 +93,7 @@ def compute_steady_metric(mesh, V, H, sol, unknown, h_min = 0.005, h_max = 0.1, 
     for i in range(mesh.topology.num_vertices()):
         
         # Generate local Hessian, scaling to avoid roundoff error and editing values:
-        H_loc = H.dat.data[i] * 1/max(abs(sol.dat.data[i]), sol_min) * unknown # TODO: what is this mysterious scale factor?
+        H_loc = H.dat.data[i] * 1/(max(abs(sol.dat.data[i]), sol_min) * epsilon)
         mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
         H_loc[0][1] = mean_diag; H_loc[1][0] = mean_diag
 

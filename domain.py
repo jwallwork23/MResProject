@@ -1,8 +1,5 @@
 from firedrake import *
-
 import numpy as np
-import scipy.interpolate as si
-from scipy.io.netcdf import NetCDFFile
 
 from projection import *
 
@@ -95,6 +92,9 @@ def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
 def Tohoku_domain(res='c'):
     '''A function which sets up a mesh, along with function spaces and functions, for the ocean domain associated
     for the Tohoku tsunami problem.'''
+
+    import scipy.interpolate as si
+    from scipy.io.netcdf import NetCDFFile
 
     # Define mesh and function spaces:
     if (res == 'f'):

@@ -3,11 +3,14 @@ import numpy as np
 from numpy import linalg as LA
 
 from adaptivity import *
-from domain import *
+from domain import tank_domain
 from forms import *
-from interp import *
+from interp import interp
 
 # Specify problem parameters:
+mode = raw_input('Use linear or nonlinear equations? (l/n): ') or 'l'
+if ((mode != 'l') & (mode != 'n')):
+    raise ValueError('Please try again, choosing l or n.')
 dt = float(raw_input('Timestep (default 0.1)?: ') or 0.1)
 Dt = Constant(dt)
 n = int(raw_input('Number of mesh cells per m (default 16)?: ') or 16)
@@ -50,7 +53,7 @@ while (t < T-0.5*dt):
         # Build Hessian and (hence) metric:
         H, V = construct_hessian(mesh, eta)
         if (remesh == 'y'):
-            M = compute_steady_metric(mesh, V, H, eta, n2)
+            M = compute_steady_metric(mesh, V, H, eta)
         else:
             M.interpolate(Expression([[n2, 0], [0, n2]]))
 
@@ -59,8 +62,12 @@ while (t < T-0.5*dt):
         mesh = adapt(mesh, M)
         q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(mesh_, mesh, u_, u, eta_, eta, b)
 
-    # Solve weak problem:
-    q_, q, u_, u, eta_, eta, q_solv = SW_solve(q_, q, u_, eta_, b, Dt, Vq, params, linear_form)
+    # Establish variational problem:
+    if (mode == 'l'):
+        L = linear_form
+    else:
+        L = nonlinear_form
+    q_, q, u_, u, eta_, eta, q_solv = SW_solve(q_, q, u_, eta_, b, Dt, Vq, params, L)
 
     if (t == 0.0):
         q_file.write(u, eta, time=t)

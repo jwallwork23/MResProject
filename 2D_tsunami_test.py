@@ -2,7 +2,7 @@ from firedrake import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import *
+from utils import tank_domain, SW_solve, linear_form_2d, adj_linear_form_2d
 
 ######################################################## PARAMETERS ###########################################################
 

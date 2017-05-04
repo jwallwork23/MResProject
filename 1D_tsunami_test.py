@@ -1,14 +1,9 @@
-# Import required libraries:
 from firedrake import *
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rc
 
-from utils import *
-
-# Font formatting:
-rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-rc('text', usetex=True)
+from utils import domain_1d, SW_solve, linear_form_1d, adj_linear_form_1d
 
 ######################################################## PARAMETERS ###########################################################
 
@@ -33,7 +28,6 @@ nx = int(4e5*n)     # TODO: avoid this
 # Set up forward problem solver:
 q = Function(Vq)
 q.assign(q_)
-L1 = linear_form_1d
 params = {'mat_type': 'matfree',
           'snes_type': 'ksponly',
           'pc_type': 'python',
@@ -41,7 +35,7 @@ params = {'mat_type': 'matfree',
           'assembled_pc_type': 'lu',
           'snes_lag_preconditioner': -1,
           'snes_lag_preconditioner_persists': True,}
-q_, q, mu_, mu, eta_, eta, q_solv = SW_solve(q_, q, mu_, eta_, b, Dt, Vq, params, L1)
+q_, q, mu_, mu, eta_, eta, q_solv = SW_solve(q_, q, mu_, eta_, b, Dt, Vq, params, linear_form_1d)
 mu.rename('Fluid momentum');
 
 # Initialise time, counters and function arrays:
@@ -98,8 +92,7 @@ print 'Forward problem solved.... now for the adjoint problem.'
 # Set up adjoint problem solver:
 lam = Function(Vq)
 lam.assign(lam_)
-L2 = adj_linear_form_1d
-lam_, lam, lm_, lm, le_, le, lam_solv = SW_solve(lam_, lam, lm_, le_, b, Dt, Vq, params, L2)
+lam_, lam, lm_, lm, le_, le, lam_solv = SW_solve(lam_, lam, lm_, le_, b, Dt, Vq, params, adj_linear_form_1d)
 lm.rename('Adjoint fluid momentum')
 le.rename('Adjoint free surface displacement')
 
@@ -158,6 +151,10 @@ while (t > 0):
         le_snapshots.append(Function(le))
 
 ######################################################## PLOTTING #############################################################
+
+# Font formatting:
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+rc('text', usetex=True)
 
 if (vid == 'y'):
     # Plot solution videos:

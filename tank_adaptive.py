@@ -76,7 +76,7 @@ while (t < T-0.5*dt):
     cnt = 0
 
     # Enter the inner timeloop:
-    while (cnt < rm):     
+    while (cnt < rm):
         t += dt
         print 't = ', t, ' seconds, mesh number = ', mn
         cnt += 1

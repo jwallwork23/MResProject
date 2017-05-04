@@ -5,8 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from time import clock
 
-from domain import *
-from forms import *
+from utils import *
 
 # Specify solver parameters:
 compare = raw_input('Use standalone, Thetis or both? (s/t/b): ') or 's'

@@ -4,8 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rc
 
-from domain import *
-from forms import *
+from utils import *
 
 # Font formatting:
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})

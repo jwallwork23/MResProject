@@ -2,8 +2,7 @@ from firedrake import *
 import numpy as np
 from numpy import linalg as LA
 
-from adaptivity import *
-from interp import *
+from utils import *
 
 # Define original mesh, with a metric function space:
 mesh1 = SquareMesh(30, 30, 2, 2)

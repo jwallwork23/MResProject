@@ -2,10 +2,7 @@ from firedrake import *
 import numpy as np
 from numpy import linalg as LA
 
-from adaptivity import *
-from domain import tank_domain
-from forms import *
-from interp import interp
+from utils import *
 
 # Specify problem parameters:
 mode = raw_input('Linear or nonlinear equations? (l/n): ') or 'l'

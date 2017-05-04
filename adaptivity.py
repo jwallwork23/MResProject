@@ -7,42 +7,51 @@ from interp import *
 def adapt(mesh, metric):
     '''A function which generates a new mesh, provided with a previous mesh and an adaptivity metric. Courtesy of Nicolas
     Barral.'''
-    
+
+    # Establish topological and geometric dimensions (usually both 2 for our purposes):
     dim = mesh._topological_dimension
     entity_dofs = np.zeros(dim+1, dtype=np.int32)
     entity_dofs[0] = mesh.geometric_dimension()
-    coordSection = mesh._plex.createSection(\
-        [1], entity_dofs, perm=mesh.topology._plex_renumbering)
-    
+
+    # Generate list of dimensions and offsets vertices and faces (for visualisation, use .view):
+    coordSection = mesh._plex.createSection([1], entity_dofs, perm=mesh.topology._plex_renumbering)
+
+    # Get the DMPlex object encapsulating the mesh topology and determine the vertices of plex to consider (?):
     plex = mesh._plex
     vStart, vEnd = plex.getDepthStratum(0)
     nbrVer = vEnd - vStart
 ##    print  "DEBUG  vStart: %d  vEnd: %d" % (vStart, vEnd)
-##    coordSection.view()
-    
+
+    # Establish DM coordinates (a DM is an abstract PETSc object that manages an abstract grid object and its interactions
+    # with the algebraic solvers):
     dmCoords = mesh.topology._plex.getCoordinateDM()
     dmCoords.setDefaultSection(coordSection)    
-##    dmCoords.setDefaultSection(\
-##        mesh.coordinates.function_space()._dm.getDefaultSection())
+##    dmCoords.setDefaultSection(mesh.coordinates.function_space()._dm.getDefaultSection())
 
-    #### TEMPORARY (?) HACK to sort the metric in the right order
-    ####                (waiting for Matt Knepley fix in plexadapt)
-    
-    met = np.ndarray(shape=metric.dat.data.shape, \
-                     dtype=metric.dat.data.dtype, order='C');
+#### TEMPORARY (?) HACK to sort the metric in the right order (waiting for Matt Knepley fix in plexadapt)
+
+    # Establish a new metric as a numpy array ('C' denoting column style):
+    met = np.ndarray(shape=metric.dat.data.shape, dtype=metric.dat.data.dtype, order='C')
+
+    # Loop over vertices of the mesh (?):
     for iVer in range(nbrVer):
+
+        # Establish offsets of vertices (?):
         off = coordSection.getOffset(iVer+vStart)/dim
-#        print "DEBUG  iVer: %d  off: %d   nbrVer: %d" %(iVer, off, nbrVer)
+##        print "DEBUG  iVer: %d  off: %d   nbrVer: %d" %(iVer, off, nbrVer)
+
+        # Transfer offsets into new metric:
         met[iVer] = metric.dat.data[off]
+
+    # Overwrite metric with new metric (could use metric.dat.data.data = met.data):
     for iVer in range(nbrVer):
         metric.dat.data[iVer] = met[iVer]
-#    metric.dat.data.data = met.data
 
+    # Construct new mesh from metric:
     with mesh.coordinates.dat.vec_ro as coords:
         mesh.topology._plex.setCoordinatesLocal(coords)
     with metric.dat.vec_ro as vec:
         newplex = dmplex.petscAdap(mesh.topology._plex, vec)
-
     newmesh = Mesh(newplex)
 
     return newmesh

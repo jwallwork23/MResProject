@@ -56,18 +56,17 @@ def adapt(mesh, metric):
 
     return newmesh
 
-def construct_hessian(mesh, sol):
+def construct_hessian(mesh, V, sol):
     '''A function which computes the hessian of a scalar solution field with respect to the current mesh.'''
 
-    # Construct function spaces and functions:
-    V = TensorFunctionSpace(mesh, 'CG', 1)
+    # Construct functions:
     H = Function(V)                             # Hessian-to-be
     sigma = TestFunction(V)
     nhat = FacetNormal(mesh)                    # Normal vector
 
     # Establish and solve a variational problem associated with the Monge-Ampere equation:
     Lh = (
-            inner(H, sigma) * dx + inner(div(sigma), grad(sol)) * dx - \
+            (inner(sigma, H) + inner(div(sigma), grad(sol)) ) * dx - \
             (sigma[0,1] * nhat[1] * sol.dx(0) + sigma[1,0] * nhat[0] * sol.dx(1)) * ds
         )
     H_prob = NonlinearVariationalProblem(Lh, H)
@@ -82,15 +81,15 @@ def construct_hessian(mesh, sol):
                                                                    'ksp_converged_reason': True,})
     H_solv.solve()
 
-    return H, V
+    return H
 
-def compute_steady_metric(mesh, V, H, sol, epsilon = 0.01, h_min = 0.005, h_max = 0.1, a = 100.):
+def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100., normalise = 'lp'):
     '''A function which computes the steady metric for remeshing, provided with the current mesh, hessian and free surface.
     Here h_min and h_max denote the respective minimum and maxiumum tolerated side-lengths, while a denotes the maximum
     tolerated aspect ratio. This code is based on Nicolas Barral's function ``computeSteadyMetric``, from ``adapt.py``.'''
 
     # Set maximum and minimum parameters:
-    sol_min = 0.01
+##    sol_min = 0.001
     ia = 1./(a**2)
     ihmin2 = 1./(h_min**2)
     ihmax2 = 1./(h_max**2)
@@ -98,28 +97,85 @@ def compute_steady_metric(mesh, V, H, sol, epsilon = 0.01, h_min = 0.005, h_max 
     # Establish metric object:
     M = Function(V)
     M = H
+
+    if (normalise == 'manual'):
     
-    for i in range(mesh.topology.num_vertices()):
+        for i in range(mesh.topology.num_vertices()):
         
-        # Generate local Hessian, scaling to avoid roundoff error and editing values:
-        H_loc = H.dat.data[i] * 1/(max(abs(sol.dat.data[i]), sol_min) * epsilon)
-        mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
-        H_loc[0][1] = mean_diag; H_loc[1][0] = mean_diag
+            # Generate local Hessian:
+            H_loc = H.dat.data[i] * 1/(max(abs(sol.dat.data[i]), sol_min)) # To avoid roundoff error
+            mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
+            H_loc[0][1] = mean_diag
+            H_loc[1][0] = mean_diag
 
-        # Find eigenpairs and truncate eigenvalues:
-        lam, v = LA.eig(H_loc)
-        v1, v2 = v[0], v[1]
-        lam1 = min(ihmin2, max(ihmax2, abs(lam[0])))
-        lam2 = min(ihmin2, max(ihmax2, abs(lam[1])))
-        lam_max = max(lam1, lam2)
-        lam1 = max(lam1, ia * lam_max)
-        lam2 = max(lam2, ia * lam_max)
+            # Find eigenpairs and truncate eigenvalues:
+            lam, v = LA.eig(H_loc)
+            v1, v2 = v[0], v[1]
+            lam1 = min(ihmin2, max(ihmax2, abs(lam[0])))
+            lam2 = min(ihmin2, max(ihmax2, abs(lam[1])))
+            lam_max = max(lam1, lam2)
+            lam1 = max(lam1, ia * lam_max)
+            lam2 = max(lam2, ia * lam_max)
 
-        # Reconstruct edited Hessian:
-        M.dat.data[i][0,0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]
-        M.dat.data[i][0,1] = lam1 * v1[0] * v1[1] + lam2 * v2[0] * v2[1]
-        M.dat.data[i][1,0] = M.dat.data[i][0,1]
-        M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
+            # Reconstruct edited Hessian:
+            M.dat.data[i][0,0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]
+            M.dat.data[i][0,1] = lam1 * v1[0] * v1[1] + lam2 * v2[0] * v2[1]
+            M.dat.data[i][1,0] = M.dat.data[i][0,1]
+            M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
+
+    elif (normalise == 'lp'):
+
+        p = 2   # TODO: Include an option parameter to change this
+
+        # Establish determinant object:
+        detH = Function(FunctionSpace(mesh, 'CG', 1))
+
+        for i in range(mesh.topology.num_vertices()):
+
+            # Generate local Hessian:
+            H_loc = H.dat.data[i]
+            mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
+            H_loc[0][1] = mean_diag
+            H_loc[1][0] = mean_diag
+
+            # Find eigenpairs of Hessian and truncate eigenvalues:
+            lam, v = LA.eig(H_loc)
+            v1, v2 = v[0], v[1]
+            lam1 = max(abs(lam[0]), 1e-10)      # \ To avoid round-off error
+            lam2 = max(abs(lam[1]), 1e-10)      # /
+            det = lam1*lam2
+
+            # Reconstruct edited Hessian and rescale:
+            M.dat.data[i][0,0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]
+            M.dat.data[i][0,1] = lam1 * v1[0] * v1[1] + lam2 * v2[0] * v2[1]
+            M.dat.data[i][1,0] = M.dat.data[i][0,1]
+            M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
+            M.dat.data[i] *= pow(det, -1./(2*p+2))
+            detH.dat.data[i] = pow(det, p/(2.*p+2))
+
+        detH_integral = assemble(detH*dx)
+        global_norm_coef = (1000./detH_integral)
+        M *= global_norm_coef
+
+        for i in range(mesh.topology.num_vertices()):
+
+            # Find eigenpairs of metric and truncate eigenvalues:
+            lam, v = LA.eig(M.dat.data[i])
+            v1, v2 = v[0], v[1]
+            lam1 = min(ihmin2, max(ihmax2, abs(lam[0])))
+            lam2 = min(ihmin2, max(ihmax2, abs(lam[1])))
+            lam_max = max(lam1, lam2)
+            lam1 = max(lam1, ia * lam_max)
+            lam2 = max(lam2, ia * lam_max)
+
+            # Reconstruct edited Hessian:
+            M.dat.data[i][0,0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]
+            M.dat.data[i][0,1] = lam1 * v1[0] * v1[1] + lam2 * v2[0] * v2[1]
+            M.dat.data[i][1,0] = M.dat.data[i][0,1]
+            M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
+
+    else:
+        raise ValueError('Normalisation selection not recognised, choose `manual` or `lp`.')
 
     return M
 

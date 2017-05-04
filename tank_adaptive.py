@@ -52,9 +52,9 @@ while (t < T-0.5*dt):
         M = Function(Vm)
 
         # Build Hessian and (hence) metric:
-        H, V = construct_hessian(mesh, eta)
+        H = construct_hessian(mesh, Vm, eta)
         if (remesh == 'y'):
-            M = compute_steady_metric(mesh, V, H, eta)
+            M = compute_steady_metric(mesh, Vm, H, eta)
         else:
             M.interpolate(Expression([[n*n, 0], [0, n*n]]))
 

@@ -3,8 +3,7 @@ from thetis import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-from domain import *
-from forms import *
+from utils import *
 
 ###################################################### USEFUL FUNCTIONS #######################################################
 

@@ -51,30 +51,29 @@ v, ze = TestFunctions(Vq)
 u, eta = split(q)
 u_, eta_ = split(q_)
 
+# Establish form:
+L = form(u, u_, eta, eta_, v, ze, b, Dt, n)
+
+# Set up the variational problem
+q_prob = NonlinearVariationalProblem(L, q)
+q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
+
+# The function 'split' has two forms: now use the form which splits a function in order to access its data
+u_, eta_ = q_.split()
+u, eta = q.split()
+
+u.rename('Fluid velocity')
+eta.rename('Free surface displacement')
+
+q_file.write(u, eta, time=t)
+
 while t < T-0.5*dt:
 
+    # Update counters:
     mn += 1
     cnt = 0
 
-    if t == 0.0:
-
-        # Establish form:
-        L = form(u, u_, eta, eta_, v, ze, b, Dt, n)
-
-        # Set up the variational problem
-        q_prob = NonlinearVariationalProblem(L, q)
-        q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
-
-        # The function 'split' has two forms: now use the form which splits a function in order to access its data
-        u_, eta_ = q_.split()
-        u, eta = q.split()
-
-        u.rename('Fluid velocity')
-        eta.rename('Free surface displacement')
-
-        q_file.write(u, eta, time=t)
-
-    else:                                                           # TODO: Could adapt straight away?
+    if t != 0:          # TODO: why is immediate remeshing so slow?
 
         # Build Hessian and (hence) metric:
         Vm = TensorFunctionSpace(mesh, 'CG', 1)
@@ -105,9 +104,9 @@ while t < T-0.5*dt:
         u_, eta_ = q_.split()
         u, eta = q.split()
 
-    # Relabel:
-    u.rename('Fluid velocity')
-    eta.rename('Free surface displacement')
+        # Relabel:
+        u.rename('Fluid velocity')
+        eta.rename('Free surface displacement')
 
     # Enter the inner timeloop:
     while cnt < rm:

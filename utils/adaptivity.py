@@ -96,7 +96,6 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
 
     # Establish metric object:
     M = Function(V)
-    M = H
 
     if normalise == 'manual':
     
@@ -150,10 +149,10 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             M.dat.data[i][0,1] = lam1 * v1[0] * v1[1] + lam2 * v2[0] * v2[1]
             M.dat.data[i][1,0] = M.dat.data[i][0,1]
             M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
-            M.dat.data[i] *= pow(det, -1./(2*p+2))
-            detH.dat.data[i] = pow(det, p/(2.*p+2))
+            M.dat.data[i] *= pow(det, -1./(2 * p + 2))
+            detH.dat.data[i] = pow(det, p/(2. * p + 2))
 
-        detH_integral = assemble(detH*dx)
+        detH_integral = assemble(detH * dx)
         M *= 100./detH_integral                             # TODO: what is this scale factor?
 
         for i in range(mesh.topology.num_vertices()):

@@ -20,11 +20,11 @@ else:
 res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
 if (res != 'f') & (res != 'm') & (res != 'c'):
     raise ValueError('Please try again, choosing f, m or c.')
-dt = float(raw_input('Specify timestep (s) (default 15): ') or 15.)
+dt = float(raw_input('Specify timestep (s) (default 15): ') or 15)
 Dt = Constant(dt)
 ndump = 4           # Timesteps per data dump
 t_export = ndump * dt
-T = float(raw_input('Specify time period (s) (default 7200): ') or 7200.)
+T = float(raw_input('Specify time period (s) (default 7200): ') or 7200)
 tmode = raw_input('Time-averaging mode? (y/n, default n): ') or 'n'
 if (tmode != 'y') & (tmode != 'n'):
     raise ValueError('Please try again, choosing y or n.')

@@ -7,13 +7,12 @@ from utils import *
 mode = raw_input('Linear or nonlinear equations? (l/n): ') or 'l'
 if (mode != 'l') & (mode != 'n'):
     raise ValueError('Please try again, choosing l or n.')
-bathy = raw_input('Non-trivial bathymetry? (y/n): ') or 'n'
-if (bathy != 'y') & (bathy != 'n'):
-    raise ValueError('Please try again, choosing y or n.')
-dt = float(raw_input('Timestep (default 0.1)?: ') or 0.1)               # TODO: consider adaptive timestepping?
+res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
+if (res != 'f') & (res != 'm') & (res != 'c'):
+    raise ValueError('Please try again, choosing f, m or c.')
+dt = float(raw_input('Timestep (default 15)?: ') or 15)               # TODO: consider adaptive timestepping?
 Dt = Constant(dt)
-n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)
-T = float(raw_input('Simulation duration in s (default 5)?: ') or 5.0)
+T = float(raw_input('Simulation duration in s (default 7200)?: ') or 7200)
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y':
     rm = int(raw_input('Timesteps per remesh (default 6)?: ') or 6)     # TODO: consider adaptive remeshing?
@@ -24,13 +23,10 @@ else:
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 ndump = 1
 
-# Establish tank domain
-mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs = tank_domain(n, bath=bathy)
+# Establish problem domain and variables:
+mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
 
-# Initialisation:
-t = 0.0
-dumpn = 0
-mn = 0
+# Set up forward problem solver:
 q = Function(Vq)
 q.assign(q_)
 ##q_file = File('plots/prob1_test_outputs/prob1_adapt.pvd')
@@ -42,9 +38,14 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner': -1,
           'snes_lag_preconditioner_persists': True,}
 if mode == 'l':
-    form = linear_form                                   # TODO: use different outputs for (non)linear cases
+    form = linear_form
 else:
     form = nonlinear_form
+
+# Initialise counters:
+t = 0.0
+dumpn = 0
+mn = 0
 
 # Set up functions of weak problem:
 v, ze = TestFunctions(Vq)
@@ -74,7 +75,7 @@ while t < T-0.5*dt:
         u.rename('Fluid velocity')
         eta.rename('Free surface displacement')
 
-##        q_file.write(u, eta, time=t)
+        ##        q_file.write(u, eta, time=t)
         step_file.write(u, eta, time=t)  # TODO: get rid of this
 
     else:                                                           # TODO: Could adapt straight away?

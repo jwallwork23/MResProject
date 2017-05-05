@@ -9,16 +9,16 @@ from utils import *
 
 # Specify solver parameters:
 compare = raw_input('Use standalone, Thetis or both? (s/t/b): ') or 's'
-if ((compare != 's') & (compare != 't') & (compare != 'b')):
+if (compare != 's') & (compare != 't') & (compare != 'b'):
     raise ValueError('Please try again, choosing s, t or b.')
-if (compare != 't'):
+if compare != 't':
     mode = raw_input('Use linear or nonlinear equations? (l/n): ') or 'l'
-    if ((mode != 'l') & (mode != 'n')):
+    if (mode != 'l') & (mode != 'n'):
         raise ValueError('Please try again, choosing l or n.')
 else:
     mode = 't'
 res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
-if ((res != 'f') & (res != 'm') & (res != 'c')):
+if (res != 'f') & (res != 'm') & (res != 'c'):
     raise ValueError('Please try again, choosing f, m or c.')
 dt = float(raw_input('Specify timestep (s) (default 15): ') or 15.)
 Dt = Constant(dt)
@@ -26,7 +26,7 @@ ndump = 4           # Timesteps per data dump
 t_export = ndump * dt
 T = float(raw_input('Specify time period (s) (default 7200): ') or 7200.)
 tmode = raw_input('Time-averaging mode? (y/n, default n): ') or 'n'
-if ((tmode != 'y') & (tmode != 'n')):
+if (tmode != 'y') & (tmode != 'n'):
     raise ValueError('Please try again, choosing y or n.')
 
 # Establish problem domain and variables:
@@ -34,7 +34,7 @@ mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
 
 ############################################## FORWARD STANDALONE SOLVER ######################################################
 
-if (compare != 't'):
+if compare != 't':
 
     # Set up forward problem solver:
     q = Function(Vq)
@@ -45,18 +45,18 @@ if (compare != 't'):
               'fieldsplit_0_ksp_type': 'cg', 'fieldsplit_0_pc_type': 'ilu',
               'fieldsplit_1_ksp_type': 'cg', 'fieldsplit_1_pc_type': 'hypre',
               'pc_fieldsplit_schur_precondition': 'selfp',}
-    if (mode == 'l'):
+    if mode == 'l':
         L1 = linear_form
-    elif (mode == 'n'):
+        q_file = File('plots/tsunami_outputs/tohoku_linear.pvd')
+    else:
         L1 = nonlinear_form
+        q_file = File('plots/tsunami_outputs/tohoku_nonlinear.pvd')
     q_, q, u_, u, eta_, eta, q_solv = SW_solve(q_, q, u_, eta_, b, Dt, Vq, params, L1) 
 
-    # Initialise output directory and dump counter:
-    if (mode == 'l'):
-        q_file = File('plots/tsunami_outputs/tohoku_linear.pvd')
-    elif (mode == 'n'):
-        q_file = File('plots/tsunami_outputs/tohoku_nonlinear.pvd')
-    t = 0.0; i = 0; dumpn = 0
+    # Initialise output file and counters:
+    t = 0.0
+    i = 0
+    dumpn = 0
     q_file.write(u, eta, time=t)
 
     # Initialise arrays for storage:
@@ -67,18 +67,18 @@ if (compare != 't'):
 
     tic1 = clock()
     # Enter the timeloop:
-    while (t < T - 0.5*dt):     
+    while t < T - 0.5*dt:
         t += dt
         q_solv.solve()
         q_.assign(q)
         dumpn += 1
         # Dump data:
-        if (dumpn == ndump):
+        if dumpn == ndump:
             print 't = ', t/60, ' mins'
             dumpn -= ndump
             i += 1
             q_file.write(u, eta, time=t)
-            if (tmode == 'n'):
+            if tmode == 'n':
                 eta_vals[i,:] = eta.dat.data
                 u_vals[i,:,:] = u.dat.data
     toc1 = clock()
@@ -89,7 +89,7 @@ if (compare != 't'):
 
 ################################################ FORWARD THETIS SOLVER ########################################################
 
-if (compare != 's'):
+if compare != 's':
     # Construct solver:
     solver_obj = solver2d.FlowSolver2d(mesh, b)
     options = solver_obj.options
@@ -104,7 +104,7 @@ if (compare != 's'):
     # Specify initial surface elevation:
     solver_obj.assign_initial_conditions(elev=eta0)
 
-    if (compare == 'b'):
+    if compare == 'b':
 
         # Re-initialise counters and set up error arrays:
         i = 0
@@ -116,9 +116,8 @@ if (compare != 's'):
         u_t = Function(Vu)
 
         def compute_error():
-            '''A function which approximates the error made by the
-            standalone solver, as compared against Thetis' solution.
-            '''
+            """A function which approximates the error made by the standalone solver, as compared against Thetis' 
+            solution."""
             global i
             # Interpolate functions onto the same spaces:
             eta_t.interpolate(solver_obj.fields.solution_2d.split()[1])
@@ -126,7 +125,7 @@ if (compare != 's'):
             eta.dat.data[:] = eta_vals[i,:]
             u.dat.data[:] = u_vals[i,:,:]
             # Calculate (relative) errors:
-            if ((norm(u_t) > 1e-4) & (norm(eta_t) > 1e-4)):
+            if (norm(u_t) > 1e-4) & (norm(eta_t) > 1e-4):
                 u_err[i] = errornorm(u, u_t)/norm(u_t)
                 eta_err[i] = errornorm(eta, eta_t)/norm(eta_t)
             else:
@@ -135,7 +134,7 @@ if (compare != 's'):
             i += 1
 
     # Run solver:
-        if (tmode == 'y'):
+        if tmode == 'y':
             tic2 = clock()
             solver_obj.iterate(export_func=compute_error)
             toc2 = clock()
@@ -148,7 +147,7 @@ if (compare != 's'):
 
 ######################################################### PLOT ERROR ##########################################################
 
-if (compare == 'b'):
+if compare == 'b':
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
     plt.plot(np.linspace(0, T, int(T/(ndump*dt))+1), u_err, label='Fluid velocity error')
@@ -161,14 +160,14 @@ if (compare == 'b'):
 
 ############################################## ADJOINT STANDALONE SOLVER ######################################################
 
-if (compare != 't'):
+if compare != 't':
 
     # Set up adjoint problem solver:
     lam = Function(Vq)
     lam.assign(lam_)
-    if (mode == 'l'):
+    if mode == 'l':
         L2 = adj_linear_form
-    elif (mode == 'n'):     # TODO
+    elif mode == 'n':               # TODO
         L2 = adj_nonlinear_form
     lam_, lam, lm_, lm, le_, le, lam_solv = SW_solve(lam_, lam, lm_, le_, b, Dt, Vq, params, L2) 
     lm.rename('Adjoint fluid momentum')
@@ -178,13 +177,13 @@ if (compare != 't'):
     le_vals = np.zeros((int(T/(ndump*dt))+1, 1099))
     lm_vals = np.zeros((int(T/(ndump*dt))+1, 4067, 2))
     i -= 1
-    le_vals[i,:] = le.dat.data;
+    le_vals[i,:] = le.dat.data
     lm_vals[i,:] = lm.dat.data
 
     # Initialise dump counter and files:
-    if (dumpn == 0):
+    if dumpn == 0:
         dumpn = ndump
-    if (mode == 'l'):
+    if mode == 'l':
         lam_file = File('plots/tsunami_outputs/tohoku_linear_adj.pvd')
     else:
         lam_file = File('plots/tsunami_outputs/tohoku_nonlinear_adj.pvd')
@@ -198,7 +197,7 @@ if (compare != 't'):
         lam_.assign(lam)
         dumpn -= 1
         # Dump data:
-        if (dumpn == 0):
+        if dumpn == 0:
             dumpn += ndump
             i -= 1
             lm_vals[i,:] = lm.dat.data

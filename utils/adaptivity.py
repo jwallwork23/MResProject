@@ -1,12 +1,12 @@
 from firedrake import *
 import numpy as np
-from numpy import linalg as LA
+from numpy import linalg as la
 
 from interp import *
 
 def adapt(mesh, metric):
-    '''A function which generates a new mesh, provided with a previous mesh and an adaptivity metric. Courtesy of Nicolas
-    Barral.'''
+    """A function which generates a new mesh, provided with a previous mesh and an adaptivity metric. Courtesy of 
+    Nicolas Barral."""
 
     # Establish topological and geometric dimensions (usually both 2 for our purposes):
     dim = mesh._topological_dimension
@@ -22,8 +22,8 @@ def adapt(mesh, metric):
     nbrVer = vEnd - vStart
 ##    print  "DEBUG  vStart: %d  vEnd: %d" % (vStart, vEnd)
 
-    # Establish DM coordinates (a DM is an abstract PETSc object that manages an abstract grid object and its interactions
-    # with the algebraic solvers):
+    # Establish DM coordinates (a DM is an abstract PETSc object that manages an abstract grid object and its
+    # interactions with the algebraic solvers):
     dmCoords = mesh.topology._plex.getCoordinateDM()
     dmCoords.setDefaultSection(coordSection)    
 ##    dmCoords.setDefaultSection(mesh.coordinates.function_space()._dm.getDefaultSection())
@@ -66,7 +66,7 @@ def construct_hessian(mesh, V, sol):
 
     # Establish and solve a variational problem associated with the Monge-Ampere equation:
     Lh = (
-            (inner(sigma, H) + inner(div(sigma), grad(sol)) ) * dx - \
+            (inner(sigma, H) + inner(div(sigma), grad(sol)) ) * dx -
             (sigma[0,1] * nhat[1] * sol.dx(0) + sigma[1,0] * nhat[0] * sol.dx(1)) * ds
         )
     H_prob = NonlinearVariationalProblem(Lh, H)
@@ -74,22 +74,22 @@ def construct_hessian(mesh, V, sol):
                                                                    'ksp_rtol': 1e-5,
                                                                    'ksp_gmres_restart': 20,
                                                                    'pc_type': 'sor',
-                                                                   'snes_monitor': True,
+                                                                   'snes_monitor': False,
                                                                    'snes_view': False,
                                                                    'ksp_monitor_true_residual': False,
-                                                                   'snes_converged_reason': True,
-                                                                   'ksp_converged_reason': True,})
+                                                                   'snes_converged_reason': False,
+                                                                   'ksp_converged_reason': False,})
     H_solv.solve()
 
     return H
 
-def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100., normalise = 'lp'):
-    '''A function which computes the steady metric for remeshing, provided with the current mesh, hessian and free surface.
-    Here h_min and h_max denote the respective minimum and maxiumum tolerated side-lengths, while a denotes the maximum
-    tolerated aspect ratio. This code is based on Nicolas Barral's function ``computeSteadyMetric``, from ``adapt.py``.'''
+def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100., normalise = 'lp', p = 2):
+    """A function which computes the steady metric for remeshing, provided with the current mesh, hessian and 
+    free surface. Here h_min and h_max denote the respective minimum and maxiumum tolerated side-lengths, while a 
+    denotes the maximum tolerated aspect ratio. This code is based on Nicolas Barral's function 
+    ``computeSteadyMetric``, from ``adapt.py``."""
 
     # Set maximum and minimum parameters:
-##    sol_min = 0.001
     ia = 1./(a**2)
     ihmin2 = 1./(h_min**2)
     ihmax2 = 1./(h_max**2)
@@ -98,18 +98,20 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
     M = Function(V)
     M = H
 
-    if (normalise == 'manual'):
+    if normalise == 'manual':
     
         for i in range(mesh.topology.num_vertices()):
+
+            sol_min = 0.001
         
             # Generate local Hessian:
-            H_loc = H.dat.data[i] * 1/(max(abs(sol.dat.data[i]), sol_min)) # To avoid roundoff error
+            H_loc = H.dat.data[i] * 1/(max(abs(sol.dat.data[i]), sol_min))  # To avoid roundoff error
             mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
             H_loc[0][1] = mean_diag
             H_loc[1][0] = mean_diag
 
             # Find eigenpairs and truncate eigenvalues:
-            lam, v = LA.eig(H_loc)
+            lam, v = la.eig(H_loc)
             v1, v2 = v[0], v[1]
             lam1 = min(ihmin2, max(ihmax2, abs(lam[0])))
             lam2 = min(ihmin2, max(ihmax2, abs(lam[1])))
@@ -123,9 +125,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             M.dat.data[i][1,0] = M.dat.data[i][0,1]
             M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
 
-    elif (normalise == 'lp'):
-
-        p = 2   # TODO: Include an option parameter to change this
+    elif normalise == 'lp':
 
         # Establish determinant object:
         detH = Function(FunctionSpace(mesh, 'CG', 1))
@@ -139,7 +139,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             H_loc[1][0] = mean_diag
 
             # Find eigenpairs of Hessian and truncate eigenvalues:
-            lam, v = LA.eig(H_loc)
+            lam, v = la.eig(H_loc)
             v1, v2 = v[0], v[1]
             lam1 = max(abs(lam[0]), 1e-10)      # \ To avoid round-off error
             lam2 = max(abs(lam[1]), 1e-10)      # /
@@ -154,13 +154,12 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             detH.dat.data[i] = pow(det, p/(2.*p+2))
 
         detH_integral = assemble(detH*dx)
-        global_norm_coef = (1000./detH_integral)
-        M *= global_norm_coef
+        M *= 1000./detH_integral
 
         for i in range(mesh.topology.num_vertices()):
 
             # Find eigenpairs of metric and truncate eigenvalues:
-            lam, v = LA.eig(M.dat.data[i])
+            lam, v = la.eig(M.dat.data[i])
             v1, v2 = v[0], v[1]
             lam1 = min(ihmin2, max(ihmax2, abs(lam[0])))
             lam2 = min(ihmin2, max(ihmax2, abs(lam[1])))
@@ -180,10 +179,9 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
     return M
 
 def update_SW_FE(mesh1, mesh2, u_, u, eta_, eta, b):
-    '''A function which updates shallow water solution fields and bathymetry from one mesh to another.'''
+    """A function which updates shallow water solution fields and bathymetry from one mesh to another."""
     
     # Establish function spaces on the new mesh:
-    Vm = TensorFunctionSpace(mesh2, 'CG', 1)
     Vu = VectorFunctionSpace(mesh2, 'CG', 1)
     Ve = FunctionSpace(mesh2, 'CG', 1)
     Vq = MixedFunctionSpace((Vu, Ve))

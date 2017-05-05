@@ -33,7 +33,7 @@ dumpn = 0
 mn = 0
 q = Function(Vq)
 q.assign(q_)
-##q_file = File('plots/prob1_test_outputs/prob1_adapt.pvd')
+q_file = File('plots/prob1_test_outputs/prob1_adapt.pvd')
 params = {'mat_type': 'matfree',
           'snes_type': 'ksponly',
           'pc_type': 'python',
@@ -55,7 +55,6 @@ while t < T-0.5*dt:
 
     mn += 1
     cnt = 0
-    step_file = File('plots/prob1_test_outputs/prob1_adapt_step_{y}.pvd'.format(y=mn))  # TODO: get rid of this
 
     if t == 0.0:
 
@@ -70,20 +69,15 @@ while t < T-0.5*dt:
         u_, eta_ = q_.split()
         u, eta = q.split()
 
-        # Store multiple functions
         u.rename('Fluid velocity')
         eta.rename('Free surface displacement')
 
-##        q_file.write(u, eta, time=t)
-        step_file.write(u, eta, time=t)  # TODO: get rid of this
+        q_file.write(u, eta, time=t)
 
     else:                                                           # TODO: Could adapt straight away?
 
-        # Set up metric:
-        Vm = TensorFunctionSpace(mesh, 'CG', 1)
-        M = Function(Vm)
-
         # Build Hessian and (hence) metric:
+        Vm = TensorFunctionSpace(mesh, 'CG', 1)
         H = construct_hessian(mesh, Vm, eta)
         if remesh == 'y':
             M = compute_steady_metric(mesh, Vm, H, eta, normalise=ntype)
@@ -111,6 +105,10 @@ while t < T-0.5*dt:
         u_, eta_ = q_.split()
         u, eta = q.split()
 
+    # Relabel:
+    u.rename('Fluid velocity')
+    eta.rename('Free surface displacement')
+
     # Enter the inner timeloop:
     while cnt < rm:
         t += dt
@@ -121,5 +119,4 @@ while t < T-0.5*dt:
         dumpn += 1
         if dumpn == ndump:
             dumpn -= ndump
-##            q_file.write(u, eta, time=t)
-            step_file.write(u, eta, time=t)                             # TODO: get rid of this
+            q_file.write(u, eta, time=t)

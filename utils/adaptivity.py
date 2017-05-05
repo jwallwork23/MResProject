@@ -105,7 +105,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             sol_min = 0.001
         
             # Generate local Hessian:
-            H_loc = H.dat.data[i] * 1/(max(abs(sol.dat.data[i]), sol_min))  # To avoid roundoff error
+            H_loc = H.dat.data[i] * 100./(max(abs(sol.dat.data[i]), sol_min))  # To avoid roundoff error
             mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
             H_loc[0][1] = mean_diag
             H_loc[1][0] = mean_diag
@@ -154,7 +154,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             detH.dat.data[i] = pow(det, p/(2.*p+2))
 
         detH_integral = assemble(detH*dx)
-        M *= 1000./detH_integral
+        M *= 100./detH_integral                             # TODO: what is this scale factor?
 
         for i in range(mesh.topology.num_vertices()):
 

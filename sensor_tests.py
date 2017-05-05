@@ -8,8 +8,7 @@ from utils import adapt, construct_hessian, compute_steady_metric, interp
 mesh1 = SquareMesh(30, 30, 2, 2)
 x, y = SpatialCoordinate(mesh1)
 x = x-1; y = y-1
-V1 = TensorFunctionSpace(mesh1, 'CG', 1)
-M = Function(V1)
+V = TensorFunctionSpace(mesh1, 'CG', 1)
 
 # Define sensors:
 F = FunctionSpace(mesh1, 'CG', 1)
@@ -23,8 +22,8 @@ f = {1: f1, 2: f2, 3: f3, 4: f4}
 for i in f:
 
     # Compute Hessian and metric:
-    H = construct_hessian(mesh1, V1, f[i])
-    M = compute_steady_metric(mesh1, V1, H, f[i])
+    H = construct_hessian(mesh1, V, f[i])
+    M = compute_steady_metric(mesh1, V, H, f[i])
 
     # Adapt mesh and set up new function spaces:
     mesh2 = adapt(mesh1, M)

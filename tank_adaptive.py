@@ -64,11 +64,12 @@ q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
 u_, eta_ = q_.split()
 u, eta = q.split()
 
+# Set up outfiles:
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
-
 q_file.write(u, eta, time=t)
 
+# Enter timeloop:
 while t < T-0.5*dt:
 
     # Update counters:
@@ -84,7 +85,7 @@ while t < T-0.5*dt:
             M = compute_steady_metric(mesh, Vm, H, eta, normalise=ntype)
         else:
             M = Function(Vm)
-            M.interpolate(Expression([[n*n, 0], [0, n*n]]))
+            M.interpolate(Expression([[n * n, 0], [0, n * n]]))
 
         # Adapt mesh and update FE setup:
         mesh_ = mesh

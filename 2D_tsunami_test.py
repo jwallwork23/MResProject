@@ -2,22 +2,44 @@ from firedrake import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import tank_domain, SW_solve, linear_form_2d, adj_linear_form_2d
+from utils import linear_form_2d, adj_linear_form_2d
 
 # Specify problem parameters:
 dt = float(raw_input('Specify timestep (default 10): ') or 10.)
 Dt = Constant(dt)
 n = float(raw_input('Specify number of cells per m (default 5e-4): ') or 5e-4)
 T = float(raw_input('Simulation duration in s (default 4200): ') or 4200.)
-
-# Set physical and numerical parameters for the scheme:
-g = 9.81            # Gravitational acceleration
-ndump = 5           # Timesteps per data dump
+ndump = 3          # Timesteps per data dump
 
 # Initialise mesh and function space:
-mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b, BCs = tank_domain(n, test2d='y')
-nx = int(4e5*n)
-ny = int(4e5*n)    # TODO: avoid this
+lx = 4e5
+nx = int(lx * n)
+mesh = SquareMesh(nx, nx, lx, lx)
+x = SpatialCoordinate(mesh)
+
+# Define function spaces:
+Vu = VectorFunctionSpace(mesh, 'CG', 2)     # \ Taylor-Hood elements
+Ve = FunctionSpace(mesh, 'CG', 1)           # /
+Vq = MixedFunctionSpace((Vu, Ve))           # Mixed FE problem
+
+# Construct a function to store our two variables at time n:
+q_ = Function(Vq)           # Forward solution tuple
+lam_ = Function(Vq)         # Adjoint solution tuple
+u_, eta_ = q_.split()       # \ Split means we can interpolate the initial condition onto the two components
+lu_, le_ = lam_.split()     # /
+
+# Establish bathymetry function:
+b = Function(Ve, name = 'Bathymetry')
+b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))  # Shelf break bathymetry
+
+# Interpolate forward and adjoint initial and boundary conditions:
+u_.interpolate(Expression([0, 0]))
+lu_.interpolate(Expression([0, 0]))
+
+# Specify ICs, noting higher magnitude wave used due to geometric spreading:
+eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? \
+                                        4 * sin(pi*(x[0]-1e5) * 2e-5) * sin(pi*(x[1]-1.8e5) * 2.5e-5) : 0.'))
+le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 4 : 0.'))
 
 # Initialise forward problem:
 t = 0.0
@@ -50,10 +72,9 @@ q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
 mu_, eta_ = q_.split()
 mu, eta = q.split()
 
+# Set up outfiles:
 mu.rename('Fluid momentum')
 eta.rename('Free surface displacement')
-
-# Initialise files and dump counter:
 q_file.write(mu, eta, time=t)
 
 # Establish a BC object to get 'coastline'
@@ -64,8 +85,8 @@ b_nodes = bc.nodes
 V1 = VectorFunctionSpace(mesh, 'CG', 1)
 mu_cg1 = Function(V1)
 mu_cg1.interpolate(mu)
-eta_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
-mu_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1), 2))
+eta_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)**2))
+mu_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)**2, 2))
 m = np.zeros((int(T/(ndump*dt))+1))
 eta_vals[i,:] = eta.dat.data
 mu_vals[i,:,:] = mu_cg1.dat.data
@@ -101,7 +122,7 @@ lm, le = split(lam)
 lm_, le_ = split(lam_)
 
 # Establish form:
-L = adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt, n)
+L = adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt)
 
 # Set up the variational problem
 lam_prob = NonlinearVariationalProblem(L, lam)
@@ -117,16 +138,16 @@ le.rename('Adjoint free surface displacement')
 # Initialise a CG1 version of lm and some arrays for storage:
 lm_cg1 = Function(V1)
 lm_cg1.interpolate(lm)
-le_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
-lm_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1), 2))
-ql_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)*(ny+1)))
+le_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)**2))
+lm_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)**2, 2))
+ql_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)**2))
 q_dot_lam = Function(Vq.sub(1))
 q_dot_lam.rename('Forward-adjoint inner product')
 le_vals[i,:] = le.dat.data
 lm_vals[i,:] = lm_cg1.dat.data
 
-# Evaluate forward-adjoint inner products (noting mu and lm are in P2, while eta and le are in P1, so we need to evaluate at
-# nodes):
+# Evaluate forward-adjoint inner products (noting mu and lm are in P2, while eta and le are in P1, so we need to
+# evaluate at nodes):
 ql_vals[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + mu_vals[i,:,1] * lm_vals[i,:,1] + eta_vals[i,:] * le_vals[i,:]
 q_dot_lam.dat.data[:] = ql_vals[i,:]
 
@@ -136,7 +157,7 @@ if dumpn == 0:
 lam_file = File('plots/adjoint_test_outputs/linear_adjoint.pvd')
 lam_file.write(lm, le, time=0)
 dot_file = File('plots/adjoint_test_outputs/inner_product.pvd')
-file.write(q_dot_lam, time=0)
+dot_file.write(q_dot_lam, time=0)
 
 # Enter the backward timeloop:
 while t > 0:
@@ -152,11 +173,12 @@ while t > 0:
         lm_cg1.interpolate(lm)
         lm_vals[i,:] = lm_cg1.dat.data
         le_vals[i,:] = le.dat.data
-        ql_vals[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + mu_vals[i,:,1] * lm_vals[i,:,1] + eta_vals[i,:] * le_vals[i,:]
+        ql_vals[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + mu_vals[i,:,1] * lm_vals[i,:,1] + \
+                       eta_vals[i,:] * le_vals[i,:]
         q_dot_lam.dat.data[:] = ql_vals[i,:]
         # Note the time inversion in outputs:
         lam_file.write(lm, le, time=T-t)
-        file.write(q_dot_lam, time=T-t)
+        dot_file.write(q_dot_lam, time=T-t)
 
 # Plot damage measures:
 plt.rc('text', usetex=True)
@@ -169,9 +191,12 @@ plt.axhline(1, linestyle='--', color='yellow')
 plt.axhline(2, linestyle='--', color='orange')
 plt.axhline(3, linestyle='--', color='red')
 plt.annotate('Severe damage', xy=(0.7*T, 3), xytext=(0.72*T, 3.2), arrowprops=dict(facecolor='red', shrink=0.05))
-plt.annotate('Some inland damage', xy=(0.7*T, 2), xytext=(0.72*T, 2.2), arrowprops=dict(facecolor='orange', shrink=0.05))
-plt.annotate('Shore damage', xy=(0.7*T, 1), xytext=(0.72*T, 1.2), arrowprops=dict(facecolor='yellow', shrink=0.05))
-plt.annotate('Very little damage', xy=(0.7*T, 0), xytext=(0.72*T, 0.2), arrowprops=dict(facecolor='green', shrink=0.05))
+plt.annotate('Some inland damage', xy=(0.7*T, 2), xytext=(0.72*T, 2.2),
+             arrowprops=dict(facecolor='orange', shrink=0.05))
+plt.annotate('Shore damage', xy=(0.7*T, 1), xytext=(0.72*T, 1.2),
+             arrowprops=dict(facecolor='yellow', shrink=0.05))
+plt.annotate('Very little damage', xy=(0.7*T, 0), xytext=(0.72*T, 0.2),
+             arrowprops=dict(facecolor='green', shrink=0.05))
 plt.annotate('No damage', xy=(0.7*T, -1), xytext=(0.72*T, -0.8), arrowprops=dict(facecolor='blue', shrink=0.05))
 plt.xlabel(r'Time (s)')
 plt.ylabel(r'm (dimensionless)')

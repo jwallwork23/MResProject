@@ -17,11 +17,37 @@ else:
     if remesh != 'n':
         raise ValueError('Please try again, typing y or n.')
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-ndump = 1
+ndump = 3
 
-# Establish problem domain and variables:
-mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b, BCs = tank_domain(n, test2d='y')
-nx = int(4e5*n); ny = int(4e5*n)    # TODO: avoid this
+# Initialise mesh and function space:
+lx = 4e5
+nx = int(lx * n)
+mesh = SquareMesh(nx, nx, lx, lx)
+x = SpatialCoordinate(mesh)
+
+# Define function spaces:
+Vu = VectorFunctionSpace(mesh, 'CG', 2)     # \ Taylor-Hood elements
+Ve = FunctionSpace(mesh, 'CG', 1)           # /
+Vq = MixedFunctionSpace((Vu, Ve))           # Mixed FE problem
+
+# Construct a function to store our two variables at time n:
+q_ = Function(Vq)           # Forward solution tuple
+lam_ = Function(Vq)         # Adjoint solution tuple
+u_, eta_ = q_.split()       # \ Split means we can interpolate the initial condition onto the two components
+lu_, le_ = lam_.split()     # /
+
+# Establish bathymetry function:
+b = Function(Ve, name = 'Bathymetry')
+b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))  # Shelf break bathymetry
+
+# Interpolate forward and adjoint initial and boundary conditions:
+u_.interpolate(Expression([0, 0]))
+lu_.interpolate(Expression([0, 0]))
+
+# Specify ICs, noting higher magnitude wave used due to geometric spreading:
+eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? \
+                                        4 * sin(pi*(x[0]-1e5) * 2e-5) * sin(pi*(x[1]-1.8e5) * 2.5e-5) : 0.'))
+le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 4 : 0.'))
 
 # Initialise forward solver:
 t = 0.0
@@ -30,7 +56,7 @@ mn = 0
 cnt = 0
 q = Function(Vq)
 q.assign(q_)
-q_file = File('plots/adjoint_test_outputs/linear_forward.pvd')
+q_file = File('plots/adjoint_test_outputs/linear_forward_adaptive.pvd')
 params = {'mat_type': 'matfree',
           'snes_type': 'ksponly',
           'pc_type': 'python',
@@ -55,10 +81,9 @@ q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
 mu_, eta_ = q_.split()
 mu, eta = q.split()
 
+# Set up outfiles:
 mu.rename('Fluid momentum')
 eta.rename('Free surface displacement')
-
-
 q_file.write(mu, eta, time=t)
 
 # Enter the forward timeloop:
@@ -89,7 +114,7 @@ while t < T - 0.5*dt:
         mu_, eta_ = split(q_)
 
         # Establish form:
-        L = linear_form_2d(mu, mu_, eta, eta_, v, ze, b, Dt, n)
+        L = linear_form_2d(mu, mu_, eta, eta_, v, ze, b, Dt)
 
         # Set up the variational problem
         q_prob = NonlinearVariationalProblem(L, q)
@@ -122,7 +147,7 @@ cnt = 0
 mn = 0
 lam = Function(Vq)
 lam.assign(lam_)
-lam_file = File('plots/adjoint_test_outputs/linear_adjoint.pvd')
+lam_file = File('plots/adjoint_test_outputs/linear_adjoint_adaptive.pvd')
 
 # Set up functions of weak problem:
 w, xi = TestFunctions(Vq)
@@ -130,7 +155,7 @@ lm, le = split(lam)
 lm_, le_ = split(lam_)
 
 # Establish form:
-L = adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt, n)
+L = adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt)
 
 # Set up the variational problem
 lam_prob = NonlinearVariationalProblem(L, lam)
@@ -177,7 +202,7 @@ while t > 0:
         lm_, le_ = split(q_)
 
         # Establish form:
-        L = adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt, n)
+        L = adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt)
 
         # Set up the variational problem
         lam_prob = NonlinearVariationalProblem(L, lam)

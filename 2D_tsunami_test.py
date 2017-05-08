@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 
 from utils import tank_domain, SW_solve, linear_form_2d, adj_linear_form_2d
 
-######################################################## PARAMETERS ###########################################################
-
 # Specify problem parameters:
 dt = float(raw_input('Specify timestep (default 10): ') or 10.)
 Dt = Constant(dt)
@@ -16,14 +14,18 @@ T = float(raw_input('Simulation duration in s (default 4200): ') or 4200.)
 g = 9.81            # Gravitational acceleration
 ndump = 5           # Timesteps per data dump
 
-######################################## INITIAL FE SETUP AND BOUNDARY CONDITIONS #############################################
-
+# Initialise mesh and function space:
 mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b, BCs = tank_domain(n, test2d='y')
-nx = int(4e5*n); ny = int(1e5*n)    # TODO: avoid this
+nx = int(4e5*n)
+ny = int(4e5*n)    # TODO: avoid this
+
+# Initialise forward problem:
+t = 0.0
+i = 0
+dumpn = 0
 q = Function(Vq)
 q.assign(q_)
-
-# Specify solver parameters:
+q_file = File('plots/adjoint_test_outputs/linear_forward.pvd')
 params = {'mat_type': 'matfree',
           'snes_type': 'ksponly',
           'pc_type': 'python',
@@ -32,14 +34,27 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner': -1,
           'snes_lag_preconditioner_persists': True,}
 
-q_, q, mu_, mu, eta_, eta, q_solv = SW_solve(q_, q, mu_, eta_, b, Dt, Vq, params, linear_form_2d)
+# Set up functions of weak problem:
+v, ze = TestFunctions(Vq)
+mu, eta = split(q)
+mu_, eta_ = split(q_)
 
-################################################### FORWARD TIMESTEPPING ######################################################
+# Establish form:
+L = linear_form_2d(mu, mu_, eta, eta_, v, ze, b, Dt, n)
+
+# Set up the variational problem
+q_prob = NonlinearVariationalProblem(L, q)
+q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
+
+# The function 'split' has two forms: now use the form which splits a function in order to access its data
+mu_, eta_ = q_.split()
+mu, eta = q.split()
+
+mu.rename('Fluid momentum')
+eta.rename('Free surface displacement')
 
 # Initialise files and dump counter:
-ufile1 = File('plots/adjoint_test_outputs/linear_forward.pvd')
-t = 0.0; i = 0; dumpn = 0
-ufile1.write(mu, eta, time=t)
+q_file.write(mu, eta, time=t)
 
 # Establish a BC object to get 'coastline'
 bc = DirichletBC(Vq.sub(1), 0, 1)
@@ -66,7 +81,7 @@ while (t < T - 0.5*dt):
     if (dumpn == ndump):
         dumpn -= ndump
         i += 1
-        ufile1.write(mu, eta, time=t)
+        q_file.write(mu, eta, time=t)
         mu_cg1.interpolate(mu)
         mu_vals[i,:,:] = mu_cg1.dat.data
         eta_vals[i,:] = eta.dat.data
@@ -76,16 +91,28 @@ while (t < T - 0.5*dt):
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
-
-###################################################### ADJOINT WEAK PROBLEM ###################################################
-
+# Initialise adjoint variables:
 lam = Function(Vq)
 lam.assign(lam_)
-lam_, lam, lm_, lm, le_, le, lam_solv = SW_solve(lam_, lam, lm_, le_, b, Dt, Vq, params, adj_linear_form_2d)
+
+# Set up functions of weak problem:
+w, xi = TestFunctions(Vq)
+lm, le = split(lam)
+lm_, le_ = split(lam_)
+
+# Establish form:
+L = adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt, n)
+
+# Set up the variational problem
+lam_prob = NonlinearVariationalProblem(L, lam)
+lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
+
+# The function 'split' has two forms: now use the form which splits a function in order to access its data
+lm_, le_ = lam_.split()
+lm, le = lam.split()
+
 lm.rename('Adjoint fluid momentum')
 le.rename('Adjoint free surface displacement')
-
-###################################################### BACKWARD TIMESTEPPING ##################################################
 
 # Initialise a CG1 version of lm and some arrays for storage:
 lm_cg1 = Function(V1)
@@ -106,10 +133,10 @@ q_dot_lam.dat.data[:] = ql_vals[i,:]
 # Initialise dump counter and files:
 if (dumpn == 0):
     dumpn = ndump
-ufile2 = File('plots/adjoint_test_outputs/linear_adjoint.pvd')
-ufile2.write(lm, le, time=0)
-ufile3 = File('plots/adjoint_test_outputs/inner_product.pvd')
-ufile3.write(q_dot_lam, time=0)
+lam_file = File('plots/adjoint_test_outputs/linear_adjoint.pvd')
+lam_file.write(lm, le, time=0)
+dot_file = File('plots/adjoint_test_outputs/inner_product.pvd')
+file.write(q_dot_lam, time=0)
 
 # Enter the backward timeloop:
 while (t > 0):
@@ -128,10 +155,8 @@ while (t > 0):
         ql_vals[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + mu_vals[i,:,1] * lm_vals[i,:,1] + eta_vals[i,:] * le_vals[i,:]
         q_dot_lam.dat.data[:] = ql_vals[i,:]
         # Note the time inversion in outputs:
-        ufile2.write(lm, le, time=T-t)
-        ufile3.write(q_dot_lam, time=T-t)
-
-############################################################## PLOTTING #######################################################
+        lam_file.write(lm, le, time=T-t)
+        file.write(q_dot_lam, time=T-t)
 
 # Plot damage measures:
 plt.rc('text', usetex=True)

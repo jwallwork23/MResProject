@@ -7,7 +7,8 @@ def domain_1d(n):
     '''A function which sets up a uniform mesh and associated functions for the 1D tsunami test problem.'''
     
     # Define domain and mesh:
-    lx = 4e5; nx = int(lx*n)    # 400 km ocean domain, uniform grid spacing
+    lx = 4e5
+    nx = int(lx*n)    # 400 km ocean domain, uniform grid spacing
     mesh = IntervalMesh(nx, lx)
 
     # Define function spaces:
@@ -41,7 +42,7 @@ def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
 
     # Define domain and mesh:
     if (test2d == 'n'):
-        lx = 4; ly = 1
+        lx = 4e5; ly = 4e5
     else:
         lx = 4e5; ly = 1e5
     nx = int(lx*n); ny = int(ly*n)
@@ -83,9 +84,9 @@ def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
     elif (test2d == 'n'):
         eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
     else:
-        eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? 4 * sin(pi*(x[0]-1e5)*2e-5) : 0.'))
+        eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 4 * sin(pi*(x[0]-1e5)*2e-5) * cos(pi*(x[1]-2e4)/ : 0.'))
         # NOTE: higher magnitude wave used due to geometric spreading. ^
-        le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) ? 0.4 : 0.'))
+        le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 4 : 0.'))
 
     return mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs
 

@@ -52,7 +52,7 @@ u, eta = split(q)
 u_, eta_ = split(q_)
 
 # Establish form:
-L = form(u, u_, eta, eta_, v, ze, b, Dt, n)
+L = form(u, u_, eta, eta_, v, ze, b, Dt)
 
 # Set up the variational problem
 q_prob = NonlinearVariationalProblem(L, q)

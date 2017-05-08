@@ -4,7 +4,7 @@ import numpy as np
 from projection import *
 
 def domain_1d(n):
-    '''A function which sets up a uniform mesh and associated functions for the 1D tsunami test problem.'''
+    """A function which sets up a uniform mesh and associated functions for the 1D tsunami test problem."""
     
     # Define domain and mesh:
     lx = 4e5
@@ -38,21 +38,25 @@ def domain_1d(n):
 
 
 def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
-    '''A function which sets up a uniform mesh and associated functions for the tank test problem.'''
+    """A function which sets up a uniform mesh and associated functions for the tank test problem."""
 
     # Define domain and mesh:
-    if (test2d == 'n'):
-        lx = 4e5; ly = 4e5
+    if test2d == 'n':
+        lx = 4
+        ly = 1
+        nx = int(lx * n)
+        ny = int(ly * n)
+        mesh = RectangleMesh(nx, ny, lx, ly)
     else:
-        lx = 4e5; ly = 1e5
-    nx = int(lx*n); ny = int(ly*n)
-    mesh = RectangleMesh(nx, ny, lx, ly)
+        lx = 4e5
+        nx = int(lx * n)
+        mesh = SquareMesh(nx, nx, lx, lx)
     x = SpatialCoordinate(mesh)
 
     # Define function spaces:
-    Vu = VectorFunctionSpace(mesh, 'CG', 2) # \ Taylor-Hood elements
-    Ve = FunctionSpace(mesh, 'CG', 1)       # /
-    Vq = MixedFunctionSpace((Vu, Ve))       # Mixed FE problem
+    Vu = VectorFunctionSpace(mesh, 'CG', 2)     # \ Taylor-Hood elements
+    Ve = FunctionSpace(mesh, 'CG', 1)           # /
+    Vq = MixedFunctionSpace((Vu, Ve))           # Mixed FE problem
 
     # Construct a function to store our two variables at time n:
     q_ = Function(Vq)           # Forward solution tuple
@@ -62,10 +66,10 @@ def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
 
     # Establish bathymetry function:
     b = Function(Ve, name = 'Bathymetry')
-    if (bath == 'y'):
+    if bath == 'y':
         b.interpolate(0.1 + 0.04 * sin(2*pi*x[0]) * sin(2*pi*x[1]))
         File('plots/screenshots/tank_bathymetry.pvd').write(b)
-    elif (test2d == 'n'):
+    elif test2d == 'n':
         # Construct a (constant) bathymetry function:
         b.assign(0.1)   # Tank water depth 10 cm
     else:
@@ -75,34 +79,33 @@ def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
     u_.interpolate(Expression([0, 0]))
     lu_.interpolate(Expression([0, 0]))
     BCs = []
-    if (waves == 'y'):
+    if waves == 'y':
         eta_.interpolate(Expression(0))
         bc1 = DirichletBC(Vq.sub(1), bcval, 1)
         # Apply no-slip BC to eta on the right end of the domain:
-        bc2 = DirichletBC(Vq.sub(1), (0.0), 2)
+        bc2 = DirichletBC(Vq.sub(1), 0.0, 2)
         BCs = [bc1, bc2]
-    elif (test2d == 'n'):
+    elif test2d == 'n':
         eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
-    else:
+    else:   # NOTE: higher magnitude wave used due to geometric spreading
         eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 4 * sin(pi*(x[0]-1e5)*2e-5) * cos(pi*(x[1]-2e4)/ : 0.'))
-        # NOTE: higher magnitude wave used due to geometric spreading. ^
         le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 4 : 0.'))
 
     return mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs
 
 def Tohoku_domain(res='c'):
-    '''A function which sets up a mesh, along with function spaces and functions, for the ocean domain associated
-    for the Tohoku tsunami problem.'''
+    """A function which sets up a mesh, along with function spaces and functions, for the ocean domain associated
+    for the Tohoku tsunami problem."""
 
     import scipy.interpolate as si
     from scipy.io.netcdf import NetCDFFile
 
     # Define mesh and function spaces:
-    if (res == 'f'):
+    if res == 'f':
         mesh_converter('resources/meshes/LonLatTohokuFine.msh', 143., 37.)
-    elif (res == 'm'):
+    elif res == 'm':
         mesh_converter('resources/meshes/LonLatTohokuMedium.msh', 143., 37.)
-    elif (res == 'c'):
+    elif res == 'c':
         mesh_converter('resources/meshes/LonLatTohokuCoarse.msh', 143., 37.)
     mesh = Mesh('resources/meshes/CartesianTohoku.msh')
     mesh_coords = mesh.coordinates.dat.data

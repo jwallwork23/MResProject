@@ -40,7 +40,7 @@ mu, eta = split(q)
 mu_, eta_ = split(q_)
 
 # Establish form:
-L = linear_form_2d(mu, mu_, eta, eta_, v, ze, b, Dt, n)
+L = linear_form_2d(mu, mu_, eta, eta_, v, ze, b, Dt)
 
 # Set up the variational problem
 q_prob = NonlinearVariationalProblem(L, q)
@@ -72,13 +72,13 @@ mu_vals[i,:,:] = mu_cg1.dat.data
 m[i] = np.log2(max(max(eta_vals[i, b_nodes]), 0.5))
 
 # Enter the forward timeloop:
-while (t < T - 0.5*dt):     
+while t < T - 0.5*dt:
     t += dt
     print 't = ', t, ' seconds'
     q_solv.solve()
     q_.assign(q)
     dumpn += 1
-    if (dumpn == ndump):
+    if dumpn == ndump:
         dumpn -= ndump
         i += 1
         q_file.write(mu, eta, time=t)
@@ -131,7 +131,7 @@ ql_vals[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + mu_vals[i,:,1] * lm_vals[i,:,1]
 q_dot_lam.dat.data[:] = ql_vals[i,:]
 
 # Initialise dump counter and files:
-if (dumpn == 0):
+if dumpn == 0:
     dumpn = ndump
 lam_file = File('plots/adjoint_test_outputs/linear_adjoint.pvd')
 lam_file.write(lm, le, time=0)
@@ -139,14 +139,14 @@ dot_file = File('plots/adjoint_test_outputs/inner_product.pvd')
 file.write(q_dot_lam, time=0)
 
 # Enter the backward timeloop:
-while (t > 0):
+while t > 0:
     t -= dt
     print 't = ', t, ' seconds'
     lam_solv.solve()
     lam_.assign(lam)
     dumpn -= 1
     # Dump data:
-    if (dumpn == 0):
+    if dumpn == 0:
         dumpn += ndump
         i -= 1
         lm_cg1.interpolate(lm)

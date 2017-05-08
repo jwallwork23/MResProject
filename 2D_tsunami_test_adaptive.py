@@ -21,7 +21,7 @@ ndump = 1
 
 # Establish problem domain and variables:
 mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b, BCs = tank_domain(n, test2d='y')
-nx = int(4e5*n); ny = int(1e5*n)    # TODO: avoid this
+nx = int(4e5*n); ny = int(4e5*n)    # TODO: avoid this
 
 # Initialise forward solver:
 t = 0.0
@@ -45,7 +45,7 @@ mu, eta = split(q)
 mu_, eta_ = split(q_)
 
 # Establish form:
-L = linear_form_2d(mu, mu_, eta, eta_, v, ze, b, Dt, n)
+L = linear_form_2d(mu, mu_, eta, eta_, v, ze, b, Dt)
 
 # Set up the variational problem
 q_prob = NonlinearVariationalProblem(L, q)

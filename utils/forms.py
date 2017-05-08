@@ -12,19 +12,21 @@ def linear_form_1d(mu, mu_, eta, eta_, nu, ze, b, Dt):
 
 def linear_form_2d(mu, mu_, eta, eta_, nu, ze, b, Dt):
     """Weak residual form of the 2D linear shallow water equations in momentum form."""
-    L = ((eta-eta_) * ze - Dt * inner(mu, grad(ze)) + inner(mu-mu_, nu) + Dt * g * b * (inner(grad(eta), nu))) * dx
+    L = ((eta-eta_) * ze - Dt * inner(mu, grad(ze)) +
+         inner(mu-mu_, nu) + Dt * g * b * (inner(grad(eta), nu))) * dx
     return L
 
 def nonlinear_form(u, u_, eta, eta_, v, ze, b, Dt):
     """Weak residual form of the nonlinear shallow water equations."""
-    L = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + inner(u-u_, v) + Dt * inner(dot(u, nabla_grad(u)), v) +
-        nu * inner(grad(u), grad(v)) + Dt * g * inner(grad(eta), v) +
-        Dt * Cb * sqrt(dot(u_, u_)) * inner(u/(eta+b), v)) * dx(degree=4)
+    L = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + inner(u-u_, v) +
+         Dt * inner(dot(u, nabla_grad(u)), v) + nu * inner(grad(u), grad(v)) + Dt * g * inner(grad(eta), v) +
+         Dt * Cb * sqrt(dot(u_, u_)) * inner(u/(eta+b), v)) * dx(degree=4)
     return L
 
 def linear_form(u, u_, eta, eta_, v, ze, b, Dt):
     """Weak residual form of the linear shallow water equations."""
-    L = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + inner(u-u_, v) + Dt * g *(inner(grad(eta), v))) * dx
+    L = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze)) + inner(u-u_, v) +
+         Dt * g *(inner(grad(eta), v))) * dx
     return L
 
 def adj_linear_form_1d(lm, lm_, le, le_, v, w, b, Dt):
@@ -39,20 +41,22 @@ def adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt):
                                                                                        # + J derivative term?
 def adj_nonlinear_form(w, xi):   # TODO: Needs changing!
     """Weak residual form of the nonlinear adjoint shallow water equations."""
-    L = ((le-le_) * xi - Dt * g * b * inner(lm, grad(xi)) + inner(lm-lm_, w) + Dt * inner(grad(le), w)) * dx
-    return L                                                                                        # + J derivative term?
+    L = ((le-le_) * xi - Dt * g * b * inner(lm, grad(xi)) + inner(lm-lm_, w) +
+         Dt * inner(grad(le), w)) * dx
+    return L                                                                           # + J derivative term?
 
 def adj_linear_form(lm, lm_, le, le_, w, xi, b, Dt):
     """Weak residual form of the linear adjoint shallow water equations."""
     L = ((le-le_) * xi - Dt * g * b * inner(lm, grad(xi)) + inner(lm-lm_, w) + Dt * inner(grad(le), w)) * dx
-    return L                                                                                        # + J derivative term?
+    return L                                                                           # + J derivative term?
 
 def nonlinear_form_out(u, u_, eta, eta_, v, ze, b, Dt, n):
     """Weak residual form of the nonlinear shallow water equations, with outflow boundary conditions."""
 
     # Integrate terms of the momentum equation over the interior:
-    Lu_int = (inner(u-u_, v) + Dt * (inner(dot(u, nabla_grad(u)), v) + nu * inner(grad(u), grad(v)) + g * inner(grad(eta), v))
-    + Dt * Cb * sqrt(dot(u_, u_)) * inner(u / (eta + b), v)) * dx(degree=4)
+    Lu_int = (inner(u-u_, v) + Dt * (inner(dot(u, nabla_grad(u)), v) +
+                                     nu * inner(grad(u), grad(v)) + g * inner(grad(eta), v)) +
+              Dt * Cb * sqrt(dot(u_, u_)) * inner(u / (eta + b), v)) * dx(degree=4)
     # Integrate terms of the continuity equation over the interior:
     Le_int = (ze * (eta-eta_) - Dt * inner((eta + b) * u, grad(ze))) * dx(degree=4)
     # Integrate over left-hand boundary:

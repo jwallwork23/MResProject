@@ -7,7 +7,7 @@ from utils import linear_form_2d, adj_linear_form_2d
 # Specify problem parameters:
 dt = float(raw_input('Specify timestep (default 10): ') or 10.)
 Dt = Constant(dt)
-n = float(raw_input('Specify number of cells per m (default 5e-4): ') or 5e-4)
+n = float(raw_input('Specify number of cells per m (default 1e-4): ') or 1e-4)
 T = float(raw_input('Simulation duration in s (default 4200): ') or 4200.)
 ndump = 3          # Timesteps per data dump
 

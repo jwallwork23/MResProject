@@ -7,8 +7,11 @@ The first script test file comes from Brisa Davis and Randall LeVeque's 2016
 paper 'Adjoint methods for guiding adaptive mesh refinement in tsunami
 modelling' and studies the forward and adjoint problems relating to the
 propagation of an idealised tsunami across an ocean domain with a step
-discontinuity (corresponding to a shelf break). The second script test file
-contains an extension of the code from the 1D to the 2D case.
+discontinuity (corresponding to a shelf break).
+
+The second script test file contains an extension of the code from the 1D to
+the 2D case. In this script anisotropic mesh adaptivity is included as an
+option, but is not yet up and running.
 
 The 2D shallow water script called ``tank_master.py`` enables the user to
 experiment with the inclusion of non-trivial bathymetry and a 'wave generator'

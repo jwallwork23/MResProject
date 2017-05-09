@@ -88,16 +88,12 @@ while t < T - 0.5*dt:
     mn += 1
     cnt = 0
 
-    if t != 0:
+    if (t != 0) & (remesh == 'y'):
 
         # Build Hessian and (hence) metric:
         Vm = TensorFunctionSpace(mesh, 'CG', 1)
-        if remesh == 'y':
-            H = construct_hessian(mesh, Vm, eta)
-            M = compute_steady_metric(mesh, Vm, H, eta, normalise=ntype)
-        else:
-            M = Function(Vm)
-            M.interpolate(Expression([[n * n, 0], [0, n * n]]))
+        H = construct_hessian(mesh, Vm, eta)
+        M = compute_steady_metric(mesh, Vm, H, eta, normalise=ntype)
 
         # Adapt mesh and update FE setup:
         mesh_ = mesh
@@ -139,7 +135,7 @@ while t < T - 0.5*dt:
 print 'Forward problem solved.... now for the adjoint problem.'
 
 # Reset uniform mesh:
-mesh = SquareMesh(nx, nx, lx, lx)
+#mesh = SquareMesh(nx, nx, lx, lx)
 
 # Re-define function spaces:
 Vu = VectorFunctionSpace(mesh, 'CG', 2)     # \ Taylor-Hood elements
@@ -197,16 +193,12 @@ while t > 0:
     mn += 1
     cnt = 0
 
-    if t != 0:  # TODO: why is immediate remeshing so slow?
+    if (t != 0) & (remesh == 'y'):  # TODO: why is immediate remeshing so slow?
 
         # Build Hessian and (hence) metric:
         Vm = TensorFunctionSpace(mesh, 'CG', 1)
-        if remesh == 'y':
-            H = construct_hessian(mesh, Vm, le)
-            M = compute_steady_metric(mesh, Vm, H, le, normalise=ntype)
-        else:
-            M = Function(Vm)
-            M.interpolate(Expression([[n * n, 0], [0, n * n]]))
+        H = construct_hessian(mesh, Vm, le)
+        M = compute_steady_metric(mesh, Vm, H, le, normalise=ntype)
 
         # Adapt mesh and update FE setup:
         mesh_ = mesh

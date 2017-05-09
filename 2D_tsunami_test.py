@@ -42,7 +42,7 @@ b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))  # Shelf break bathym
 # Interpolate initial and boundary conditions, noting higher magnitude wave used due to geometric spreading:
 u_.interpolate(Expression([0, 0]))
 eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? \
-                                        4 * sin(pi*(x[0]-1e5) * 2e-5) * sin(pi*(x[1]-1.8e5) * 2.5e-5) : 0.'))
+                                        10 * sin(pi*(x[0]-1e5) * 2e-5) * sin(pi*(x[1]-1.8e5) * 2.5e-5) : 0.'))
 
 # Initialise forward solver:
 t = 0.0
@@ -181,7 +181,7 @@ lu_, le_ = lam_.split()
 
 # Interpolate initial and boundary conditions, noting higher magnitude wave used due to geometric spreading:
 lu_.interpolate(Expression([0, 0]))
-le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 4 : 0.'))
+le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 10 : 0.'))
 
 # Initialise adjoint problem:
 cnt = 0

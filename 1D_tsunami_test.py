@@ -17,7 +17,7 @@ vid = raw_input('Show video output? (y/n, default n): ') or 'n'
 if ((vid != 'y') & (vid != 'n')):
     raise ValueError('Please try again, choosing y or n.')
 
-ndump = 40  # Timesteps per data dump
+ndump = 60  # Timesteps per data dump
 
 # Establish problem domain and variables:
 mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b = domain_1d(n)
@@ -221,12 +221,11 @@ else:
         plt.xlabel(r'Distance offshore (km)')
         plt.axis([0, nx+1, 0, int(T/(ndump*dt))])
         plt.xlim(plt.xlim()[::-1])
+        plt.ylabel(r'Time (m)')
         if (k == 'Domain of dependence'):
-            plt.ylabel(r'Forward-adjoint inner product ($\displaystyle m^2$)')
             plt.title(r'{y}'.format(y=k))
             plt.savefig('plots/tsunami_outputs/screenshots/domain_of_dependence.png')
         else:
-            plt.ylabel(r'Free surface displacement (m)')
             plt.title(r'{y} problem'.format(y=k))
             plt.savefig('plots/tsunami_outputs/screenshots/sig_{y}.png'.format(y=k))
 

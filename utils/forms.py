@@ -81,7 +81,7 @@ def linear_form_out(u, u_, eta, eta_, v, ze, b, Dt, n):
 
     return Lu_int + Le_int + L_side1 + L_side2
 
-def SW_solve(q_, q, u_, eta_, b, Dt, Vq, params, form, BCs=[], n=None):
+def SW_solve(q_, q, u_, eta_, b, Dt, Vq, params, form, BCs=[]):
     """A function which solves shallow water type problems."""
 
     # Build the weak form of the timestepping algorithm, expressed as a mixed nonlinear problem:
@@ -90,7 +90,7 @@ def SW_solve(q_, q, u_, eta_, b, Dt, Vq, params, form, BCs=[], n=None):
     u_, eta_ = split(q_)
 
     # Establish form:
-    L = form(u, u_, eta, eta_, v, ze, b, Dt, n)
+    L = form(u, u_, eta, eta_, v, ze, b, Dt)
 
     # Set up the variational problem
     q_prob = NonlinearVariationalProblem(L, q, bcs=BCs)

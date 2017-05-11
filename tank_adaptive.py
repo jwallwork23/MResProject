@@ -3,13 +3,12 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import linear_form, nonlinear_form, construct_hessian, compute_steady_metric, update_SW_FE, adapt, \
-    tank_domain
+from utils import adapt, construct_hessian, compute_steady_metric, tank_domain, update_SW_FE
 
 # Specify problem parameters:
-mode = raw_input('Linear or nonlinear equations? (l/n): ') or 'l'
-if (mode != 'l') & (mode != 'n'):
-    raise ValueError('Please try again, choosing l or n.')
+# mode = raw_input('Linear or nonlinear equations? (l/n): ') or 'l'     # TODO: reintroduce nonlinear option
+# if (mode != 'l') & (mode != 'n'):
+#     raise ValueError('Please try again, choosing l or n.')
 bathy = raw_input('Non-trivial bathymetry? (y/n): ') or 'n'
 if (bathy != 'y') & (bathy != 'n'):
     raise ValueError('Please try again, choosing y or n.')
@@ -26,7 +25,8 @@ else:
     ntype = None
     if remesh != 'n':
         raise ValueError('Please try again, typing y or n.')
-ndump = 1
+ndump = 1           # Number of timesteps per data dump
+g = 9.81            # Gravitational acceleration (m s^{-2})
 
 # Begin timing:
 tic1 = clock()
@@ -43,7 +43,7 @@ q.assign(q_)
 q_file = File('plots/prob1_test_outputs/prob1_adapt.pvd')
 m_file = File('plots/prob1_test_outputs/prob1_metric.pvd')
 
-# Specify solver parameters and form:
+# Specify solver parameters:
 params = {'mat_type': 'matfree',
           'snes_type': 'ksponly',
           'pc_type': 'python',
@@ -51,18 +51,18 @@ params = {'mat_type': 'matfree',
           'assembled_pc_type': 'lu',
           'snes_lag_preconditioner': -1,
           'snes_lag_preconditioner_persists': True,}
-if mode == 'l':
-    form = linear_form                                   # TODO: use different outputs for (non)linear cases
-else:
-    form = nonlinear_form
 
 # Set up functions of weak problem:
 v, ze = TestFunctions(Vq)
 u, eta = split(q)
 u_, eta_ = split(q_)
 
+# For timestepping we consider the implicit midpoint rule and so must create new 'mid-step' functions:
+uh = 0.5 * (u + u_)
+etah = 0.5 * (eta + eta_)
+
 # Establish form:
-L = form(u, u_, eta, eta_, v, ze, b, Dt)
+L = (ze * (eta-eta_) - Dt * inner((etah + b) * uh, grad(ze)) + inner(u-u_, v) + Dt * g *(inner(grad(etah), v))) * dx
 
 # Set up the variational problem
 q_prob = NonlinearVariationalProblem(L, q)
@@ -101,8 +101,13 @@ while t < T-0.5*dt:
         u, eta = split(q)
         u_, eta_ = split(q_)
 
+        # Create 'mid-step' functions:
+        uh = 0.5 * (u + u_)
+        etah = 0.5 * (eta + eta_)
+
         # Establish form:
-        L = form(u, u_, eta, eta_, v, ze, b, Dt)
+        L = (ze * (eta - eta_) - Dt * inner((etah + b) * uh, grad(ze)) +
+             inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
 
         # Set up the variational problem
         q_prob = NonlinearVariationalProblem(L, q)

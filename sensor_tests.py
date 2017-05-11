@@ -33,5 +33,6 @@ for i in f:
 
     # Plot results:
     g.rename('Sensor {y}'.format(y=i))
+    M.rename('Metric field {y}'.format(y=i))
     File('plots/adapt_plots/sensor_test{y}.pvd'.format(y=i)).write(g)
     File('plots/adapt_plots/sensor_test_metric{y}.pvd'.format(y=i)).write(M)

@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 
 from utils import *
 
-###################################################### USEFUL FUNCTIONS #######################################################
+################################################## USEFUL FUNCTIONS ####################################################
 
 def wave_machine(t, A, p, in_flux):
-    '''Time-dependent flux function, for imposing time-dependent BCs.'''
+    """Time-dependent flux function, for imposing time-dependent BCs."""
     
     return A * sin(2 * pi * t / p) + in_flux
 
-######################################################## PARAMETERS ###########################################################
+#################################################### PARAMETERS ########################################################
 
 # Specify problem parameters:
 compare = raw_input('Use standalone, Thetis or both? (s/t/b): ') or 's'
@@ -43,16 +43,16 @@ p = 0.5             # 'Tide' period (s)
 in_flux = 0         # Flux into domain
 bcvals = Constant(0.0)
 
-######################################################### FE SETUP ############################################################
+##################################################### FE SETUP #########################################################
 
 # Define domain and mesh:
 mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs = tank_domain(n, bath=bathy, bcval=bcvals)
-nx = 4*n; ny = n    # TODO: avoid this
+nx = 4*n; ny = n            # TODO: avoid this
 q = Function(Vq)
 q.assign(q_)
 nhat = FacetNormal(mesh)    # Outward pointing normal to the mesh
 
-########################################################## WEAK PROBLEM #######################################################
+###################################################### WEAK PROBLEM ####################################################
 
 # Establish form:
 if (mode == 'l'):
@@ -89,7 +89,7 @@ else:
 
 q_, q, u_, u, eta_, eta, q_solv = SW_solve(q_, q, u_, eta_, b, Dt, Vq, params, L, BCs, nhat) 
 
-######################################################## TIMESTEPPING #########################################################
+#################################################### TIMESTEPPING ######################################################
 
 # Initialise output directory:
 if (bathy == 'n'):
@@ -143,7 +143,7 @@ if (compare != 't'):
             eta_vals[i,:] = eta.dat.data
             u_vals[i,:,:] = u.dat.data
 
-########################################################### THETIS SETUP ######################################################
+####################################################### THETIS SETUP ###################################################
 
 if (compare != 's'):
     # Construct solver:
@@ -181,8 +181,8 @@ if (compare != 's'):
 
         # Assign BCs to solver object
         solver_obj.bnd_functions['shallow_water'] = swe_bnd
-        # NOTE: If BCs are not assigned for some boundaries (the lateral boundaries 3 and 4 in this case), Thetis assumes
-        #     : impermeable land conditions.
+        # NOTE: If BCs are not assigned for some boundaries (the lateral boundaries 3 and 4 in this case), Thetis
+        #     : assumes impermeable land conditions.
         
         def update_forcings(t_new):
             """ A callback function which updates all time dependent forcing fields. This re-evaluates the BCs as the
@@ -202,7 +202,8 @@ if (compare != 's'):
         u_t = Function(Vu)
 
         def plot_error():
-            '''A function which approximates the error made by the standalone solver, as compared against Thetis' solution.'''
+            """A function which approximates the error made by the standalone solver, as compared against Thetis' 
+            solution."""
             global i
             # Interpolate functions onto the same spaces:
             eta_t.interpolate(solver_obj.fields.solution_2d.split()[1])
@@ -225,7 +226,7 @@ if (compare != 's'):
         else:
             solver_obj.iterate()
     
-######################################################## PLOTTING #############################################################
+#################################################### PLOTTING ##########################################################
 
 if (compare == 'b'):
     plt.rc('text', usetex=True)

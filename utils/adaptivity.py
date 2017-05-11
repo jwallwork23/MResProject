@@ -83,7 +83,7 @@ def construct_hessian(mesh, V, sol):
 
     return H
 
-def compute_steady_metric(mesh, V, H, sol, h_min = 0.01, h_max = 0.1, a = 100., normalise = 'lp', p = 2, N = 1000.,
+def compute_steady_metric(mesh, V, H, sol, h_min = 0.05, h_max = 0.1, a = 100., normalise = 'lp', p = 2, N = 1000.,
                           ieps = 1000.):
     """A function which computes the steady metric for re-meshing, provided with the current mesh, hessian and 
     free surface. Here h_min and h_max denote the respective minimum and maxiumum tolerated side-lengths, while a 
@@ -107,7 +107,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.01, h_max = 0.1, a = 100., 
             sol_min = 0.001
         
             # Generate local Hessian:
-            H_loc = H.dat.data[i] * ieps * 1./(max(abs(sol.dat.data[i]), sol_min))  # To avoid roundoff error
+            H_loc = H.dat.data[i] * ieps * 1./(max(abs(sol.dat.data[i]), sol_min))  # To avoid round-off error
             mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
             H_loc[0][1] = mean_diag
             H_loc[1][0] = mean_diag

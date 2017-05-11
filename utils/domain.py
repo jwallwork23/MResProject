@@ -12,15 +12,15 @@ def domain_1d(n):
     mesh = IntervalMesh(nx, lx)
 
     # Define function spaces:
-    Vmu = FunctionSpace(mesh, 'CG', 2)      # \ Use Taylor-Hood elements
-    Ve = FunctionSpace(mesh, 'CG', 1)       # /
-    Vq = MixedFunctionSpace((Vmu, Ve))      # We have a mixed FE problem
+    Vmu = FunctionSpace(mesh, 'CG', 2)                                      # \ Use Taylor-Hood elements
+    Ve = FunctionSpace(mesh, 'CG', 1)                                       # /
+    Vq = MixedFunctionSpace((Vmu, Ve))                                      # We have a mixed FE problem
 
     # Construct functions to store forward and adjoint variables:
-    q_ = Function(Vq)       # Forward solution tuple
-    lam_ = Function(Vq)     # Adjoint solution tuple
-    mu_, eta_ = q_.split()  # \ Split means we can interpolate the initial condition into the two components
-    lm_, le_ = lam_.split() # /
+    q_ = Function(Vq)                                                       # Forward solution tuple
+    lam_ = Function(Vq)                                                     # Adjoint solution tuple
+    mu_, eta_ = q_.split()                                                  # \ Split means we can interpolate the
+    lm_, le_ = lam_.split()                                                 # / initial condition into the components
 
     # Interpolate initial conditions:
     mu_.interpolate(Expression(0.))
@@ -54,15 +54,15 @@ def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
     x = SpatialCoordinate(mesh)
 
     # Define function spaces:
-    Vu = VectorFunctionSpace(mesh, 'CG', 2)     # \ Taylor-Hood elements
-    Ve = FunctionSpace(mesh, 'CG', 1)           # /
-    Vq = MixedFunctionSpace((Vu, Ve))           # Mixed FE problem
+    Vu = VectorFunctionSpace(mesh, 'CG', 2)                                 # \ Taylor-Hood elements
+    Ve = FunctionSpace(mesh, 'CG', 1)                                       # /
+    Vq = MixedFunctionSpace((Vu, Ve))                                       # Mixed FE problem
 
     # Construct a function to store our two variables at time n:
-    q_ = Function(Vq)           # Forward solution tuple
-    lam_ = Function(Vq)         # Adjoint solution tuple
-    u_, eta_ = q_.split()       # \ Split means we can interpolate the initial condition onto the two components
-    lu_, le_ = lam_.split()     # /
+    q_ = Function(Vq)                                                       # Forward solution tuple
+    lam_ = Function(Vq)                                                     # Adjoint solution tuple
+    u_, eta_ = q_.split()                                                   # \ Split means we can interpolate the
+    lu_, le_ = lam_.split()                                                 # / initial condition onto the components
 
     # Establish bathymetry function:
     b = Function(Ve, name = 'Bathymetry')
@@ -71,9 +71,9 @@ def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
         File('plots/screenshots/tank_bathymetry.pvd').write(b)
     elif test2d == 'n':
         # Construct a (constant) bathymetry function:
-        b.assign(0.1)   # Tank water depth 10 cm
+        b.assign(0.1)                                                       # Tank water depth 10 cm
     else:
-        b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))  # Shelf break bathymetry
+        b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))          # Shelf break bathymetry
 
     # Interpolate forward and adjoint initial and boundary conditions:
     u_.interpolate(Expression([0, 0]))
@@ -111,9 +111,9 @@ def Tohoku_domain(res='c'):
         mesh_converter('resources/meshes/LonLatTohokuCoarse.msh', 143., 37.)
     mesh = Mesh('resources/meshes/CartesianTohoku.msh')
     mesh_coords = mesh.coordinates.dat.data
-    Vu = VectorFunctionSpace(mesh, 'CG', 2)         # \ Use Taylor-Hood elements
-    Ve = FunctionSpace(mesh, 'CG', 1)               # / 
-    Vq = MixedFunctionSpace((Vu, Ve))               # Mixed FE problem
+    Vu = VectorFunctionSpace(mesh, 'CG', 2)                                 # \ Use Taylor-Hood elements
+    Ve = FunctionSpace(mesh, 'CG', 1)                                       # /
+    Vq = MixedFunctionSpace((Vu, Ve))                                       # Mixed FE problem
 
     # Construct functions to store forward and adjoint variables, along with bathymetry:
     q_ = Function(Vq)

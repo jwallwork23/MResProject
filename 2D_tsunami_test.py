@@ -48,11 +48,11 @@ eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) &
                                         10 * sin(pi*(x[0]-1e5) * 2e-5) * sin(pi*(x[1]-1.8e5) * 2.5e-5) : 0.'))
 
 # Set up functions of forward weak problem:
+q = Function(Vq)
+q.assign(q_)
 v, ze = TestFunctions(Vq)
 mu, eta = split(q)
 mu_, eta_ = split(q_)
-q = Function(Vq)
-q.assign(q_)
 
 # Specify solver parameters:
 params = {'mat_type': 'matfree',

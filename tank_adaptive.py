@@ -12,36 +12,38 @@ from utils import adapt, construct_hessian, compute_steady_metric, tank_domain, 
 bathy = raw_input('Non-trivial bathymetry? (y/n): ') or 'n'
 if (bathy != 'y') & (bathy != 'n'):
     raise ValueError('Please try again, choosing y or n.')
-dt = float(raw_input('Timestep (default 0.1)?: ') or 0.1)               # TODO: consider adaptive timestepping?
+dt = float(raw_input('Timestep (default 0.01)?: ') or 0.01)             # TODO: consider adaptive timestepping?
 Dt = Constant(dt)
-n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)
+n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Meaning approximately 1000 nodes initially
 T = float(raw_input('Simulation duration in s (default 5)?: ') or 5.0)
+ndump = int(raw_input('Timesteps per data dump (default 3)') or 3)
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y':
-    rm = int(raw_input('Timesteps per remesh (default 2)?: ') or 2)     # TODO: consider adaptive remeshing?
+    rm = int(raw_input('Timesteps per remesh (default 6)?: ') or 6)     # TODO: consider adaptive remeshing?
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 else:
     rm = int(T/dt)
     ntype = None
     if remesh != 'n':
         raise ValueError('Please try again, typing y or n.')
-ndump = 1           # Number of timesteps per data dump
-g = 9.81            # Gravitational acceleration (m s^{-2})
+g = 9.81                                                                # Gravitational acceleration (m s^{-2})
 
 # Begin timing:
 tic1 = clock()
 
 # Establish tank domain
-mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs = tank_domain(n, bath=bathy)
+mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs = tank_domain(n, bath = bathy)
 
-# Initialisation of counters, functions and files:
-t = 0.0
-dumpn = 0
-mn = 0
+# Set up functions of the weak problem:
 q = Function(Vq)
 q.assign(q_)
-q_file = File('plots/prob1_test_outputs/prob1_adapt.pvd')
-m_file = File('plots/prob1_test_outputs/prob1_metric.pvd')
+v, ze = TestFunctions(Vq)
+u, eta = split(q)
+u_, eta_ = split(q_)
+
+# For timestepping we consider the implicit midpoint rule and so must create new 'mid-step' functions:
+uh = 0.5 * (u + u_)
+etah = 0.5 * (eta + eta_)
 
 # Specify solver parameters:
 params = {'mat_type': 'matfree',
@@ -52,30 +54,25 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner': -1,
           'snes_lag_preconditioner_persists': True,}
 
-# Set up functions of weak problem:
-v, ze = TestFunctions(Vq)
-u, eta = split(q)
-u_, eta_ = split(q_)
-
-# For timestepping we consider the implicit midpoint rule and so must create new 'mid-step' functions:
-uh = 0.5 * (u + u_)
-etah = 0.5 * (eta + eta_)
-
-# Establish form:
-L = (ze * (eta-eta_) - Dt * inner((etah + b) * uh, grad(ze)) + inner(u-u_, v) + Dt * g *(inner(grad(etah), v))) * dx
-
-# Set up the variational problem
+# Set up the variational problem:
+L = ((eta - eta_) * ze - Dt * (inner(uh * ze, grad(b + etah)) + inner(uh * (b + etah), grad(ze)))
+     + inner(u-u_, v) + Dt * g *(inner(grad(etah), v))) * dx
 q_prob = NonlinearVariationalProblem(L, q)
-q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
+q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
-# The function 'split' has two forms: now use the form which splits a function in order to access its data
+# 'Split' functions in order to access their data and then relabel:
 u_, eta_ = q_.split()
 u, eta = q.split()
-
-# Set up outfiles:
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
-q_file.write(u, eta, time=t)
+
+# Initialisation of counters, functions and files:
+t = 0.0
+dumpn = 0
+mn = 0
+q_file = File('plots/prob1_test_outputs/prob1_adapt.pvd')
+m_file = File('plots/prob1_test_outputs/prob1_metric.pvd')
+q_file.write(u, eta, time = t)
 
 # Enter timeloop:
 while t < T-0.5*dt:
@@ -84,12 +81,12 @@ while t < T-0.5*dt:
     mn += 1
     cnt = 0
 
-    if (t != 0.0) & (remesh == 'y'):          # TODO: why is immediate remeshing so slow?
+    if (t != 0.0) & (remesh == 'y'):                                    # TODO: why is immediate remeshing so slow?
 
         # Build Hessian and (hence) metric:
         Vm = TensorFunctionSpace(mesh, 'CG', 1)
         H = construct_hessian(mesh, Vm, eta)
-        M = compute_steady_metric(mesh, Vm, H, eta, normalise=ntype)
+        M = compute_steady_metric(mesh, Vm, H, eta, normalise = ntype)
 
         # Adapt mesh and update FE setup:
         mesh_ = mesh
@@ -105,13 +102,11 @@ while t < T-0.5*dt:
         uh = 0.5 * (u + u_)
         etah = 0.5 * (eta + eta_)
 
-        # Establish form:
-        L = (ze * (eta - eta_) - Dt * inner((etah + b) * uh, grad(ze)) +
-             inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
-
         # Set up the variational problem
+        L = ((eta - eta_) * ze - Dt * (inner(uh * ze, grad(b + etah)) + inner(uh * (b + etah), grad(ze)))
+             + inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
         q_prob = NonlinearVariationalProblem(L, q)
-        q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
+        q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
         # The function 'split' has two forms: now use the form which splits a function in order to access its data
         u_, eta_ = q_.split()
@@ -133,9 +128,9 @@ while t < T-0.5*dt:
         dumpn += 1
         if dumpn == ndump:
             dumpn -= ndump
-            q_file.write(u, eta, time=t)
+            q_file.write(u, eta, time = t)
 
-# End timing:
+# End timing and print:
 toc1 = clock()
 if remesh == 'y':
     print 'Elapsed time for adaptive tank solver: %1.2es' % (toc1 - tic1)

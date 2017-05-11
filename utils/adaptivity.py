@@ -57,7 +57,7 @@ def adapt(mesh, metric):
     return newmesh
 
 def construct_hessian(mesh, V, sol):
-    '''A function which computes the hessian of a scalar solution field with respect to the current mesh.'''
+    """A function which computes the hessian of a scalar solution field with respect to the current mesh."""
 
     # Construct functions:
     H = Function(V)                             # Hessian-to-be
@@ -83,13 +83,15 @@ def construct_hessian(mesh, V, sol):
 
     return H
 
-def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100., normalise = 'lp', p = 2):
-    """A function which computes the steady metric for remeshing, provided with the current mesh, hessian and 
+def compute_steady_metric(mesh, V, H, sol, h_min = 0.0625, h_max = 0.0625, a = 100., normalise = 'lp', p = 2, N = 1000.,
+                          ieps = 1000.):
+    """A function which computes the steady metric for re-meshing, provided with the current mesh, hessian and 
     free surface. Here h_min and h_max denote the respective minimum and maxiumum tolerated side-lengths, while a 
-    denotes the maximum tolerated aspect ratio. This code is based on Nicolas Barral's function 
-    ``computeSteadyMetric``, from ``adapt.py``."""
+    denotes the maximum tolerated aspect ratio. Further,  N denotes the target number of nodes and ieps denotes the
+    inverse of the target error for the two respective normalisation approaches. This code is based on Nicolas Barral's 
+    function ``computeSteadyMetric``, from ``adapt.py``."""
 
-    # Set maximum and minimum parameters:
+    # Set parameter values:
     ia = 1./(a**2)
     ihmin2 = 1./(h_min**2)
     ihmax2 = 1./(h_max**2)
@@ -101,10 +103,11 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
     
         for i in range(mesh.topology.num_vertices()):
 
+            # Specify minimum tolerated value for the solution field:
             sol_min = 0.001
         
             # Generate local Hessian:
-            H_loc = H.dat.data[i] * 100./(max(abs(sol.dat.data[i]), sol_min))  # To avoid roundoff error
+            H_loc = H.dat.data[i] * ieps * 1./(max(abs(sol.dat.data[i]), sol_min))  # To avoid roundoff error
             mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
             H_loc[0][1] = mean_diag
             H_loc[1][0] = mean_diag
@@ -140,8 +143,8 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             # Find eigenpairs of Hessian and truncate eigenvalues:
             lam, v = la.eig(H_loc)
             v1, v2 = v[0], v[1]
-            lam1 = max(abs(lam[0]), 1e-10)      # \ To avoid round-off error
-            lam2 = max(abs(lam[1]), 1e-10)      # /
+            lam1 = max(abs(lam[0]), 1e-10)                                      # \ To avoid round-off error
+            lam2 = max(abs(lam[1]), 1e-10)                                      # /
             det = lam1*lam2
 
             # Reconstruct edited Hessian and rescale:
@@ -153,7 +156,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             detH.dat.data[i] = pow(det, p/(2. * p + 2))
 
         detH_integral = assemble(detH * dx)
-        M *= 100./detH_integral                             # TODO: what is this scale factor?
+        M *= N / detH_integral                                                  # Scale by the target number of vertices
 
         for i in range(mesh.topology.num_vertices()):
 

@@ -1,13 +1,13 @@
 from firedrake import *
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rc
+from time import clock
 
 from utils import domain_1d
 
-#################################################### PARAMETERS ########################################################
-
-# User input:
+# Specify problem parameters:
 dt = float(raw_input('Specify timestep (default 1): ') or 1.)
 Dt = Constant(dt)
 n = float(raw_input('Specify no. of cells per m (default 1e-3): ') or 1e-3)
@@ -16,17 +16,19 @@ tol = float(raw_input( 'Specify significance tolerance (default 0.1): ') or 0.1)
 vid = raw_input('Show video output? (y/n, default n): ') or 'n'
 if (vid != 'y') & (vid != 'n'):
     raise ValueError('Please try again, choosing y or n.')
-
 ndump = 60          # Timesteps per data dump
 g = 9.81            # Gravitational acceleration (m s^{-2})
 
+
+
+# Begin timing:
+tic1 = clock()
+
 # Establish problem domain and variables:
 mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b = domain_1d(n)
-nx = int(4e5*n)     # TODO: avoid this
+nx = int(4e5*n)                                                                 # TODO: avoid this
 
-#################################################### FORWARD SOLVER ####################################################
-
-# Build the weak form of the timestepping algorithm, expressed as a mixed nonlinear problem:
+# Set up functions of the forward weak problem:
 q = Function(Vq)
 q.assign(q_)
 nu, ze = TestFunctions(Vq)
@@ -37,8 +39,7 @@ mu_, eta_ = split(q_)
 muh = 0.5 * (mu + mu_)
 etah = 0.5 * (eta + eta_)
 
-# Establish form and specify solution parameters:
-L = ((eta-eta_) * ze - Dt * muh * ze.dx(0) + (mu-mu_) * nu + Dt * g * b * etah.dx(0) * nu) * dx
+# Specify solution parameters:
 params = {'mat_type': 'matfree',
           'snes_type': 'ksponly',
           'pc_type': 'python',
@@ -47,15 +48,14 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner': -1,
           'snes_lag_preconditioner_persists': True,}
 
-# Set up the variational problem
+# Set up the variational problem:
+L = ((eta-eta_) * ze - Dt * muh * ze.dx(0) + (mu-mu_) * nu + Dt * g * b * etah.dx(0) * nu) * dx
 q_prob = NonlinearVariationalProblem(L, q)
 q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
-# The function 'split' has two forms: now use the form which splits a function in order to access its data
+# 'Split' functions in order to access their data and then relabel:
 mu_, eta_ = q_.split()
 mu, eta = q.split()
-
-# Relabel functions:
 mu.rename('Fluid momentum')
 eta.rename('Free surface displacement')
 
@@ -67,7 +67,7 @@ eta_snapshots = [Function(eta)]
 eta_vid = [Function(eta)]
 snaps = {0: 0.0, 1: 525.0, 2: 1365.0, 3: 2772.0, 4: 3255.0, 5: 4200.0}
 
-# Initialise arrays for storage, with dimensions pre-allocated for speed:
+# Initialise arrays for storage (with dimensions pre-allocated for speed):
 sig_eta = np.zeros((int(T/(ndump*dt))+1, nx+1))
 mu_vals = np.zeros((int(T/(ndump*dt))+1, 2*nx+1))
 eta_vals = np.zeros((int(T/(ndump*dt))+1, nx+1))
@@ -78,7 +78,7 @@ m[i] = np.log2(max(eta_vals[i, 0], 0.5))
 
 # Determine signifiant values (for domain of dependence plot):
 for j in range(nx+1):
-    if ((eta_vals[i,j] >= tol) | (eta_vals[i,j] <= -tol)):
+    if (eta_vals[i,j] >= tol) | (eta_vals[i,j] <= -tol):
         sig_eta[i,j] = 1
 
 # Enter the forward timeloop:
@@ -93,26 +93,28 @@ while t < T - 0.5*dt:
         i += 1
         mu_vals[i,:] = mu.dat.data
         eta_vals[i,:] = eta.dat.data
+
+        # Determine significant values:
         for j in range(nx+1):
-            if ((eta_vals[i,j] >= tol) | (eta_vals[i,j] <= -tol)):
+            if (eta_vals[i,j] >= tol) | (eta_vals[i,j] <= -tol):
                 sig_eta[i,j] = 1
                 
         # Implement damage measures:
         m[i] = np.log2(max(eta_vals[i, 0], 0.5))
         
         # Dump video data:
-        if (vid == 'y'):
+        if vid == 'y':
             eta_vid.append(Function(eta))
             
     # Dump snapshot data:
-    if (t in snaps.values()):
+    if t in snaps.values():
         eta_snapshots.append(Function(eta))
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
-#################################################### ADJOINT SOLVER ####################################################
 
-# Build the weak form of the timestepping algorithm, expressed as a mixed nonlinear problem:
+
+# Set up functions of the adjoint weak problem:
 lam = Function(Vq)
 lam.assign(lam_)
 v, w = TestFunctions(Vq)
@@ -123,18 +125,14 @@ lm_, le_ = split(lam_)
 lmh = 0.5 * (lm + lm_)
 leh = 0.5 * (le + le_)
 
-# Establish form:
-L = ((le-le_) * w + Dt * g * b * lmh * w.dx(0) + (lm-lm_) * v - Dt * leh.dx(0) * v) * dx
-
 # Set up the variational problem
+L = ((le-le_) * w + Dt * g * b * lmh * w.dx(0) + (lm-lm_) * v - Dt * leh.dx(0) * v) * dx
 lam_prob = NonlinearVariationalProblem(L, lam)
 lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
 
-# The function 'split' has two forms. Now use the form which splits a function in order to access its data:
+# 'Split' functions to access their data and then relabel:
 lm_, le_ = lam_.split()
 lm, le = lam.split()
-
-# Relabel:
 lm.rename('Adjoint fluid momentum')
 le.rename('Adjoint free surface displacement')
 
@@ -144,11 +142,11 @@ if dumpn == 0:
 le_snapshots = [Function(le)]
 le_vid = [Function(le)]
 
-# Initialise arrays for storage:
-sig_le = np.zeros((int(T/(ndump*dt))+1, nx+1))      # \ Dimension
-lm_vals = np.zeros((int(T/(ndump*dt))+1, 2*nx+1))   # | pre-allocated
-le_vals = np.zeros((int(T/(ndump*dt))+1, nx+1))     # | for speed
-q_dot_lam = np.zeros((int(T/(ndump*dt))+1, nx+1))   # /
+# Initialise arrays for storage (with dimensions pre-allocated for speed):
+sig_le = np.zeros((int(T/(ndump*dt))+1, nx+1))
+lm_vals = np.zeros((int(T/(ndump*dt))+1, 2*nx+1))
+le_vals = np.zeros((int(T/(ndump*dt))+1, nx+1))
+q_dot_lam = np.zeros((int(T/(ndump*dt))+1, nx+1))
 lm_vals[i,:] = lm.dat.data
 le_vals[i,:] = le.dat.data
 
@@ -178,6 +176,7 @@ while t > 0:
         lm_vals[i,:] = lm.dat.data
         le_vals[i,:] = le.dat.data
         q_dot_lam[i,:] = mu_vals[i,0::2] * lm_vals[i,0::2] + eta_vals[i,:] * le_vals[i,:]
+
         # Determine significant values:
         for j in range(nx+1):
             if (le_vals[i,j] >= tol) | (le_vals[i,j] <= -tol):
@@ -186,14 +185,17 @@ while t > 0:
                 q_dot_lam[i,j] = 1
             else:
                 q_dot_lam[i,j] = 0
+
         # Dump video data:
         if vid == 'y':
             le_vid.append(Function(le))
+
     # Dump snapshot data:
     if t in snaps.values():
         le_snapshots.append(Function(le))
 
-#################################################### PLOTTING ##########################################################
+
+
 
 # Font formatting:
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})

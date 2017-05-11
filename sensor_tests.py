@@ -1,7 +1,4 @@
 from firedrake import *
-import numpy as np
-from numpy import linalg as LA
-
 from utils import adapt, construct_hessian, compute_steady_metric, interp
 
 # Define uniform mesh, with a metric function space:
@@ -14,9 +11,10 @@ V = TensorFunctionSpace(mesh1, 'CG', 1)
 F = FunctionSpace(mesh1, 'CG', 1)
 f1 = Function(F); f2 = Function(F); f3 = Function(F); f4 = Function(F)
 f1.interpolate(x**2 + y**2)
-f2.interpolate(Expression('abs((x[0]-1)*(x[1]-1)) >= pi/25. ? 0.01*sin(50*(x[0]-1)*(x[1]-1)) : sin(50*(x[0]-1)*(x[1]-1))'))
-f3.interpolate(0.1*sin(50*x) + atan(0.1/(sin(5*y)-2*x)))
-f4.interpolate(atan(0.1/(sin(5*y)-2*x)) + atan(0.5/(sin(3*y)-7*x)))
+f2.interpolate(Expression('abs((x[0]-1) * (x[1]-1)) >= pi/25. ? \
+                            0.01 * sin(50 * (x[0]-1) * (x[1]-1)) : sin(50 * (x[0]-1) * (x[1]-1))'))
+f3.interpolate(0.1 * sin(50 * x) + atan(0.1 / (sin(5 * y) - 2 * x)))
+f4.interpolate(atan(0.1 / (sin(5 * y) - 2 * x)) + atan(0.5 / (sin(3 * y) - 7 * x)))
 f = {1: f1, 2: f2, 3: f3, 4: f4}
 
 for i in f:
@@ -36,3 +34,4 @@ for i in f:
     # Plot results:
     g.rename('Sensor {y}'.format(y=i))
     File('plots/adapt_plots/sensor_test{y}.pvd'.format(y=i)).write(g)
+    File('plots/adapt_plots/sensor_test_metric{y}.pvd'.format(y=i)).write(M)

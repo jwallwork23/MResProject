@@ -32,7 +32,7 @@ if (tmode != 'y') & (tmode != 'n'):
 # Establish problem domain and variables:
 mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
 
-############################################## FORWARD STANDALONE SOLVER ######################################################
+########################################## FORWARD STANDALONE SOLVER ###################################################
 
 if compare != 't':
 
@@ -87,7 +87,7 @@ if compare != 't':
                   
 ## TODO: Implement damage measures
 
-################################################ FORWARD THETIS SOLVER ########################################################
+############################################ FORWARD THETIS SOLVER #####################################################
 
 if compare != 's':
     # Construct solver:
@@ -145,7 +145,7 @@ if compare != 's':
     else:
         solver_obj.iterate()
 
-######################################################### PLOT ERROR ##########################################################
+##################################################### PLOT ERROR #######################################################
 
 if compare == 'b':
     plt.rc('text', usetex=True)
@@ -158,7 +158,7 @@ if compare == 'b':
     plt.ylabel(r'Relative L2 error')
     plt.savefig('plots/tsunami_outputs/screenshots/error_{y1}_{y2}.png'.format(y1=mode, y2=res))
 
-############################################## ADJOINT STANDALONE SOLVER ######################################################
+########################################## ADJOINT STANDALONE SOLVER ###################################################
 
 if compare != 't':
 
@@ -205,6 +205,6 @@ if compare != 't':
             # Note the time inversion in output:
             lam_file.write(lm, le, time=T-t)
 
-################################################### ADJOINT THETIS SOLVER #####################################################
+############################################### ADJOINT THETIS SOLVER ##################################################
 
 # TODO : use Firedrake adjoint?

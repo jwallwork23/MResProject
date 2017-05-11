@@ -83,7 +83,7 @@ def construct_hessian(mesh, V, sol):
 
     return H
 
-def compute_steady_metric(mesh, V, H, sol, h_min = 0.0625, h_max = 0.0625, a = 100., normalise = 'lp', p = 2, N = 1000.,
+def compute_steady_metric(mesh, V, H, sol, h_min = 0.01, h_max = 0.1, a = 100., normalise = 'lp', p = 2, N = 1000.,
                           ieps = 1000.):
     """A function which computes the steady metric for re-meshing, provided with the current mesh, hessian and 
     free surface. Here h_min and h_max denote the respective minimum and maxiumum tolerated side-lengths, while a 

@@ -1,4 +1,5 @@
 from firedrake import *
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -11,14 +12,16 @@ n = float(raw_input('Specify number of cells per m (default 1e-4): ') or 1e-4)
 T = float(raw_input('Simulation duration in s (default 4200): ') or 4200.)
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y':
-    rm = int(raw_input('Timesteps per remesh (default 6)?: ') or 6)     # TODO: consider adaptive remeshing?
+    rm = int(raw_input('Timesteps per remesh (default 6)?: ') or 6)         # TODO: consider adaptive remeshing?
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 else:
     rm = int(T/dt)
     ntype = None
     if remesh != 'n':
         raise ValueError('Please try again, typing y or n.')
-ndump = 3       # Timesteps per data dump
+ndump = 3                                                                   # Timesteps per data dump
+
+
 
 # Initialise mesh and function space:
 lx = 4e5
@@ -27,13 +30,13 @@ mesh = SquareMesh(nx, nx, lx, lx)
 x = SpatialCoordinate(mesh)
 
 # Define function spaces:
-Vu = VectorFunctionSpace(mesh, 'CG', 2)     # \ Taylor-Hood elements
-Ve = FunctionSpace(mesh, 'CG', 1)           # /
-Vq = MixedFunctionSpace((Vu, Ve))           # Mixed FE problem
+Vu = VectorFunctionSpace(mesh, 'CG', 2)                                     # \ Taylor-Hood elements
+Ve = FunctionSpace(mesh, 'CG', 1)                                           # /
+Vq = MixedFunctionSpace((Vu, Ve))                                           # Mixed FE problem
 
 # Construct a function to store our two variables at time n:
-q_ = Function(Vq)           # Forward solution tuple
-u_, eta_ = q_.split()       # Split means we can interpolate the initial condition onto the two components
+q_ = Function(Vq)                                                           # Forward solution tuple
+u_, eta_ = q_.split()
 
 # Establish bathymetry function:
 b = Function(Ve, name = 'Bathymetry')
@@ -44,15 +47,14 @@ u_.interpolate(Expression([0, 0]))
 eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? \
                                         10 * sin(pi*(x[0]-1e5) * 2e-5) * sin(pi*(x[1]-1.8e5) * 2.5e-5) : 0.'))
 
-# Initialise forward solver:
-t = 0.0
-dumpn = 0
-mn = 0
-cnt = 0
-i = 0
+# Set up functions of forward weak problem:
+v, ze = TestFunctions(Vq)
+mu, eta = split(q)
+mu_, eta_ = split(q_)
 q = Function(Vq)
 q.assign(q_)
-q_file = File('plots/adjoint_test_outputs/linear_forward.pvd')
+
+# Specify solver parameters:
 params = {'mat_type': 'matfree',
           'snes_type': 'ksponly',
           'pc_type': 'python',
@@ -61,26 +63,25 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner': -1,
           'snes_lag_preconditioner_persists': True,}
 
-# Set up functions of weak problem:
-v, ze = TestFunctions(Vq)
-mu, eta = split(q)
-mu_, eta_ = split(q_)
-
-# Establish form:
-L1 = linear_form_2d(mu, mu_, eta, eta_, v, ze, b, Dt)
-
 # Set up the variational problem
+L1 = linear_form_2d(mu, mu_, eta, eta_, v, ze, b, Dt)
 q_prob = NonlinearVariationalProblem(L1, q)
-q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
+q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
-# The function 'split' has two forms: now use the form which splits a function in order to access its data
+# 'Split' functions to access their data and relabel:
 mu_, eta_ = q_.split()
 mu, eta = q.split()
-
-# Set up outfiles:
 mu.rename('Fluid momentum')
 eta.rename('Free surface displacement')
-q_file.write(mu, eta, time=t)
+
+# Initialise time, counters and files:
+t = 0.0
+dumpn = 0
+mn = 0
+cnt = 0
+i = 0
+q_file = File('plots/adjoint_test_outputs/linear_forward.pvd')
+q_file.write(mu, eta, time = t)
 
 if remesh == 'n':
 
@@ -111,7 +112,7 @@ while t < T - 0.5*dt:
         # Build Hessian and (hence) metric:
         Vm = TensorFunctionSpace(mesh, 'CG', 1)
         H = construct_hessian(mesh, Vm, eta)
-        M = compute_steady_metric(mesh, Vm, H, eta, normalise=ntype)
+        M = compute_steady_metric(mesh, Vm, H, eta, normalise = ntype)
 
         # Adapt mesh and update FE setup:
         mesh_ = mesh
@@ -123,18 +124,14 @@ while t < T - 0.5*dt:
         mu, eta = split(q)
         mu_, eta_ = split(q_)
 
-        # Establish form:
+        # Set up the variational problem:
         L1 = linear_form_2d(mu, mu_, eta, eta_, v, ze, b, Dt)
-
-        # Set up the variational problem
         q_prob = NonlinearVariationalProblem(L1, q)
-        q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
+        q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
-        # The function 'split' has two forms: now use the form which splits a function in order to access its data
+        # 'Split' functions to access their data and relabel:
         mu_, eta_ = q_.split()
         mu, eta = q.split()
-
-        # Relabel:
         mu.rename('Fluid momentum')
         eta.rename('Free surface displacement')
 
@@ -148,7 +145,7 @@ while t < T - 0.5*dt:
         dumpn += 1
         if dumpn == ndump:
             dumpn -= ndump
-            q_file.write(mu, eta, time=t)
+            q_file.write(mu, eta, time = t)
 
             if remesh == 'n':
                 i += 1
@@ -156,7 +153,7 @@ while t < T - 0.5*dt:
                 mu_vals[i, :, :] = mu_cg1.dat.data
                 eta_vals[i, :] = eta.dat.data
 
-                # Implement damage measures:
+                # Implement damage measures:                        # TODO: change this as it is dominated by shoaling
                 m[i] = np.log2(max(max(eta_vals[i, b_nodes]), 0.5))
 
 print 'Forward problem solved.... now for the adjoint problem.'
@@ -167,53 +164,49 @@ if remesh == 'y':
     mesh = SquareMesh(nx, nx, lx, lx)
 
     # Re-define function spaces:
-    Vu = VectorFunctionSpace(mesh, 'CG', 2)     # \ Taylor-Hood elements
-    Ve = FunctionSpace(mesh, 'CG', 1)           # /
-    Vq = MixedFunctionSpace((Vu, Ve))           # Mixed FE problem
+    Vu = VectorFunctionSpace(mesh, 'CG', 2)                         # \ Taylor-Hood elements
+    Ve = FunctionSpace(mesh, 'CG', 1)                               # /
+    Vq = MixedFunctionSpace((Vu, Ve))                               # Mixed FE problem
 
     # Re-establish bathymetry function:
     b = Function(Ve, name = 'Bathymetry')
-    b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))  # Shelf break bathymetry
+    b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))      # Shelf break bathymetry
 
 # Construct a function to store our two variables at time n:
-lam_ = Function(Vq)         # Adjoint solution tuple
+lam_ = Function(Vq)                                                 # Adjoint solution tuple
 lu_, le_ = lam_.split()
 
 # Interpolate initial and boundary conditions, noting higher magnitude wave used due to geometric spreading:
 lu_.interpolate(Expression([0, 0]))
 le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 10 : 0.'))
 
-# Initialise adjoint problem:
-cnt = 0
-mn = 0
+# Set up functions of weak problem:
 lam = Function(Vq)
 lam.assign(lam_)
-lam_file = File('plots/adjoint_test_outputs/linear_adjoint.pvd')
-
-# Set up functions of weak problem:
 w, xi = TestFunctions(Vq)
 lm, le = split(lam)
 lm_, le_ = split(lam_)
 
-# Establish form:
+# Set up the variational problem:
 L2 = adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt)
-
-# Set up the variational problem
 lam_prob = NonlinearVariationalProblem(L2, lam)
-lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
+lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
 
-# The function 'split' has two forms: now use the form which splits a function in order to access its data
+# 'Split' functions to access their data and relabel:
 lm_, le_ = lam_.split()
 lm, le = lam.split()
-
-# Relabel and initialise file:
 lm.rename('Adjoint fluid momentum')
 le.rename('Adjoint free surface displacement')
+
+# Initialise counters and files:
+cnt = 0
+mn = 0
+lam_file = File('plots/adjoint_test_outputs/linear_adjoint.pvd')
 lam_file.write(lm, le, time=0)
 
 if remesh == 'n':
 
-    # Initialise a CG1 version of lm and some arrays for storage:
+    # Initialise a CG1 version of lm and some arrays for storage (with dimension pre-allocated for speed):
     lm_cg1 = Function(V1)
     lm_cg1.interpolate(lm)
     le_vals = np.zeros((int(T/(ndump*dt))+1, (nx+1)**2))
@@ -226,7 +219,7 @@ if remesh == 'n':
 
     # Initialise file:
     dot_file = File('plots/adjoint_test_outputs/inner_product.pvd')
-    dot_file.write(q_dot_lam, time=0)
+    dot_file.write(q_dot_lam, time = 0)
 
     # Evaluate forward-adjoint inner products (noting mu and lm are in P2, while eta and le are in P1, so we need to
     # evaluate at nodes):
@@ -244,12 +237,12 @@ while t > 0:
     mn += 1
     cnt = 0
 
-    if (t != 0) & (remesh == 'y'):  # TODO: why is immediate remeshing so slow?
+    if (t != 0) & (remesh == 'y'):                                          # TODO: why is immediate remeshing so slow?
 
         # Build Hessian and (hence) metric:
         Vm = TensorFunctionSpace(mesh, 'CG', 1)
         H = construct_hessian(mesh, Vm, le)
-        M = compute_steady_metric(mesh, Vm, H, le, normalise=ntype)
+        M = compute_steady_metric(mesh, Vm, H, le, normalise = ntype)
 
         # Adapt mesh and update FE setup:
         mesh_ = mesh
@@ -266,13 +259,11 @@ while t > 0:
 
         # Set up the variational problem
         lam_prob = NonlinearVariationalProblem(L2, lam)
-        lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
+        lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
 
-        # The function 'split' has two forms: now use the form which splits a function in order to access its data
+        # 'Split' functions to access their data and relabel:
         lm_, le_ = lam_.split()
         lm, le = lam.split()
-
-        # Relabel:
         lm.rename('Fluid momentum')
         le.rename('Free surface displacement')
 
@@ -286,8 +277,7 @@ while t > 0:
         dumpn -= 1
         if dumpn == 0:
             dumpn += ndump
-            # Write to file, noting time inversion:
-            lam_file.write(lm, le, time=T-t)
+            lam_file.write(lm, le, time = T-t)                                        # Note time inversion
 
             if remesh == 'n':
                 i -= 1
@@ -297,7 +287,8 @@ while t > 0:
                 ql_vals[i, :] = mu_vals[i, :, 0] * lm_vals[i, :, 0] + mu_vals[i, :, 1] * lm_vals[i, :, 1] + \
                                 eta_vals[i, :] * le_vals[i, :]
                 q_dot_lam.dat.data[:] = ql_vals[i, :]
-                dot_file.write(q_dot_lam, time=T-t)
+                dot_file.write(q_dot_lam, time = t)
+
 
 # Plot damage measures:
 if remesh == 'n':

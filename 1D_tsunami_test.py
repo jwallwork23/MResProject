@@ -16,8 +16,8 @@ tol = float(raw_input( 'Specify significance tolerance (default 0.1): ') or 0.1)
 vid = raw_input('Show video output? (y/n, default n): ') or 'n'
 if (vid != 'y') & (vid != 'n'):
     raise ValueError('Please try again, choosing y or n.')
-ndump = 60          # Timesteps per data dump
-g = 9.81            # Gravitational acceleration (m s^{-2})
+ndump = 60                                                                      # Timesteps per data dump
+g = 9.81                                                                        # Gravitational acceleration (m s^{-2})
 
 
 
@@ -26,7 +26,7 @@ tic1 = clock()
 
 # Establish problem domain and variables:
 mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b = domain_1d(n)
-nx = int(4e5*n)                                                                 # TODO: avoid this
+nx = int(4e5*n)                                                                 # For data access purposes
 
 # Set up functions of the forward weak problem:
 q = Function(Vq)

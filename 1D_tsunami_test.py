@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rc
 
-from utils import domain_1d, SW_solve, linear_form_1d, adj_linear_form_1d
+from utils import domain_1d
 
-######################################################## PARAMETERS ###########################################################
+#################################################### PARAMETERS ########################################################
 
 # User input:
 dt = float(raw_input('Specify timestep (default 1): ') or 1.)
@@ -14,20 +14,31 @@ n = float(raw_input('Specify no. of cells per m (default 1e-3): ') or 1e-3)
 T = float(raw_input('Specify duration in s (default 4200): ') or 4200.)
 tol = float(raw_input( 'Specify significance tolerance (default 0.1): ') or 0.1)
 vid = raw_input('Show video output? (y/n, default n): ') or 'n'
-if ((vid != 'y') & (vid != 'n')):
+if (vid != 'y') & (vid != 'n'):
     raise ValueError('Please try again, choosing y or n.')
 
-ndump = 60  # Timesteps per data dump
+ndump = 60          # Timesteps per data dump
+g = 9.81            # Gravitational acceleration (m s^{-2})
 
 # Establish problem domain and variables:
 mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b = domain_1d(n)
 nx = int(4e5*n)     # TODO: avoid this
 
-######################################################## FORWARD SOLVER #######################################################
+#################################################### FORWARD SOLVER ####################################################
 
-# Set up forward problem solver:
+# Build the weak form of the timestepping algorithm, expressed as a mixed nonlinear problem:
 q = Function(Vq)
 q.assign(q_)
+nu, ze = TestFunctions(Vq)
+mu, eta = split(q)
+mu_, eta_ = split(q_)
+
+# For timestepping we consider the implicit midpoint rule and so must create new 'mid-step' functions:
+muh = 0.5 * (mu + mu_)
+etah = 0.5 * (eta + eta_)
+
+# Establish form and specify solution parameters:
+L = ((eta-eta_) * ze - Dt * muh * ze.dx(0) + (mu-mu_) * nu + Dt * g * b * etah.dx(0) * nu) * dx
 params = {'mat_type': 'matfree',
           'snes_type': 'ksponly',
           'pc_type': 'python',
@@ -35,20 +46,32 @@ params = {'mat_type': 'matfree',
           'assembled_pc_type': 'lu',
           'snes_lag_preconditioner': -1,
           'snes_lag_preconditioner_persists': True,}
-q_, q, mu_, mu, eta_, eta, q_solv = SW_solve(q_, q, mu_, eta_, b, Dt, Vq, params, linear_form_1d)
-mu.rename('Fluid momentum');
+
+# Set up the variational problem
+q_prob = NonlinearVariationalProblem(L, q)
+q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
+
+# The function 'split' has two forms: now use the form which splits a function in order to access its data
+mu_, eta_ = q_.split()
+mu, eta = q.split()
+
+# Relabel functions:
+mu.rename('Fluid momentum')
+eta.rename('Free surface displacement')
 
 # Initialise time, counters and function arrays:
-t = 0.0; i = 0; dumpn = 0
+t = 0.0
+i = 0
+dumpn = 0
 eta_snapshots = [Function(eta)]
 eta_vid = [Function(eta)]
 snaps = {0: 0.0, 1: 525.0, 2: 1365.0, 3: 2772.0, 4: 3255.0, 5: 4200.0}
 
-# Initialise arrays for storage:
-sig_eta = np.zeros((int(T/(ndump*dt))+1, nx+1))         # \ Dimension
-mu_vals = np.zeros((int(T/(ndump*dt))+1, 2*nx+1))       # | pre-allocated
-eta_vals = np.zeros((int(T/(ndump*dt))+1, nx+1))        # | for speed
-m = np.zeros((int(T/(ndump*dt))+1))                     # /
+# Initialise arrays for storage, with dimensions pre-allocated for speed:
+sig_eta = np.zeros((int(T/(ndump*dt))+1, nx+1))
+mu_vals = np.zeros((int(T/(ndump*dt))+1, 2*nx+1))
+eta_vals = np.zeros((int(T/(ndump*dt))+1, nx+1))
+m = np.zeros((int(T/(ndump*dt))+1))
 mu_vals[i,:] = mu.dat.data
 eta_vals[i,:] = eta.dat.data
 m[i] = np.log2(max(eta_vals[i, 0], 0.5))
@@ -59,13 +82,13 @@ for j in range(nx+1):
         sig_eta[i,j] = 1
 
 # Enter the forward timeloop:
-while (t < T - 0.5*dt):
+while t < T - 0.5*dt:
     t += dt
     print 't = ', t, ' seconds'
     q_solv.solve()
     q_.assign(q)
     dumpn += 1
-    if (dumpn == ndump):
+    if dumpn == ndump:
         dumpn -= ndump
         i += 1
         mu_vals[i,:] = mu.dat.data
@@ -87,17 +110,36 @@ while (t < T - 0.5*dt):
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
-######################################################## ADJOINT SOLVER #######################################################
+#################################################### ADJOINT SOLVER ####################################################
 
-# Set up adjoint problem solver:
+# Build the weak form of the timestepping algorithm, expressed as a mixed nonlinear problem:
 lam = Function(Vq)
 lam.assign(lam_)
-lam_, lam, lm_, lm, le_, le, lam_solv = SW_solve(lam_, lam, lm_, le_, b, Dt, Vq, params, adj_linear_form_1d)
+v, w = TestFunctions(Vq)
+lm, le = split(lam)
+lm_, le_ = split(lam_)
+
+# Create 'mid-step' functions:
+lmh = 0.5 * (lm + lm_)
+leh = 0.5 * (le + le_)
+
+# Establish form:
+L = ((le-le_) * w + Dt * g * b * lmh * w.dx(0) + (lm-lm_) * v - Dt * leh.dx(0) * v) * dx
+
+# Set up the variational problem
+lam_prob = NonlinearVariationalProblem(L, lam)
+lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
+
+# The function 'split' has two forms. Now use the form which splits a function in order to access its data:
+lm_, le_ = lam_.split()
+lm, le = lam.split()
+
+# Relabel:
 lm.rename('Adjoint fluid momentum')
 le.rename('Adjoint free surface displacement')
 
 # Initialise dump counter and function arrays:
-if (dumpn == 0):
+if dumpn == 0:
     dumpn = ndump
 le_snapshots = [Function(le)]
 le_vid = [Function(le)]
@@ -110,26 +152,27 @@ q_dot_lam = np.zeros((int(T/(ndump*dt))+1, nx+1))   # /
 lm_vals[i,:] = lm.dat.data
 le_vals[i,:] = le.dat.data
 
-# Evaluate forward-adjoint inner products (NOTE mu, lm are in P2, while eta, le are in P1, so we need to evaluate at nodes):
+# Evaluate forward-adjoint inner products:
 q_dot_lam[i,:] = mu_vals[i,0::2] * lm_vals[i,0::2] + eta_vals[i,:] * le_vals[i,:]
+# NOTE: mu, lm are in P2, while eta, le are in P1, so we need to evaluate at nodes
 
 # Determine significant values:
 for j in range(nx+1):
-    if ((le_vals[i,j] >= tol) | (le_vals[i,j] <= -tol)):
+    if (le_vals[i,j] >= tol) | (le_vals[i,j] <= -tol):
         sig_le[i,j] = 1
-    if ((q_dot_lam[i,j] >= tol) | (q_dot_lam[i,j] <= -tol)):
+    if (q_dot_lam[i,j] >= tol) | (q_dot_lam[i,j] <= -tol):
         q_dot_lam[i,j] = 1
     else:
         q_dot_lam[i,j] = 0
 
 # Enter the backward timeloop:
-while (t > 0):
+while t > 0:
     t -= dt
     print 't = ', t, ' seconds'
     lam_solv.solve()
     lam_.assign(lam)
     dumpn -= 1
-    if (dumpn == 0):
+    if dumpn == 0:
         dumpn += ndump
         i -= 1
         lm_vals[i,:] = lm.dat.data
@@ -137,26 +180,26 @@ while (t > 0):
         q_dot_lam[i,:] = mu_vals[i,0::2] * lm_vals[i,0::2] + eta_vals[i,:] * le_vals[i,:]
         # Determine significant values:
         for j in range(nx+1):
-            if ((le_vals[i,j] >= tol) | (le_vals[i,j] <= -tol)):
+            if (le_vals[i,j] >= tol) | (le_vals[i,j] <= -tol):
                sig_le[i,j] = 1
-            if ((q_dot_lam[i,j] >= tol) | (q_dot_lam[i,j] <= -tol)):
+            if (q_dot_lam[i,j] >= tol) | (q_dot_lam[i,j] <= -tol):
                 q_dot_lam[i,j] = 1
             else:
                 q_dot_lam[i,j] = 0
         # Dump video data:
-        if (vid == 'y'):
+        if vid == 'y':
             le_vid.append(Function(le))
     # Dump snapshot data:
-    if (t in snaps.values()):
+    if t in snaps.values():
         le_snapshots.append(Function(le))
 
-######################################################## PLOTTING #############################################################
+#################################################### PLOTTING ##########################################################
 
 # Font formatting:
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 rc('text', usetex=True)
 
-if (vid == 'y'):
+if vid == 'y':
     # Plot solution videos:
     for k in (eta_vid, le_vid):
         plt.rc('text', usetex=True)
@@ -222,7 +265,7 @@ else:
         plt.axis([0, nx+1, 0, int(T/(ndump*dt))])
         plt.xlim(plt.xlim()[::-1])
         plt.ylabel(r'Time (m)')
-        if (k == 'Domain of dependence'):
+        if k == 'Domain of dependence':
             plt.title(r'{y}'.format(y=k))
             plt.savefig('plots/tsunami_outputs/screenshots/domain_of_dependence.png')
         else:
@@ -241,9 +284,11 @@ else:
     plt.axhline(2, linestyle='--', color='orange')
     plt.axhline(3, linestyle='--', color='red')
     plt.annotate('Severe damage', xy=(0.7*T, 3), xytext=(0.72*T, 3.2), arrowprops=dict(facecolor='red', shrink=0.05))
-    plt.annotate('Some inland damage', xy=(0.7*T, 2), xytext=(0.72*T, 2.2), arrowprops=dict(facecolor='orange', shrink=0.05))
+    plt.annotate('Some inland damage', xy=(0.7*T, 2), xytext=(0.72*T, 2.2),
+                 arrowprops=dict(facecolor='orange', shrink=0.05))
     plt.annotate('Shore damage', xy=(0.7*T, 1), xytext=(0.72*T, 1.2), arrowprops=dict(facecolor='yellow', shrink=0.05))
-    plt.annotate('Very little damage', xy=(0.7*T, 0), xytext=(0.72*T, 0.2), arrowprops=dict(facecolor='green', shrink=0.05))
+    plt.annotate('Very little damage', xy=(0.7*T, 0), xytext=(0.72*T, 0.2),
+                 arrowprops=dict(facecolor='green', shrink=0.05))
     plt.annotate('No damage', xy=(0.7*T, -1), xytext=(0.72*T, -0.8), arrowprops=dict(facecolor='blue', shrink=0.05))
     plt.xlabel(r'Time (s)')
     plt.ylabel(r'm (dimensionless)')

@@ -97,7 +97,8 @@ def SW_solve(q_, q, u_, eta_, b, Dt, Vq, params, form, BCs=[]):
     q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
     # The function 'split' has two forms: now use the form which splits a function in order to access its data
-    u_, eta_ = q_.split(); u, eta = q.split()
+    u_, eta_ = q_.split()
+    u, eta = q.split()
 
     # Store multiple functions
     u.rename('Fluid velocity')

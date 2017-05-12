@@ -190,8 +190,10 @@ def update_SW_FE(mesh1, mesh2, u_, u, eta_, eta, b):
     Vq = MixedFunctionSpace((Vu, Ve))
 
     # Establish functions in the new spaces:
-    q_2 = Function(Vq); u_2, eta_2 = q_2.split()
-    q2 = Function(Vq); u2, eta2 = q2.split()
+    q_2 = Function(Vq)
+    u_2, eta_2 = q_2.split()
+    q2 = Function(Vq)
+    u2, eta2 = q2.split()
     b2 = Function(Ve)
 
     # Interpolate functions across from the previous mesh:

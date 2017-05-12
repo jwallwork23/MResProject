@@ -76,7 +76,7 @@ m_file = File('plots/prob1_test_outputs/prob1_metric.pvd')
 q_file.write(u, eta, time = t)
 
 # Enter timeloop:
-while t < T-0.5*dt:
+while t < T - 0.5 * dt:
 
     # Update counters:
     mn += 1
@@ -117,7 +117,7 @@ while t < T-0.5*dt:
         u.rename('Fluid velocity')
         eta.rename('Free surface displacement')
         M.rename('Metric field')
-        m_file.write(M, time=t)
+        m_file.write(M, time = t)
 
     # Enter the inner timeloop:
     while cnt < rm:

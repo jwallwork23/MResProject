@@ -36,8 +36,9 @@ for i in f:
 
     # Compute Hessian and metric:
     H = construct_hessian(mesh1, V, f[i])
-    M = compute_steady_metric(mesh1, V, H, f[i])
-    print 'Some element of metric field %d : ' % i, M.dat.data[400]
+    M = compute_steady_metric(mesh1, V, H, f[i], h_min = hmin)
+    print 'Some element of metric field %d : ' % i
+    print M.dat.data[400]
 
     # Adapt mesh and set up new function spaces:
     mesh2 = adapt(mesh1, M)
@@ -49,7 +50,7 @@ for i in f:
     interp(f[i], mesh1, g, mesh2)
 
     toc1 = clock()
-    print 'Elapsed time adapting to sensor {y}: %1.2es'.format(y=i) % (toc1 - tic1)
+    print 'Elapsed time adapting to sensor %d: %1.2es' % (i, toc1 - tic1)
 
     # Plot results:
     g.rename('Sensor {y}'.format(y=i))

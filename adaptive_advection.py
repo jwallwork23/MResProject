@@ -12,7 +12,7 @@ ly = 1                                                                          
 mesh = PeriodicRectangleMesh(lx * n, ly * n, lx, ly)
 
 # Specify timestepping parameters:
-ndump = int(raw_input('Timesteps per data dump (default 1)') or 1)
+ndump = int(raw_input('Timesteps per data dump (default 1): ') or 1)
 T = 5.0                                                                         # Simulation end time (s)
 dt = 0.1/(n * ndump)                                                            # Timestep length (s)
 Dt = Constant(dt)
@@ -42,6 +42,7 @@ psi = TestFunction(W)
 # Initialise counters and files:
 t = 0.0
 mn = 0
+dumpn = 0
 phi_file = File('plots/adapt_plots/advection_test.pvd')
 m_file = File('plots/adapt_plots/advection_test_metric.pvd')
 phi_file.write(phi, time = t)
@@ -55,7 +56,7 @@ while t < T - 0.5 * dt:
     cnt = 0
 
     if remesh == 'y':
-        print '************ Adaption step {y} **************'.format(y = mn)
+        print '************ Adaption step %d **************' % mn
 
         # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)
@@ -69,8 +70,8 @@ while t < T - 0.5 * dt:
         tic2 = clock()
         mesh = adapt(mesh, M)
         toc2 = clock()
-        print 'Elapsed time for adaption step {y}: %1.2es'.format(y = mn) % (toc2 - tic2)
-        print 'Number of nodes after adaption step {y}: '.format(y = mn), len(mesh.coordinates.dat.data)
+        print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
+        print 'Number of nodes after adaption step %d: ' % mn , len(mesh.coordinates.dat.data)
         phi_, phi, W = update_advection_FE(mesh_, mesh, phi_, phi)
         phi.rename('Concentration')
 
@@ -82,7 +83,6 @@ while t < T - 0.5 * dt:
     # Enter inner timeloop:
     while cnt < rm:
         t += dt
-        print 't = %1.2fs, mesh number = ' % t, mn
         cnt += 1
         solve(F == 0, phi, solver_parameters = {'pc_type' : 'ilu',
                                                 'ksp_max_it' : 1500,})
@@ -90,6 +90,7 @@ while t < T - 0.5 * dt:
         dumpn += 1
         if dumpn == ndump:
             dumpn -= ndump
+            print 't = %1.2fs, mesh number = ' % t, mn
             phi_file.write(phi, time = t)
 
 # End timing and print:

@@ -21,6 +21,7 @@ remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y':
     rm = int(raw_input('Timesteps per remesh (default 6)?: ') or 6)     # TODO: consider adaptive remeshing?
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+    hmin = float(raw_input('Minimum element size (default 0.005)?: ') or 0.005)
 else:
     rm = int(T/dt)
     ntype = None
@@ -81,12 +82,12 @@ while t < T-0.5*dt:
     mn += 1
     cnt = 0
 
-    if (t != 0.0) & (remesh == 'y'):                                    # TODO: why is immediate remeshing so slow?
+    if remesh == 'y':
 
         # Build Hessian and (hence) metric:
         Vm = TensorFunctionSpace(mesh, 'CG', 1)
         H = construct_hessian(mesh, Vm, eta)
-        M = compute_steady_metric(mesh, Vm, H, eta, normalise = ntype)
+        M = compute_steady_metric(mesh, Vm, H, eta, normalise = ntype, h_min = hmin)
 
         # Adapt mesh and update FE setup:
         mesh_ = mesh

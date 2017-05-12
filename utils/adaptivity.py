@@ -204,3 +204,14 @@ def update_SW_FE(mesh1, mesh2, u_, u, eta_, eta, b):
     interp(b, mesh1, b2, mesh2)
 
     return q_2, q2, u_2, u2, eta_2, eta2, b2, Vq
+
+def update_advection_FE(mesh1, mesh2, phi_, phi):
+    """Update all functions from one mesh to another."""
+
+    Vphi = FunctionSpace(mesh2, 'CG', 1)
+    phi_2 = Function(Vphi)
+    phi2 = Function(Vphi)
+    interp(phi_, mesh1, phi_2, mesh2)
+    interp(phi, mesh1, phi2, mesh2)
+
+    return phi_2, phi2, Vphi

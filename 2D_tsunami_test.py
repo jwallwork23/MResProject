@@ -138,7 +138,7 @@ while t < T - 0.5*dt:
         # Enter the inner timeloop:
     while cnt < rm:
         t += dt
-        print 't = ', t, ' seconds, mesh number = ', mn
+        print 't = 1.2fs, mesh number = ' % t, mn
         cnt += 1
         q_solv.solve()
         q_.assign(q)
@@ -270,7 +270,7 @@ while t > 0:
     # Enter the inner timeloop:
     while cnt < rm:
         t -= dt
-        print 't = ', t, ' seconds, mesh number = ', mn
+        print 't = 1.2fs, mesh number = ' % t, mn
         cnt += 1
         lam_solv.solve()
         lam_.assign(lam)

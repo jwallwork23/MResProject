@@ -37,6 +37,7 @@ for i in f:
     # Compute Hessian and metric:
     H = construct_hessian(mesh1, V, f[i])
     M = compute_steady_metric(mesh1, V, H, f[i])
+    print 'Some element of metric field %d : ' % i, M.dat.data[400]
 
     # Adapt mesh and set up new function spaces:
     mesh2 = adapt(mesh1, M)

@@ -3,42 +3,38 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import adapt, construct_hessian, compute_steady_metric, interp
+from utils import adapt, construct_hessian, compute_steady_metric, interp, update_advection_FE
 
-def update_setup(mesh1, mesh2, phi_, phi):
-    """Update all functions from one mesh to another."""
+# Define uniform mesh, with a metric function space:
+n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)                    # Resolution of initial uniform mesh
+lx = 4                                                                          # Extent in x-direction (m)
+ly = 1                                                                          # Extent in y-direction (m)
+mesh = PeriodicRectangleMesh(lx * n, ly * n, lx, ly)
 
-    Vphi = FunctionSpace(mesh2, 'CG', 1)
-    phi_2 = Function(Vphi)
-    phi2 = Function(Vphi)
-    interp(phi_, mesh1, phi_2, mesh2)
-    interp(phi, mesh1, phi2, mesh2)
-
-    return phi_2, phi2, Vphi
-
-# Specify problem parameters:
-T = 5.0
-n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)
-dt = 0.1/n
+# Specify timestepping parameters:
+ndump = int(raw_input('Timesteps per data dump (default 1)') or 1)
+T = 5.0                                                                         # Simulation end time (s)
+dt = 0.1/(n * ndump)                                                            # Timestep length (s)
 Dt = Constant(dt)
+
+# Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y':
     hmin = float(raw_input('Minimum element size (default 0.005)?: ') or 0.005)
     rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
+    nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
+    ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+    print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
 else:
-    rm = int(T/dt)
     hmin = 0
+    rm = int(T/dt)
+    nodes = 0
+    ntype = None
 
-# Define uniform mesh, with a metric function space:
-lx = 4
-ly = 1
-mesh = PeriodicRectangleMesh(lx * n, ly * n, lx, ly)
-print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
-
-# Create functions and specify initial conditions:
+# Create function space and set initial conditions:
 W = FunctionSpace(mesh, 'CG', 1)
 phi_ = Function(W)
-phi_.interpolate(Expression('(x[0] > 0.5) & (x[0] < 1) ? -0.001 * sin(2 * pi * x[0]) : 0'))
+phi_.interpolate(Expression('(x[0] > 0.5) & (x[0] < 1) ? -1e-3 * sin(2 * pi * x[0]) : 1e-4 * cos(pi * x[0])'))
 phi = Function(W, name = 'Concentration')
 phi.assign(phi_)
 psi = TestFunction(W)
@@ -49,6 +45,7 @@ mn = 0
 phi_file = File('plots/adapt_plots/advection_test.pvd')
 m_file = File('plots/adapt_plots/advection_test_metric.pvd')
 phi_file.write(phi, time = t)
+tic1 = clock()
 
 # Enter timeloop:
 while t < T - 0.5 * dt:
@@ -58,25 +55,26 @@ while t < T - 0.5 * dt:
     cnt = 0
 
     if remesh == 'y':
+        print '************ Adaption step {y} **************'.format(y = mn)
 
         # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)
         H = construct_hessian(mesh, V, phi)
-        M = compute_steady_metric(mesh, V, H, phi, h_min = hmin)
+        M = compute_steady_metric(mesh, V, H, phi, h_min = hmin, N = nodes)
         M.rename('Metric field')
-        m_file.write(M, time = t)
+        m_file.write(M, time=t)
 
         # Adapt mesh and set up new function spaces:
         mesh_ = mesh
-        tic1 = clock()
-        mesh = adapt(mesh_, M)
-        toc1 = clock()
-        print 'Elapsed time for adaption step {y}: %1.2es'.format(y=mn) % (toc1 - tic1)
-        print 'Number of nodes after adaption step {y}: '.format(y=mn), len(mesh.coordinates.dat.data)
-        phi_, phi, W = update_setup(mesh_, mesh, phi_, phi)
+        tic2 = clock()
+        mesh = adapt(mesh, M)
+        toc2 = clock()
+        print 'Elapsed time for adaption step {y}: %1.2es'.format(y = mn) % (toc2 - tic2)
+        print 'Number of nodes after adaption step {y}: '.format(y = mn), len(mesh.coordinates.dat.data)
+        phi_, phi, W = update_advection_FE(mesh_, mesh, phi_, phi)
         phi.rename('Concentration')
 
-    # Set up variational problem:
+    # Set up variational problem, using implicit midpoint timestepping:
     psi = TestFunction(W)
     phih = 0.5 * (phi + phi_)
     F = ((phi - phi_) * psi - Dt * phih * psi.dx(0)) * dx
@@ -84,9 +82,19 @@ while t < T - 0.5 * dt:
     # Enter inner timeloop:
     while cnt < rm:
         t += dt
-        print 't = ', t, ' seconds, mesh number = ', mn
+        print 't = %1.2fs, mesh number = ' % t, mn
         cnt += 1
         solve(F == 0, phi, solver_parameters = {'pc_type' : 'ilu',
                                                 'ksp_max_it' : 1500,})
         phi_.assign(phi)
-        phi_file.write(phi)
+        dumpn += 1
+        if dumpn == ndump:
+            dumpn -= ndump
+            phi_file.write(phi, time = t)
+
+# End timing and print:
+toc1 = clock()
+if remesh == 'y':
+    print 'Elapsed time for adaptive solver: %1.2es' % (toc1 - tic1)
+else:
+    print 'Elapsed time for non-adaptive solver: %1.2es' % (toc1 - tic1)

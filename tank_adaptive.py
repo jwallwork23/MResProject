@@ -14,7 +14,7 @@ if (bathy != 'y') & (bathy != 'n'):
     raise ValueError('Please try again, choosing y or n.')
 dt = float(raw_input('Timestep (default 0.01)?: ') or 0.01)             # TODO: consider adaptive timestepping?
 Dt = Constant(dt)
-n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Meaning approximately 1000 nodes initially
+n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Meaning just over 1000 nodes initially
 T = float(raw_input('Simulation duration in s (default 5)?: ') or 5.0)
 ndump = int(raw_input('Timesteps per data dump (default 3)') or 3)
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
@@ -122,7 +122,7 @@ while t < T - 0.5 * dt:
     # Enter the inner timeloop:
     while cnt < rm:
         t += dt
-        print 't = ', t, ' seconds, mesh number = ', mn
+        print 't = %1.2fs, mesh number = ' % t, mn
         cnt += 1
         q_solv.solve()
         q_.assign(q)

@@ -23,6 +23,9 @@ Dt = Constant(dt)
 T = float(raw_input('Simulation duration in hours (default 2)?: ') or 2.) * 3600.
 ndump = 1
 
+# Specify physical parameters:
+g = 9.81                                                                # Gravitational acceleration (m s^{-2})
+
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y' :
@@ -30,7 +33,7 @@ if remesh == 'y' :
     rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-else:
+else :
     hmin = 0
     rm = int(T / dt)
     nodes = 0
@@ -60,7 +63,6 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner_persists': True,}
 
 # Set up the variational problem:
-g = 9.81
 L = ((eta - eta_) * ze - Dt * (inner(uh * ze, grad(b + etah)) + inner(uh * (b + etah), grad(ze)))
      + inner(u-u_, v) + Dt * g *(inner(grad(etah), v))) * dx
 q_prob = NonlinearVariationalProblem(L, q)
@@ -143,5 +145,5 @@ while t < T - 0.5 * dt:
 toc1 = clock()
 if remesh == 'y' :
     print 'Elapsed time for adaptive tank solver: %1.2es' % (toc1 - tic1)
-else:
+else :
     print 'Elapsed time for non-adaptive tank solver: %1.2es' % (toc1 - tic1)

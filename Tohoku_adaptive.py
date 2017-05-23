@@ -7,7 +7,7 @@ from utils import adapt, construct_hessian, compute_steady_metric, interp, Tohok
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
-if (res != 'f') & (res != 'm') & (res != 'c'):
+if (res != 'f') & (res != 'm') & (res != 'c') :
     raise ValueError('Please try again, choosing f, m or c.')
 mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
 print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
@@ -25,14 +25,14 @@ ndump = 1
 
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
-if remesh == 'y':
-    hmin = float(raw_input('Minimum element size (default 0.005)?: ') or 0.005)
+if remesh == 'y' :
+    hmin = float(raw_input('Minimum element size in km (default 5)?: ') or 5.) * 1e3
     rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 else:
     hmin = 0
-    rm = int(T/dt)
+    rm = int(T / dt)
     nodes = 0
     ntype = None
 
@@ -85,7 +85,7 @@ while t < T - 0.5 * dt:
     mn += 1
     cnt = 0
 
-    if remesh == 'y':
+    if remesh == 'y' :
         print '************ Adaption step %d **************' % mn
 
         # Compute Hessian and metric:
@@ -128,20 +128,20 @@ while t < T - 0.5 * dt:
         eta.rename('Free surface displacement')
 
     # Enter the inner timeloop:
-    while cnt < rm:
+    while cnt < rm :
         t += dt
         print 't = %1.2fs, mesh number = %d' % (t, mn)
         cnt += 1
         q_solv.solve()
         q_.assign(q)
         dumpn += 1
-        if dumpn == ndump:
+        if dumpn == ndump :
             dumpn -= ndump
             q_file.write(u, eta, time = t)
 
 # End timing and print:
 toc1 = clock()
-if remesh == 'y':
+if remesh == 'y' :
     print 'Elapsed time for adaptive tank solver: %1.2es' % (toc1 - tic1)
 else:
     print 'Elapsed time for non-adaptive tank solver: %1.2es' % (toc1 - tic1)

@@ -8,8 +8,9 @@ from utils import adapt, construct_hessian, compute_steady_metric, interp, updat
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)                    # Resolution of initial uniform mesh
 lx = 4                                                                          # Extent in x-direction (m)
-ly = 1.5                                                                        # Extent in y-direction (m)
+ly = 1                                                                          # Extent in y-direction (m)
 mesh = RectangleMesh(lx * n, ly * n, lx, ly)
+x, y = SpatialCoordinate(mesh)
 print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
 
 # Specify timestepping parameters:
@@ -21,7 +22,7 @@ Dt = Constant(dt)
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y' :
-    hmin = float(raw_input('Minimum element size (default 0.005)?: ') or 0.005)
+    hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
     rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
@@ -34,14 +35,13 @@ else :
 # Create function space and set initial conditions:
 W = FunctionSpace(mesh, 'CG', 1)
 phi_ = Function(W)
-phi_.interpolate(Expression('(x[0] > 0.5) & (x[0] < 1) & (x[1] > 0.5) & (x[1] < 1) ? \
-                            1e-3 * sin(2 * pi * x[0]) * sin(2 * pi * x[1]) : 0'))
+phi_.interpolate(1e-3 * exp(-(pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
 phi = Function(W, name = 'Concentration')
 phi.assign(phi_)
 psi = TestFunction(W)
 
 # Initialise counters and files:
-t = 0.0
+t = 0.
 mn = 0
 dumpn = 0
 phi_file = File('plots/adapt_plots/advection_test.pvd')

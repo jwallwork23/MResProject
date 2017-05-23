@@ -123,11 +123,9 @@ while t < T - 0.5 * dt:
         u_, eta_ = q_.split()
         u, eta = q.split()
 
-        # Relabel and save metric to file:
+        # Relabel:
         u.rename('Fluid velocity')
         eta.rename('Free surface displacement')
-        M.rename('Metric field')
-        m_file.write(M, time = t)
 
     # Enter the inner timeloop:
     while cnt < rm:

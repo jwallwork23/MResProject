@@ -205,6 +205,28 @@ def update_SW_FE(mesh1, mesh2, u_, u, eta_, eta, b):
 
     return q_2, q2, u_2, u2, eta_2, eta2, b2, Vq
 
+
+def update_SW_FE_init(mesh1, mesh2, u_, eta_, b):
+    """A function which updates shallow water solution fields and bathymetry from one mesh to another at the initial
+    remesh step."""
+
+    # Establish function spaces on the new mesh:
+    Vu = VectorFunctionSpace(mesh2, 'CG', 1)
+    Ve = FunctionSpace(mesh2, 'CG', 1)
+    Vq = MixedFunctionSpace((Vu, Ve))
+
+    # Establish functions in the new spaces:
+    q_2 = Function(Vq)
+    u_2, eta_2 = q_2.split()
+    b2 = Function(Ve)
+
+    # Interpolate functions across from the previous mesh:
+    interp(u_, mesh1, u_2, mesh2)
+    interp(eta_, mesh1, eta_2, mesh2)
+    interp(b, mesh1, b2, mesh2)
+
+    return q_2, u_2, eta_2, b2, Vq
+
 def update_advection_FE(mesh1, mesh2, phi_, phi):
     """Update all functions from one mesh to another."""
 

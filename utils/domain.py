@@ -37,11 +37,11 @@ def domain_1d(n):
     return mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b
 
 
-def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
+def tank_domain(n, bath = 'n', waves = 'n', test2d = 'n', bcval = None) :
     """A function which sets up a uniform mesh and associated functions for the tank test problem."""
 
     # Define domain and mesh:
-    if test2d == 'n':
+    if test2d == 'n' :
         lx = 4
         ly = 1
         nx = int(lx * n)
@@ -67,9 +67,9 @@ def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
     # Establish bathymetry function:
     b = Function(Ve, name = 'Bathymetry')
     if bath == 'y':
-        b.interpolate(0.1 + 0.04 * sin(2*pi*x[0]) * sin(2*pi*x[1]))
+        b.interpolate(0.1 + 0.04 * sin(2 * pi * x[0]) * sin(2 * pi * x[1]))
         File('plots/screenshots/tank_bathymetry.pvd').write(b)
-    elif test2d == 'n':
+    elif test2d == 'n' :
         # Construct a (constant) bathymetry function:
         b.assign(0.1)                                                       # Tank water depth 10 cm
     else:
@@ -79,14 +79,14 @@ def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
     u_.interpolate(Expression([0, 0]))
     lu_.interpolate(Expression([0, 0]))
     BCs = []
-    if waves == 'y':
+    if waves == 'y' :
         eta_.interpolate(Expression(0))
         bc1 = DirichletBC(Vq.sub(1), bcval, 1)
         # Apply no-slip BC to eta on the right end of the domain:
         bc2 = DirichletBC(Vq.sub(1), 0.0, 2)
         BCs = [bc1, bc2]
-    elif test2d == 'n':
-        eta_.interpolate(-0.01*cos(0.5*pi*x[0]))
+    elif test2d == 'n' :
+        eta_.interpolate(-0.01 * cos(0.5 * pi * x[0]))
     else:   # NOTE: higher magnitude wave used due to geometric spreading
         eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? \
                                     4 * sin(pi*(x[0]-1e5) * 2e-5) * sin(pi*(x[1]-1.8e5) * 2.5e-5) : 0.'))
@@ -95,7 +95,7 @@ def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
 
     return mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs
 
-def Tohoku_domain(res='c'):
+def Tohoku_domain(res = 'c') :
     """A function which sets up a mesh, along with function spaces and functions, for the ocean domain associated
     for the Tohoku tsunami problem."""
 
@@ -103,11 +103,11 @@ def Tohoku_domain(res='c'):
     from scipy.io.netcdf import NetCDFFile
 
     # Define mesh and function spaces:
-    if res == 'f':
+    if res == 'f' :
         mesh_converter('resources/meshes/LonLatTohokuFine.msh', 143., 37.)
-    elif res == 'm':
+    elif res == 'm' :
         mesh_converter('resources/meshes/LonLatTohokuMedium.msh', 143., 37.)
-    elif res == 'c':
+    elif res == 'c' :
         mesh_converter('resources/meshes/LonLatTohokuCoarse.msh', 143., 37.)
     mesh = Mesh('resources/meshes/CartesianTohoku.msh')
     mesh_coords = mesh.coordinates.dat.data
@@ -120,31 +120,31 @@ def Tohoku_domain(res='c'):
     lam_ = Function(Vq)
     u_, eta_ = q_.split()
     lm_, le_ = lam_.split()
-    eta0 = Function(Vq.sub(1), name='Initial surface')
-    b = Function(Vq.sub(1), name='Bathymetry')
+    eta0 = Function(Vq.sub(1), name = 'Initial surface')
+    b = Function(Vq.sub(1), name = 'Bathymetry')
 
     # Read and interpolate initial surface data (courtesy of Saito):
-    nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap=False)
+    nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap = False)
     lon1 = nc1.variables['x'][:]
     lat1 = nc1.variables['y'][:]
     x1, y1 = vectorlonlat2tangentxy(lon1, lat1, 143., 37.)
-    elev1 = nc1.variables['z'][:,:]
+    elev1 = nc1.variables['z'][:, :]
     interpolator_surf = si.RectBivariateSpline(y1, x1, elev1)
     eta0vec = eta0.dat.data
-    assert mesh_coords.shape[0]==eta0vec.shape[0]
+    assert mesh_coords.shape[0] == eta0vec.shape[0]
 
     # Read and interpolate bathymetry data (courtesy of GEBCO):
-    nc2 = NetCDFFile('resources/bathy_data/GEBCO_bathy.nc', mmap=False)
+    nc2 = NetCDFFile('resources/bathy_data/GEBCO_bathy.nc', mmap = False)
     lon2 = nc2.variables['lon'][:]
     lat2 = nc2.variables['lat'][:-1]
     x2, y2 = vectorlonlat2tangentxy(lon2, lat2, 143., 37.)
-    elev2 = nc2.variables['elevation'][:-1,:]
+    elev2 = nc2.variables['elevation'][:-1, :]
     interpolator_bath = si.RectBivariateSpline(y2, x2, elev2)
     b_vec = b.dat.data
-    assert mesh_coords.shape[0]==b_vec.shape[0]
+    assert mesh_coords.shape[0] == b_vec.shape[0]
 
     # Interpolate data onto initial surface and bathymetry profiles:
-    for i,p in enumerate(mesh_coords):
+    for i,p in enumerate(mesh_coords) :
         eta0vec[i] = interpolator_surf(p[1], p[0])
         b_vec[i] = - interpolator_surf(p[1], p[0]) - interpolator_bath(p[1], p[0])
 

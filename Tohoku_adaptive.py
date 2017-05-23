@@ -10,14 +10,15 @@ res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
 if (res != 'f') & (res != 'm') & (res != 'c'):
     raise ValueError('Please try again, choosing f, m or c.')
 mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
+print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
 
 # Choose linear or nonlinear equations:
-# mode = raw_input('Linear or nonlinear equations? (l/n): ') or 'l'     # TODO: reintroduce nonlinear option
+# mode = raw_input('Linear or nonlinear equations? (l/n): ') or 'l'             # TODO: reintroduce nonlinear option
 # if (mode != 'l') & (mode != 'n'):
 #     raise ValueError('Please try again, choosing l or n.')
 
 # Specify timestepping parameters:
-dt = float(raw_input('Timestep (default 15)?: ') or 15)                 # TODO: consider adaptive timestepping?
+dt = float(raw_input('Timestep in seconds (default 15)?: ') or 15)              # TODO: consider adaptive timestepping?
 Dt = Constant(dt)
 T = float(raw_input('Simulation duration in hours (default 2)?: ') or 2.) * 3600.
 ndump = 1
@@ -29,7 +30,6 @@ if remesh == 'y':
     rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-    print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
 else:
     hmin = 0
     rm = int(T/dt)

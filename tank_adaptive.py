@@ -5,35 +5,36 @@ from time import clock
 
 from utils import adapt, construct_hessian, compute_steady_metric, tank_domain, update_SW_FE
 
-# Specify problem parameters:
-# mode = raw_input('Linear or nonlinear equations? (l/n): ') or 'l'     # TODO: reintroduce nonlinear option
-# if (mode != 'l') & (mode != 'n'):
-#     raise ValueError('Please try again, choosing l or n.')
+
+# Define initial mesh and functions, with initial conditions set:
+n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Meaning just over 1000 nodes initially
 bathy = raw_input('Non-trivial bathymetry? (y/n): ') or 'n'
 if (bathy != 'y') & (bathy != 'n'):
     raise ValueError('Please try again, choosing y or n.')
-dt = float(raw_input('Timestep (default 0.01)?: ') or 0.01)             # TODO: consider adaptive timestepping?
+mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs = tank_domain(n, bath = bathy)
+print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
+
+# Specify timestepping parameters:
+ndump = int(raw_input('Timesteps per data dump (default 1): ') or 1)
+T = float(raw_input('Simulation duration in s (default 5)?: ') or 5.0)                                                                         # Simulation end time (s)
+dt = 0.1/(n * ndump)                                                            # Timestep length (s)
 Dt = Constant(dt)
-n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Meaning just over 1000 nodes initially
-T = float(raw_input('Simulation duration in s (default 5)?: ') or 5.0)
-ndump = int(raw_input('Timesteps per data dump (default 3)') or 3)
+
+# Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y':
-    rm = int(raw_input('Timesteps per remesh (default 6)?: ') or 6)     # TODO: consider adaptive remeshing?
-    ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
     hmin = float(raw_input('Minimum element size (default 0.005)?: ') or 0.005)
+    rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
+    nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
+    ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 else:
+    hmin = 0
     rm = int(T/dt)
+    nodes = 0
     ntype = None
-    if remesh != 'n':
-        raise ValueError('Please try again, typing y or n.')
-g = 9.81                                                                # Gravitational acceleration (m s^{-2})
 
 # Begin timing:
 tic1 = clock()
-
-# Establish tank domain
-mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs = tank_domain(n, bath = bathy)
 
 # Set up functions of the weak problem:
 q = Function(Vq)
@@ -56,6 +57,7 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner_persists': True,}
 
 # Set up the variational problem:
+g = 9.81                                                                # Gravitational acceleration (m s^{-2})
 L = ((eta - eta_) * ze - Dt * (inner(uh * ze, grad(b + etah)) + inner(uh * (b + etah), grad(ze)))
      + inner(u-u_, v) + Dt * g *(inner(grad(etah), v))) * dx
 q_prob = NonlinearVariationalProblem(L, q)
@@ -83,16 +85,23 @@ while t < T - 0.5 * dt:
     cnt = 0
 
     if remesh == 'y':
+        print '************ Adaption step %d **************' % mn
 
-        # Build Hessian and (hence) metric:
-        Vm = TensorFunctionSpace(mesh, 'CG', 1)
-        H = construct_hessian(mesh, Vm, eta)
-        M = compute_steady_metric(mesh, Vm, H, eta, normalise = ntype, h_min = hmin)
+        # Compute Hessian and metric:
+        V = TensorFunctionSpace(mesh, 'CG', 1)
+        H = construct_hessian(mesh, V, eta)
+        M = compute_steady_metric(mesh, V, H, eta, h_min=hmin, N=nodes)
+        M.rename('Metric field')
+        m_file.write(M, time=t)
 
         # Adapt mesh and update FE setup:
         mesh_ = mesh
+        tic2 = clock()
         mesh = adapt(mesh, M)
         q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(mesh_, mesh, u_, u, eta_, eta, b)
+        toc2 = clock()
+        print 'Number of nodes after adaption step %d: ' % mn, len(mesh.coordinates.dat.data)
+        print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
 
         # Set up functions of weak problem:
         v, ze = TestFunctions(Vq)
@@ -107,17 +116,15 @@ while t < T - 0.5 * dt:
         L = ((eta - eta_) * ze - Dt * (inner(uh * ze, grad(b + etah)) + inner(uh * (b + etah), grad(ze)))
              + inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
         q_prob = NonlinearVariationalProblem(L, q)
-        q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
+        q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
 
         # The function 'split' has two forms: now use the form which splits a function in order to access its data
         u_, eta_ = q_.split()
         u, eta = q.split()
 
-        # Relabel and save metric to file:
+        # Relabel:
         u.rename('Fluid velocity')
         eta.rename('Free surface displacement')
-        M.rename('Metric field')
-        m_file.write(M, time = t)
 
     # Enter the inner timeloop:
     while cnt < rm:

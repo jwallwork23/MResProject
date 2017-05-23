@@ -10,6 +10,7 @@ n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)                    
 lx = 4                                                                          # Extent in x-direction (m)
 ly = 1.5                                                                        # Extent in y-direction (m)
 mesh = RectangleMesh(lx * n, ly * n, lx, ly)
+print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
 
 # Specify timestepping parameters:
 ndump = int(raw_input('Timesteps per data dump (default 1): ') or 1)
@@ -19,15 +20,14 @@ Dt = Constant(dt)
 
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
-if remesh == 'y':
+if remesh == 'y' :
     hmin = float(raw_input('Minimum element size (default 0.005)?: ') or 0.005)
     rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-    print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
-else:
+else :
     hmin = 0
-    rm = int(T/dt)
+    rm = int(T / dt)
     nodes = 0
     ntype = None
 
@@ -50,13 +50,13 @@ phi_file.write(phi, time = t)
 tic1 = clock()
 
 # Enter timeloop:
-while t < T - 0.5 * dt:
+while t < T - 0.5 * dt :
 
     # Update counters:
     mn += 1
     cnt = 0
 
-    if remesh == 'y':
+    if remesh == 'y' :
         print '************ Adaption step %d **************' % mn
 
         # Compute Hessian and metric:
@@ -64,7 +64,7 @@ while t < T - 0.5 * dt:
         H = construct_hessian(mesh, V, phi)
         M = compute_steady_metric(mesh, V, H, phi, h_min = hmin, N = nodes)
         M.rename('Metric field')
-        m_file.write(M, time=t)
+        m_file.write(M, time = t)
 
         # Adapt mesh and set up new function spaces:
         mesh_ = mesh
@@ -82,21 +82,21 @@ while t < T - 0.5 * dt:
     F = ((phi - phi_) * psi - Dt * phih * psi.dx(0)) * dx
 
     # Enter inner timeloop:
-    while cnt < rm:
+    while cnt < rm :
         t += dt
         cnt += 1
         solve(F == 0, phi, solver_parameters = {'pc_type' : 'ilu',
                                                 'ksp_max_it' : 1500,})
         phi_.assign(phi)
         dumpn += 1
-        if dumpn == ndump:
+        if dumpn == ndump :
             dumpn -= ndump
             print 't = %1.2fs, mesh number = ' % t, mn
             phi_file.write(phi, time = t)
 
 # End timing and print:
 toc1 = clock()
-if remesh == 'y':
+if remesh == 'y' :
     print 'Elapsed time for adaptive solver: %1.2es' % (toc1 - tic1)
-else:
+else :
     print 'Elapsed time for non-adaptive solver: %1.2es' % (toc1 - tic1)

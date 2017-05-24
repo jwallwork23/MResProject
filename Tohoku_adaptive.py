@@ -30,7 +30,7 @@ g = 9.81                                                                # Gravit
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y' :
     hmin = float(raw_input('Minimum element size in km (default 5)?: ') or 5.) * 1e3
-    rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
+    rm = int(raw_input('Timesteps per remesh (default 4)?: ') or 4)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 else :

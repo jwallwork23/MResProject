@@ -100,8 +100,8 @@ def interp(u, mesh, unew, meshnew) :
                         val = []            # Value of the function at the vertices of the triangle
                         for cl in closure :
                             if cl >= vStart and cl < vEnd :
-                                off = meshnew._plex.createSection([1], entity_dofs,
-                                                            perm = meshnew.topology._plex_renumbering).getOffset(cl) / 2
+                                off = mesh._plex.createSection([1], entity_dofs,
+                                                            perm = mesh.topology._plex_renumbering).getOffset(cl) / 2
                                 crdC.append(mesh.coordinates.dat.data[off])
                                 val.append(u.dat.data[off])
 
@@ -130,8 +130,8 @@ def interp(u, mesh, unew, meshnew) :
                     val = []                                        # Value of the function at the vertices of the edge
                     for cl in closure:
                         if cl >= vStart and cl < vEnd : 
-                            off = meshnew._plex.createSection([1], entity_dofs,
-                                                            perm = meshnew.topology._plex_renumbering).getOffset(cl) / 2
+                            off = mesh._plex.createSection([1], entity_dofs,
+                                                            perm = mesh.topology._plex_renumbering).getOffset(cl) / 2
                             crdE.append(mesh.coordinates.dat.data[off])
                             val.append(u.dat.data[off])
                     if len(crdE) != 2 : 

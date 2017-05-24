@@ -23,6 +23,7 @@ Dt = Constant(dt)
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y' :
     hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
+    hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
     rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
@@ -62,9 +63,8 @@ while t < T - 0.5 * dt :
         # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)
         H = construct_hessian(mesh, V, phi)
-        M = compute_steady_metric(mesh, V, H, phi, h_min = hmin, N = nodes)
+        M = compute_steady_metric(mesh, V, H, phi, h_min = hmin, h_max = hmax, N = nodes)
         M.rename('Metric field')
-        m_file.write(M, time = t)
 
         # Adapt mesh and set up new function spaces:
         mesh_ = mesh
@@ -90,9 +90,13 @@ while t < T - 0.5 * dt :
         phi_.assign(phi)
         dumpn += 1
         if dumpn == ndump :
+
             dumpn -= ndump
             print 't = %1.2fs, mesh number = ' % t, mn
             phi_file.write(phi, time = t)
+
+            if remesh == 'y' :
+                m_file.write(M, time=t)
 
 # End timing and print:
 toc1 = clock()

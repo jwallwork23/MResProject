@@ -3,6 +3,18 @@ import numpy as np
 
 INF = float("inf")
 
+def barCoord(crdM, crdTri, i):
+   # A function which computes the barycentric coordinate of M in triangle Tri = P0, P1, P2 with respect to the ith
+   # vertex crd = det(MPj, MPk) / det(PiPj, PiPk)
+   j = (i+1) % 3
+   k = (i+2) % 3
+   res1 = (crdTri[j][0] - crdM[0]) * (crdTri[k][1] - crdM[1]) - (crdTri[k][0] - crdM[0]) * (crdTri[j][1] - crdM[1])
+   res2 = (crdTri[j][0] - crdTri[i][0]) * (crdTri[k][1] - crdTri[i][1]) - \
+          (crdTri[k][0] - crdTri[i][0]) * (crdTri[j][1] - crdTri[i][1])
+   res = res1 / res2
+
+   return res
+
 def interp(u, mesh, unew, meshnew) :
     """A function which interpolates a function u onto a new mesh. Only slightly modified version of Nicolas Barral's
     function ``interpol``, from the Python script ``interpol.py``."""
@@ -46,8 +58,8 @@ def interp(u, mesh, unew, meshnew) :
                 crdE = []                                   # Coordinates of the two vertices of the edge
                 for cl in closure:
                     if cl >= vStart and cl < vEnd : 
-                        off = meshnew._plex.createSection([1], entity_dofs,
-                                                          perm = meshnew.topology._plex_renumbering).getOffset(cl) / 2
+                        off = mesh._plex.createSection([1], entity_dofs,
+                                                          perm = mesh.topology._plex_renumbering).getOffset(cl) / 2
                         crdE.append(mesh.coordinates.dat.data[off])
                 if len(crdE) != 2 : exit(16)
                 vn =  [crdE[0][1] - crdE[1][1], crdE[0][0] - crdE[1][0]]    # Normal vector of the edge
@@ -85,13 +97,14 @@ def interp(u, mesh, unew, meshnew) :
                     for c in range(cStart, cEnd) :
                         closure = plex.getTransitiveClosure(c)[0]
                         crdC = []           # Coordinates of the three vertices of the triangle
-                        val = []            # Value of the function at the vertices of the traingle
+                        val = []            # Value of the function at the vertices of the triangle
                         for cl in closure :
                             if cl >= vStart and cl < vEnd :
                                 off = meshnew._plex.createSection([1], entity_dofs,
                                                             perm = meshnew.topology._plex_renumbering).getOffset(cl) / 2
                                 crdC.append(mesh.coordinates.dat.data[off])
                                 val.append(u.dat.data[off])
+
                         # Establish barycentric coordinates of v:
                         barCrd[0] = barCoord(crdP, crdC, 0)
                         barCrd[1] = barCoord(crdP, crdC, 1)
@@ -113,8 +126,8 @@ def interp(u, mesh, unew, meshnew) :
                         print "## ERROR   f: %d,   fStart: %d,  fEnd: %d" % (f, fStart, fEnd)
                         exit(14)
                     closure = plex.getTransitiveClosure(f)[0]
-                    crdE = []               # Coordinates of the two vertices of the edge
-                    val = []                # Value of the function at the vertices of the edge
+                    crdE = []                                       # Coordinates of the two vertices of the edge
+                    val = []                                        # Value of the function at the vertices of the edge
                     for cl in closure:
                         if cl >= vStart and cl < vEnd : 
                             off = meshnew._plex.createSection([1], entity_dofs,
@@ -127,6 +140,7 @@ def interp(u, mesh, unew, meshnew) :
                     edg =  [crdE[0][0] - crdE[1][0], crdE[0][1] - crdE[1][1]]       # Normed vector e2e1
                     nrm = sqrt(edg[0] * edg[0] + edg[1] * edg[1])
                     edg = [edg[0] / nrm, edg[1] / nrm]
+
                     # H = alpha e1 + (1-alpha) e2    and   alpha = e2P.e2e1/||e2e1||
                     alpha = (crdP[0] - crdE[1][0]) * edg[0] + (crdP[1] - crdE[1][1]) * edg[1]
                     if alpha > 1 : exit(23)
@@ -134,4 +148,4 @@ def interp(u, mesh, unew, meshnew) :
                 unew.dat.data[offnew] = val 
         else:   
             print "#### ERROR no recovery procedure implemented in 3D yet"
-            exit(1)    
+            exit(1)

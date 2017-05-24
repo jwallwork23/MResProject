@@ -94,7 +94,6 @@ while t < T - 0.5 * dt :
         H = construct_hessian(mesh, V, eta)
         M = compute_steady_metric(mesh, V, H, eta, h_min = hmin, N = nodes)
         M.rename('Metric field')
-        m_file.write(M, time = t)
 
         # Adapt mesh and update FE setup:
         mesh_ = mesh
@@ -105,28 +104,28 @@ while t < T - 0.5 * dt :
         print 'Number of nodes after adaption step %d: ' % mn, len(mesh.coordinates.dat.data)
         print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
 
-        # Set up functions of weak problem:
-        v, ze = TestFunctions(Vq)
-        u, eta = split(q)
-        u_, eta_ = split(q_)
+    # Set up functions of weak problem:
+    v, ze = TestFunctions(Vq)
+    u, eta = split(q)
+    u_, eta_ = split(q_)
 
-        # Create 'mid-step' functions:
-        uh = 0.5 * (u + u_)
-        etah = 0.5 * (eta + eta_)
+    # Create 'mid-step' functions:
+    uh = 0.5 * (u + u_)
+    etah = 0.5 * (eta + eta_)
 
-        # Set up the variational problem
-        L = ((eta - eta_) * ze - Dt * (inner(uh * ze, grad(b + etah)) + inner(uh * (b + etah), grad(ze)))
-             + inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
-        q_prob = NonlinearVariationalProblem(L, q)
-        q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
+    # Set up the variational problem
+    L = ((eta - eta_) * ze - Dt * (inner(uh * ze, grad(b + etah)) + inner(uh * (b + etah), grad(ze)))
+         + inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
+    q_prob = NonlinearVariationalProblem(L, q)
+    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
-        # The function 'split' has two forms: now use the form which splits a function in order to access its data
-        u_, eta_ = q_.split()
-        u, eta = q.split()
+    # The function 'split' has two forms: now use the form which splits a function in order to access its data
+    u_, eta_ = q_.split()
+    u, eta = q.split()
 
-        # Relabel:
-        u.rename('Fluid velocity')
-        eta.rename('Free surface displacement')
+    # Relabel:
+    u.rename('Fluid velocity')
+    eta.rename('Free surface displacement')
 
     # Enter the inner timeloop:
     while cnt < rm :
@@ -137,8 +136,12 @@ while t < T - 0.5 * dt :
         q_.assign(q)
         dumpn += 1
         if dumpn == ndump :
+
             dumpn -= ndump
             q_file.write(u, eta, time = t)
+
+            if remesh == 'y' :
+                m_file.write(M, time=t)
 
 # End timing and print:
 toc1 = clock()

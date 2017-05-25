@@ -3,6 +3,32 @@ import numpy as np
 
 INF = float("inf")
 
+
+class Meshd():
+    """A structure holding the objects related to a mesh."""
+
+    def __init__(self, mesh, reorderPlex=True, computeAltMin=True):
+
+        self.mesh = mesh
+
+        self.V = FunctionSpace(self.mesh, 'CG', 1)
+
+        self.altMin = Function(self.V)
+
+        entity_dofs = np.zeros(self.mesh._topological_dimension + 1, dtype = np.int32)
+        entity_dofs[0] = self.mesh.geometric_dimension()
+        self.section = self.mesh._plex.createSection([1], entity_dofs, perm = self.mesh.topology._plex_renumbering)
+
+        if reorderPlex:
+            with self.mesh.coordinates.dat.vec_ro as coords:
+                self.mesh.topology._plex.setCoordinatesLocal(coords)
+
+        if computeAltMin:
+            if self.mesh._topological_dimension == 2:
+                self.altMin.interpolate(2 * CellVolume(self.mesh) / MaxCellEdgeLength(self.mesh))
+            else:
+                print '#### 3D implementation not yet considered.'
+
 def barCoord(crdM, crdTri, i):
    # A function which computes the barycentric coordinate of M in triangle Tri = P0, P1, P2 with respect to the ith
    # vertex crd = det(MPj, MPk) / det(PiPj, PiPk)
@@ -15,14 +41,16 @@ def barCoord(crdM, crdTri, i):
 
    return res
 
-def interp(u, mesh, unew, meshnew) :
+def interp(u, meshd, unew, meshdnew) :
     """A function which interpolates a function u onto a new mesh. Only slightly modified version of Nicolas Barral's
     function ``interpol``, from the Python script ``interpol.py``."""
 
+    # Get meshes from structures:
+    mesh = meshd.mesh
+    meshnew = meshdnew.mesh
+
     # Establish topological and geometric dimensions (usually both 2 for our purposes):
     dim = mesh._topological_dimension
-    entity_dofs = np.zeros(meshnew._topological_dimension + 1, dtype = np.int32)
-    entity_dofs[0] = meshnew.geometric_dimension()
 
     # Get the DMPlex object encapsulating the mesh topology and determine the vertices of plex to consider (?):
     plexnew = meshnew._plex
@@ -31,8 +59,7 @@ def interp(u, mesh, unew, meshnew) :
     # Establish which vertices fall outside the domain:
     notInDomain = []
     for v in range(vStart, vEnd) :
-        offnew = meshnew._plex.createSection([1], entity_dofs,
-                                             perm = meshnew.topology._plex_renumbering).getOffset(v) / dim
+        offnew = meshdnew.section.getOffset(v) / dim
         newCrd = meshnew.coordinates.dat.data[offnew]
         try :
             val = u.at(newCrd)
@@ -58,8 +85,7 @@ def interp(u, mesh, unew, meshnew) :
                 crdE = []                                   # Coordinates of the two vertices of the edge
                 for cl in closure:
                     if cl >= vStart and cl < vEnd : 
-                        off = mesh._plex.createSection([1], entity_dofs,
-                                                          perm = mesh.topology._plex_renumbering).getOffset(cl) / 2
+                        off = meshd.section.getOffset(cl) / 2
                         crdE.append(mesh.coordinates.dat.data[off])
                 if len(crdE) != 2 : exit(16)
                 vn =  [crdE[0][1] - crdE[1][1], crdE[0][0] - crdE[1][0]]    # Normal vector of the edge
@@ -67,8 +93,7 @@ def interp(u, mesh, unew, meshnew) :
                 vn = [vn[0]/nrm, vn[1]/nrm]
                 for nid in notInDomain:
                     v = nid[0]
-                    offnew = meshnew._plex.createSection([1], entity_dofs,
-                                                         perm = meshnew.topology._plex_renumbering).getOffset(v) / 2
+                    offnew = meshdnew.section.getOffset(v) / 2
                     crdP = meshnew.coordinates.dat.data[offnew]
                     dst = abs(vn[0] * (crdE[0][0] - crdP[0]) + vn[1] * (crdE[0][1] - crdP[1]))
 
@@ -86,8 +111,7 @@ def interp(u, mesh, unew, meshnew) :
                             
             for nid in notInDomain :
                 v = nid[0]
-                offnew = meshnew._plex.createSection([1], entity_dofs,
-                                                     perm = meshnew.topology._plex_renumbering).getOffset(v)/2
+                offnew = meshdnew.section.getOffset(v)/2
                 crdP = meshnew.coordinates.dat.data[offnew]
                 val = -1
                 if nid[1] > 0.01 :
@@ -100,8 +124,7 @@ def interp(u, mesh, unew, meshnew) :
                         val = []            # Value of the function at the vertices of the triangle
                         for cl in closure :
                             if cl >= vStart and cl < vEnd :
-                                off = mesh._plex.createSection([1], entity_dofs,
-                                                            perm = mesh.topology._plex_renumbering).getOffset(cl) / 2
+                                off = meshd.section.getOffset(cl) / 2
                                 crdC.append(mesh.coordinates.dat.data[off])
                                 val.append(u.dat.data[off])
 
@@ -130,8 +153,7 @@ def interp(u, mesh, unew, meshnew) :
                     val = []                                        # Value of the function at the vertices of the edge
                     for cl in closure:
                         if cl >= vStart and cl < vEnd : 
-                            off = mesh._plex.createSection([1], entity_dofs,
-                                                            perm = mesh.topology._plex_renumbering).getOffset(cl) / 2
+                            off = mesh.section.getOffset(cl) / 2
                             crdE.append(mesh.coordinates.dat.data[off])
                             val.append(u.dat.data[off])
                     if len(crdE) != 2 : 

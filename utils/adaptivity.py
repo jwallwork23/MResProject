@@ -180,9 +180,12 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
 
     return M
 
-def update_SW_FE(mesh1, mesh2, u_, u, eta_, eta, b) :
+def update_SW_FE(meshd1, meshd2, u_, u, eta_, eta, b) :
     """A function which updates shallow water solution fields and bathymetry from one mesh to another."""
-    
+
+    # Get mesh:
+    mesh2 = meshd2.mesh
+
     # Establish function spaces on the new mesh:
     Vu = VectorFunctionSpace(mesh2, 'CG', 1)
     Ve = FunctionSpace(mesh2, 'CG', 1)
@@ -196,43 +199,21 @@ def update_SW_FE(mesh1, mesh2, u_, u, eta_, eta, b) :
     b2 = Function(Ve)
 
     # Interpolate functions across from the previous mesh:
-    interp(u_, mesh1, u_2, mesh2)
-    interp(u, mesh1, u2, mesh2)
-    interp(eta_, mesh1, eta_2, mesh2)
-    interp(eta, mesh1, eta2, mesh2)
-    interp(b, mesh1, b2, mesh2)
+    interp(u_, meshd1, u_2, meshd2)
+    interp(u, meshd1, u2, meshd2)
+    interp(eta_, meshd1, eta_2, meshd2)
+    interp(eta, meshd1, eta2, meshd2)
+    interp(b, meshd1, b2, meshd2)
 
     return q_2, q2, u_2, u2, eta_2, eta2, b2, Vq
 
-
-def update_SW_FE_init(mesh1, mesh2, u_, eta_, b) :
-    """A function which updates shallow water solution fields and bathymetry from one mesh to another at the initial
-    remesh step."""
-
-    # Establish function spaces on the new mesh:
-    Vu = VectorFunctionSpace(mesh2, 'CG', 1)
-    Ve = FunctionSpace(mesh2, 'CG', 1)
-    Vq = MixedFunctionSpace((Vu, Ve))
-
-    # Establish functions in the new spaces:
-    q_2 = Function(Vq)
-    u_2, eta_2 = q_2.split()
-    b2 = Function(Ve)
-
-    # Interpolate functions across from the previous mesh:
-    interp(u_, mesh1, u_2, mesh2)
-    interp(eta_, mesh1, eta_2, mesh2)
-    interp(b, mesh1, b2, mesh2)
-
-    return q_2, u_2, eta_2, b2, Vq
-
-def update_advection_FE(mesh1, mesh2, phi_, phi) :
+def update_advection_FE(meshd1, meshd2, phi_, phi) :
     """Update all functions from one mesh to another."""
 
-    Vphi = FunctionSpace(mesh2, 'CG', 1)
+    Vphi = meshd2.V
     phi_2 = Function(Vphi)
     phi2 = Function(Vphi)
-    interp(phi_, mesh1, phi_2, mesh2)
-    interp(phi, mesh1, phi2, mesh2)
+    interp(phi_, meshd1, phi_2, meshd2)
+    interp(phi, meshd1, phi2, meshd2)
 
     return phi_2, phi2, Vphi

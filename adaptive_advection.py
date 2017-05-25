@@ -3,13 +3,14 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import adapt, construct_hessian, compute_steady_metric, interp, update_advection_FE
+from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, update_advection_FE
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)                    # Resolution of initial uniform mesh
 lx = 4                                                                          # Extent in x-direction (m)
 ly = 1                                                                          # Extent in y-direction (m)
 mesh = RectangleMesh(lx * n, ly * n, lx, ly)
+meshd = Meshd(mesh)
 x, y = SpatialCoordinate(mesh)
 print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
 
@@ -68,9 +69,11 @@ while t < T - 0.5 * dt :
 
         # Adapt mesh and set up new function spaces:
         mesh_ = mesh
+        meshd_ = Meshd(mesh_)
         tic2 = clock()
         mesh = adapt(mesh, M)
-        phi_, phi, W = update_advection_FE(mesh_, mesh, phi_, phi)
+        meshd = Meshd(mesh)
+        phi_, phi, W = update_advection_FE(meshd_, meshd, phi_, phi)
         toc2 = clock()
         print 'Number of nodes after adaption step %d: ' % mn, len(mesh.coordinates.dat.data)
         print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
@@ -96,7 +99,7 @@ while t < T - 0.5 * dt :
             phi_file.write(phi, time = t)
 
             if remesh == 'y' :
-                m_file.write(M, time=t)
+                m_file.write(M, time = t)
 
 # End timing and print:
 toc1 = clock()

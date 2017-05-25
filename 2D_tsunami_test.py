@@ -42,14 +42,14 @@ Vq = MixedFunctionSpace((Vu, Ve))                                           # Mi
 
 # Construct a function to store our two variables at time n:
 q_ = Function(Vq)                                                           # Forward solution tuple
-u_, eta_ = q_.split()
+mu_, eta_ = q_.split()
 
 # Establish bathymetry function:
 b = Function(Ve, name = 'Bathymetry')
 b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))  # Shelf break bathymetry
 
-# Interpolate initial and boundary conditions, noting higher magnitude wave used due to geometric spreading:
-u_.interpolate(Expression([0, 0]))
+# Interpolate initial conditions, noting higher magnitude wave used due to geometric spreading:
+mu_.interpolate(Expression([0, 0]))
 eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? \
                                         10 * sin(pi*(x[0]-1e5) * 2e-5) * sin(pi*(x[1]-1.8e5) * 2.5e-5) : 0.'))
 

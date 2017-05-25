@@ -11,8 +11,8 @@ hmin = float(raw_input('Minimum element size (default 0.005)?: ') or 0.005)
 mesh1 = SquareMesh(100, 100, 2, 2)
 meshd1 = Meshd(mesh1)
 x, y = SpatialCoordinate(mesh1)
-x = x-1
-y = y-1
+x = x - 1
+y = y - 1
 V = TensorFunctionSpace(mesh1, 'CG', 1)
 print 'Initial number of nodes : ', len(mesh1.coordinates.dat.data)
 
@@ -31,26 +31,28 @@ f = {1: f1, 2: f2, 3: f3, 4: f4}
 
 for i in f:
 
-    print '*********** Sensor {y} ***********'.format(y=i)
-
     tic1 = clock()
 
     # Compute Hessian and metric:
     H = construct_hessian(mesh1, V, f[i])
-    M = compute_steady_metric(mesh1, V, H, f[i], h_min = hmin)
+    M = compute_steady_metric(mesh1, V, H, f[i], h_min = hmin, a = 1000.)
 
     # Adapt mesh and set up new function spaces:
     mesh2 = adapt(mesh1, M)
     meshd2 = Meshd(mesh2)
     G = FunctionSpace(mesh2, 'CG', 1)
-    print 'Number of nodes after adaption : ', len(mesh2.coordinates.dat.data)
 
     # Interpolate functions onto new mesh:
     g = Function(G)
     interp(f[i], meshd1, g, meshd2)
-
     toc1 = clock()
+
+    # Print to screen:
+    print ''
+    print '*********** Sensor {y} ***********'.format(y=i)
+    print 'Number of nodes after adaption : ', len(mesh2.coordinates.dat.data)
     print 'Elapsed time adapting to sensor %d: %1.2es' % (i, toc1 - tic1)
+    print ''
 
     # Plot results:
     g.rename('Sensor {y}'.format(y=i))

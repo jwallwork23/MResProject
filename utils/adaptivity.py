@@ -207,6 +207,31 @@ def update_SW_FE(meshd1, meshd2, u_, u, eta_, eta, b) :
 
     return q_2, q2, u_2, u2, eta_2, eta2, b2, Vq
 
+def update_tank_SW(meshd1, meshd2, u_, u, eta_, eta) :
+    """A function which updates shallow water solution fields and bathymetry from one mesh to another."""
+
+    # Get mesh:
+    mesh2 = meshd2.mesh
+
+    # Establish function spaces on the new mesh:
+    Vu = VectorFunctionSpace(mesh2, 'CG', 1)        # TODO: use Taylor-Hood
+    Ve = FunctionSpace(mesh2, 'CG', 1)
+    Vq = MixedFunctionSpace((Vu, Ve))
+
+    # Establish functions in the new spaces:
+    q_2 = Function(Vq)
+    u_2, eta_2 = q_2.split()
+    q2 = Function(Vq)
+    u2, eta2 = q2.split()
+
+    # Interpolate functions across from the previous mesh:
+    interp(u_, meshd1, u_2, meshd2)
+    interp(u, meshd1, u2, meshd2)
+    interp(eta_, meshd1, eta_2, meshd2)
+    interp(eta, meshd1, eta2, meshd2)
+
+    return q_2, q2, u_2, u2, eta_2, eta2, Vq
+
 def update_advection_FE(meshd1, meshd2, phi_, phi) :
     """Update all functions from one mesh to another."""
 

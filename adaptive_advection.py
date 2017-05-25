@@ -35,7 +35,7 @@ else :
     ntype = None
 
 # Create function space and set initial conditions:
-W = FunctionSpace(mesh, 'CG', 1)
+W = meshd.V
 phi_ = Function(W)
 phi_.interpolate(1e-3 * exp(-(pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
 phi = Function(W, name = 'Concentration')

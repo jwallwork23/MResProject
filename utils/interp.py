@@ -7,7 +7,7 @@ INF = float("inf")
 class Meshd :
     """A structure holding the objects related to a mesh."""
 
-    def __init__(self, mesh, reorderPlex=True, computeAltMin=True):
+    def __init__(self, mesh, reorderPlex = True, computeAltMin = True) :
 
         self.mesh = mesh
 
@@ -19,14 +19,14 @@ class Meshd :
         entity_dofs[0] = self.mesh.geometric_dimension()
         self.section = self.mesh._plex.createSection([1], entity_dofs, perm = self.mesh.topology._plex_renumbering)
 
-        if reorderPlex:
+        if reorderPlex :
             with self.mesh.coordinates.dat.vec_ro as coords:
                 self.mesh.topology._plex.setCoordinatesLocal(coords)
 
-        if computeAltMin:
-            if self.mesh._topological_dimension == 2:
+        if computeAltMin :
+            if self.mesh._topological_dimension == 2 :
                 self.altMin.interpolate(2 * CellVolume(self.mesh) / MaxCellEdgeLength(self.mesh))
-            else:
+            else :
                 print '#### 3D implementation not yet considered.'
 
 def barCoord(crdM, crdTri, i):

@@ -72,7 +72,8 @@ while t < T - 0.5 * dt :
         tic2 = clock()
         mesh = adapt(mesh, M)
         meshd = Meshd(mesh)
-        phi_, phi, W = update_advection_FE(meshd_, meshd, phi_, phi)
+        phi_, phi = update_advection_FE(meshd_, meshd, phi_, phi)
+        W = meshd.V
         toc2 = clock()
         phi.rename('Concentration')
 

@@ -187,7 +187,7 @@ def update_SW_FE(meshd1, meshd2, u_, u, eta_, eta, b) :
     mesh2 = meshd2.mesh
 
     # Establish function spaces on the new mesh:
-    Vu = VectorFunctionSpace(mesh2, 'CG', 1)
+    Vu = VectorFunctionSpace(mesh2, 'CG', 1)        # TODO: use Taylor-Hood
     Ve = FunctionSpace(mesh2, 'CG', 1)
     Vq = MixedFunctionSpace((Vu, Ve))
 
@@ -210,10 +210,9 @@ def update_SW_FE(meshd1, meshd2, u_, u, eta_, eta, b) :
 def update_advection_FE(meshd1, meshd2, phi_, phi) :
     """Update all functions from one mesh to another."""
 
-    Vphi = meshd2.V
-    phi_2 = Function(Vphi)
-    phi2 = Function(Vphi)
+    phi_2 = Function(meshd2.V)
+    phi2 = Function(meshd2.V)
     interp(phi_, meshd1, phi_2, meshd2)
     interp(phi, meshd1, phi2, meshd2)
 
-    return phi_2, phi2, Vphi
+    return phi_2, phi2

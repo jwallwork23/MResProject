@@ -8,7 +8,7 @@ from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd
 hmin = float(raw_input('Minimum element size (default 0.005)?: ') or 0.005)
 
 # Define uniform mesh, with a metric function space:
-mesh1 = SquareMesh(30, 30, 2, 2)
+mesh1 = SquareMesh(100, 100, 2, 2)
 meshd1 = Meshd(mesh1)
 x, y = SpatialCoordinate(mesh1)
 x = x-1
@@ -38,8 +38,6 @@ for i in f:
     # Compute Hessian and metric:
     H = construct_hessian(mesh1, V, f[i])
     M = compute_steady_metric(mesh1, V, H, f[i], h_min = hmin)
-    print 'Some element of metric field %d : ' % i
-    print M.dat.data[400]
 
     # Adapt mesh and set up new function spaces:
     mesh2 = adapt(mesh1, M)

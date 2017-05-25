@@ -4,7 +4,7 @@ import numpy as np
 INF = float("inf")
 
 
-class Meshd():
+class Meshd :
     """A structure holding the objects related to a mesh."""
 
     def __init__(self, mesh, reorderPlex=True, computeAltMin=True):
@@ -84,7 +84,7 @@ def interp(u, meshd, unew, meshdnew) :
                 closure = plex.getTransitiveClosure(f)[0]
                 crdE = []                                   # Coordinates of the two vertices of the edge
                 for cl in closure:
-                    if cl >= vStart and cl < vEnd : 
+                    if vStart <= cl and cl < vEnd :
                         off = meshd.section.getOffset(cl) / 2
                         crdE.append(mesh.coordinates.dat.data[off])
                 if len(crdE) != 2 : exit(16)
@@ -123,7 +123,7 @@ def interp(u, meshd, unew, meshdnew) :
                         crdC = []           # Coordinates of the three vertices of the triangle
                         val = []            # Value of the function at the vertices of the triangle
                         for cl in closure :
-                            if cl >= vStart and cl < vEnd :
+                            if vStart <= cl and cl < vEnd :
                                 off = meshd.section.getOffset(cl) / 2
                                 crdC.append(mesh.coordinates.dat.data[off])
                                 val.append(u.dat.data[off])
@@ -145,15 +145,15 @@ def interp(u, meshd, unew, meshdnew) :
                         exit(16)
                 else :
                     f = nid[2]
-                    if (f < fStart or f > fEnd):
+                    if f < fStart or f > fEnd :
                         print "## ERROR   f: %d,   fStart: %d,  fEnd: %d" % (f, fStart, fEnd)
                         exit(14)
                     closure = plex.getTransitiveClosure(f)[0]
                     crdE = []                                       # Coordinates of the two vertices of the edge
                     val = []                                        # Value of the function at the vertices of the edge
                     for cl in closure:
-                        if cl >= vStart and cl < vEnd : 
-                            off = mesh.section.getOffset(cl) / 2
+                        if vStart <= cl and cl < vEnd :
+                            off = meshd.section.getOffset(cl) / 2
                             crdE.append(mesh.coordinates.dat.data[off])
                             val.append(u.dat.data[off])
                     if len(crdE) != 2 : 

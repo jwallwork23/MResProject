@@ -16,7 +16,7 @@ print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
 
 # Specify timestepping parameters:
 ndump = int(raw_input('Timesteps per data dump (default 1): ') or 1)
-T = 3.0                                                                         # Simulation end time (s)
+T = 2.5                                                                         # Simulation end time (s)
 dt = 0.1/(n * ndump)                                                            # Timestep length (s)
 Dt = Constant(dt)
 
@@ -59,7 +59,6 @@ while t < T - 0.5 * dt :
     cnt = 0
 
     if remesh == 'y' :
-        print '************ Adaption step %d **************' % mn
 
         # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)
@@ -75,9 +74,15 @@ while t < T - 0.5 * dt :
         meshd = Meshd(mesh)
         phi_, phi, W = update_advection_FE(meshd_, meshd, phi_, phi)
         toc2 = clock()
+        phi.rename('Concentration')
+
+        # Print to screen:
+        print ''
+        print '************ Adaption step %d **************' % mn
+        print 'Time = %1.2fs' % t
         print 'Number of nodes after adaption step %d: ' % mn, len(mesh.coordinates.dat.data)
         print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
-        phi.rename('Concentration')
+        print ''
 
     # Set up variational problem, using implicit midpoint timestepping:
     psi = TestFunction(W)
@@ -95,7 +100,6 @@ while t < T - 0.5 * dt :
         if dumpn == ndump :
 
             dumpn -= ndump
-            print 't = %1.2fs, mesh number = ' % t, mn
             phi_file.write(phi, time = t)
 
             if remesh == 'y' :

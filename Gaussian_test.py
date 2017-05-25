@@ -127,7 +127,7 @@ while t < T - 0.5 * dt :
     L = (ze * (eta - eta_) - Dt * inner((eta + b) * u, grad(ze)) +
          inner(u - u_, v) + Dt * g * (inner(grad(eta), v))) * dx
     q_prob = NonlinearVariationalProblem(L, q)
-    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
+    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
     # 'Split' functions to access their data and relabel:
     u_, eta_ = q_.split()

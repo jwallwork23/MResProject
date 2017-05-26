@@ -3,7 +3,7 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, update_tank_SW
+from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, update_SW_FE
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)                    # Resolution of initial uniform mesh
@@ -12,7 +12,9 @@ mesh = SquareMesh(lx * n, lx * n, lx, lx)
 meshd = Meshd(mesh)
 x, y = SpatialCoordinate(mesh)
 print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
-b = Constant(0.1)       # (Constant) tank water depth (m)
+bathy = raw_input('Flat bathymetry or shelf break (f/s)?: ') or 'f'
+if (bathy != 'f') & (bathy != 's') :
+    raise ValueError('Please try again, choosing f or s.')
 
 # Specify timestepping parameters:
 ndump = int(raw_input('Timesteps per data dump (default 1): ') or 1)
@@ -33,14 +35,23 @@ else :
     rm = int(T / dt)
     nodes = 0
     ntype = None
+    if remesh != 'n' :
+        raise ValueError('Please try again, choosing y or n.')
 
 # Define function spaces:
 Vu = VectorFunctionSpace(mesh, 'CG', 1)                                     # TODO: consider Taylor-Hood elements
 Ve = FunctionSpace(mesh, 'CG', 1)
 Vq = MixedFunctionSpace((Vu, Ve))                                           # Mixed FE problem
 
+# Establish bathymetry function:
+b = Function(Ve, name = 'Bathymetry')
+if bathy == 'f' :
+    b.assign(0.1)  # (Constant) tank water depth (m)
+else :
+    b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))  # Shelf break bathymetry
+
 # Construct a function to store our two variables at time n:
-q_ = Function(Vq)                                                           # Forward solution tuple
+q_ = Function(Vq)
 u_, eta_ = q_.split()
 
 # Interpolate initial conditions:
@@ -107,7 +118,7 @@ while t < T - 0.5 * dt :
         tic2 = clock()
         mesh = adapt(mesh, M)
         meshd = Meshd(mesh)
-        q_, q, u_, u, eta_, eta, Vq = update_tank_SW(meshd_, meshd, u_, u, eta_, eta)
+        q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
         toc2 = clock()
 
         # Print to screen:

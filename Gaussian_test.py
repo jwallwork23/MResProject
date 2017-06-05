@@ -76,7 +76,7 @@ params = {'mat_type': 'matfree',
 
 # Set up the variational problem:
 g = 9.81            # Gravitational acceleration (m s^{-2})
-L = (ze * (eta - eta_) - Dt * inner((eta + b) * u, grad(ze)) + inner(u - u_, v) + Dt * g *(inner(grad(eta), v))) * dx
+L = (ze * (eta - eta_) - Dt * inner(b * u, grad(ze)) + inner(u - u_, v) + Dt * g *(inner(grad(eta), v))) * dx
 q_prob = NonlinearVariationalProblem(L, q)
 q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
@@ -135,7 +135,7 @@ while t < T - 0.5 * dt :
     u_, eta_ = split(q_)
 
     # Set up the variational problem:
-    L = (ze * (eta - eta_) - Dt * inner((eta + b) * u, grad(ze)) +
+    L = (ze * (eta - eta_) - Dt * inner(b * u, grad(ze)) +
          inner(u - u_, v) + Dt * g * (inner(grad(eta), v))) * dx
     q_prob = NonlinearVariationalProblem(L, q)
     q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)

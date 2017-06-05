@@ -63,8 +63,8 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner_persists': True,}
 
 # Set up the variational problem:
-L = ((eta - eta_) * ze - Dt * (inner(uh * ze, grad(b + etah)) + inner(uh * (b + etah), grad(ze)))
-     + inner(u-u_, v) + Dt * g *(inner(grad(etah), v))) * dx
+L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) +
+         inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
 q_prob = NonlinearVariationalProblem(L, q)
 q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
@@ -115,8 +115,8 @@ while t < T - 0.5 * dt:
     etah = 0.5 * (eta + eta_)
 
     # Set up the variational problem
-    L = ((eta - eta_) * ze - Dt * (inner(uh * ze, grad(b + etah)) + inner(uh * (b + etah), grad(ze)))
-         + inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
+    L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) +
+         inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
     q_prob = NonlinearVariationalProblem(L, q)
     q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 

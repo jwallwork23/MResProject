@@ -65,6 +65,10 @@ v, ze = TestFunctions(Vq)
 u, eta = split(q)
 u_, eta_ = split(q_)
 
+# For timestepping we consider the implicit midpoint rule and so must create new 'mid-step' functions:
+uh = 0.5 * (u + u_)
+etah = 0.5 * (eta + eta_)
+
 # Specify solver parameters:
 params = {'mat_type': 'matfree',
           'snes_type': 'ksponly',
@@ -76,7 +80,8 @@ params = {'mat_type': 'matfree',
 
 # Set up the variational problem:
 g = 9.81            # Gravitational acceleration (m s^{-2})
-L = (ze * (eta - eta_) - Dt * inner(b * u, grad(ze)) + inner(u - u_, v) + Dt * g *(inner(grad(eta), v))) * dx
+L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) +
+     inner(u - u_, v) + Dt * g *(inner(grad(etah), v))) * dx
 q_prob = NonlinearVariationalProblem(L, q)
 q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
@@ -133,10 +138,12 @@ while t < T - 0.5 * dt :
     v, ze = TestFunctions(Vq)
     u, eta = split(q)
     u_, eta_ = split(q_)
+    uh = 0.5 * (u + u_)
+    etah = 0.5 * (eta + eta_)
 
     # Set up the variational problem:
-    L = (ze * (eta - eta_) - Dt * inner(b * u, grad(ze)) +
-         inner(u - u_, v) + Dt * g * (inner(grad(eta), v))) * dx
+    L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) +
+         inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
     q_prob = NonlinearVariationalProblem(L, q)
     q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
@@ -161,7 +168,7 @@ while t < T - 0.5 * dt :
             if remesh == 'y' :
                 m_file.write(M, time = t)
             else :
-                print 't = %1.2fs, mesh number =', t
+                print 't = %1.2fs, mesh number =' % t
 
 # End timing and print:
 toc1 = clock()

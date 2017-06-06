@@ -88,7 +88,7 @@ def interp(u, meshd, unew, meshdnew) :
                         off = meshd.section.getOffset(cl) / 2
                         crdE.append(mesh.coordinates.dat.data[off])
                 if len(crdE) != 2 :
-                    print '#### Warning: coordinate not 2D'
+                    print '## ERROR  number of points in crdE: %d' % len(crdE)
                     exit(16)
                 vn =  [crdE[0][1] - crdE[1][1], crdE[0][0] - crdE[1][0]]    # Normal vector of the edge
                 nrm = sqrt(vn[0] * vn[0] + vn[1] * vn[1])
@@ -167,7 +167,9 @@ def interp(u, meshd, unew, meshdnew) :
 
                     # H = alpha e1 + (1-alpha) e2    and   alpha = e2P.e2e1/||e2e1||
                     alpha = (crdP[0] - crdE[1][0]) * edg[0] + (crdP[1] - crdE[1][1]) * edg[1]
-                    if alpha > 1 : exit(23)
+                    if alpha > 1 :
+                        print '## ERROR alpha = %1.4f' % alpha
+                        exit(23)
                     val = alpha * val[0] + (1 - alpha) * val[1]
                 unew.dat.data[offnew] = val 
         else :

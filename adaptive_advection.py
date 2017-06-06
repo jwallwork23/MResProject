@@ -14,12 +14,6 @@ meshd = Meshd(mesh)
 x, y = SpatialCoordinate(mesh)
 print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
 
-# Specify timestepping parameters:
-ndump = int(raw_input('Timesteps per data dump (default 1): ') or 1)
-T = 2.5                                                                         # Simulation end time (s)
-dt = 0.1/(n * ndump)                                                            # Timestep length (s)
-Dt = Constant(dt)
-
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y' :
@@ -33,6 +27,12 @@ else :
     rm = int(T / dt)
     nodes = 0
     ntype = None
+
+# Courant number adjusted timestepping parameters:
+ndump = 1
+T = 2.5                                                                         # Simulation end time (s)
+dt = 0.8 * hmin         # Timestep length (s)
+Dt = Constant(dt)
 
 # Create function space and set initial conditions:
 W = meshd.V

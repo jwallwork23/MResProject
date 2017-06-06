@@ -175,7 +175,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             M.dat.data[i][1,0] = M.dat.data[i][0,1]
             M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
 
-    else:
+    else :
         raise ValueError('Normalisation selection not recognised, choose `manual` or `lp`.')
 
     return M

@@ -8,7 +8,7 @@ def domain_1d(n):
     
     # Define domain and mesh:
     lx = 4e5
-    nx = int(lx*n)    # 400 km ocean domain, uniform grid spacing
+    nx = int(lx * n)    # 400 km ocean domain, uniform grid spacing
     mesh = IntervalMesh(nx, lx)
 
     # Define function spaces:
@@ -47,7 +47,7 @@ def tank_domain(n, bath = 'n', waves = 'n', test2d = 'n', bcval = None) :
         nx = int(lx * n)
         ny = int(ly * n)
         mesh = RectangleMesh(nx, ny, lx, ly)
-    else:
+    else :
         lx = 4e5
         nx = int(lx * n)
         mesh = SquareMesh(nx, nx, lx, lx)
@@ -66,13 +66,13 @@ def tank_domain(n, bath = 'n', waves = 'n', test2d = 'n', bcval = None) :
 
     # Establish bathymetry function:
     b = Function(Ve, name = 'Bathymetry')
-    if bath == 'y':
+    if bath == 'y' :
         b.interpolate(0.1 + 0.04 * sin(2 * pi * x[0]) * sin(2 * pi * x[1]))
         File('plots/screenshots/tank_bathymetry.pvd').write(b)
     elif test2d == 'n' :
         # Construct a (constant) bathymetry function:
         b.assign(0.1)                                                       # Tank water depth 10 cm
-    else:
+    else :
         b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))          # Shelf break bathymetry
 
     # Interpolate forward and adjoint initial and boundary conditions:
@@ -111,8 +111,8 @@ def Tohoku_domain(res = 'c') :
         mesh_converter('resources/meshes/LonLatTohokuCoarse.msh', 143., 37.)
     mesh = Mesh('resources/meshes/CartesianTohoku.msh')
     mesh_coords = mesh.coordinates.dat.data
-    Vu = VectorFunctionSpace(mesh, 'CG', 2)                                 # \ Use Taylor-Hood elements
-    Ve = FunctionSpace(mesh, 'CG', 1)                                       # /
+    Vu = VectorFunctionSpace(mesh, 'CG', 1)                                 # TODO: Use Taylor-Hood elements
+    Ve = FunctionSpace(mesh, 'CG', 1)                                       #
     Vq = MixedFunctionSpace((Vu, Ve))                                       # Mixed FE problem
 
     # Construct functions to store forward and adjoint variables, along with bathymetry:

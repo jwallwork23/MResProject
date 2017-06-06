@@ -56,7 +56,7 @@ u_, eta_ = q_.split()
 
 # Interpolate initial conditions:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(1e-3 * exp(-(pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
+eta_.interpolate(1e-3 * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
 
 # Set up functions of forward weak problem:
 q = Function(Vq)
@@ -92,7 +92,7 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Initialise time, counters and files:
-t = 0.0
+t = 0.
 dumpn = 0
 mn = 0
 cnt = 0

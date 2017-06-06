@@ -16,12 +16,6 @@ bathy = raw_input('Flat bathymetry or shelf break (f/s)?: ') or 'f'
 if (bathy != 'f') & (bathy != 's') :
     raise ValueError('Please try again, choosing f or s.')
 
-# Specify timestepping parameters:
-ndump = int(raw_input('Timesteps per data dump (default 1): ') or 1)
-T = 2.5                                                                         # Simulation end time (s)
-dt = 0.1/(n * ndump)                                                            # Timestep length (s)
-Dt = Constant(dt)
-
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y' :
@@ -37,6 +31,12 @@ else :
     ntype = None
     if remesh != 'n' :
         raise ValueError('Please try again, choosing y or n.')
+
+# Courant number adjusted timestepping parameters:
+ndump = 1
+T = 2.5             # Simulation end time (s)
+dt = 0.8 * hmin     # Timestep length (s)
+Dt = Constant(dt)
 
 # Define function spaces:
 Vu = VectorFunctionSpace(mesh, 'CG', 1)                                     # TODO: consider Taylor-Hood elements

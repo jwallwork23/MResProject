@@ -199,56 +199,58 @@ if remesh == 'y':
 else:
     print 'Elapsed time for non-adaptive forward solver: %1.2es' % (toc1 - tic1)
 
-# TODO: reintroduce adjoint problem
+print 'Forward problem solved.... now for the adjoint problem.'
 
-# print 'Forward problem solved.... now for the adjoint problem.'
-#
-# if remesh == 'y':
-#
-#     # Reset uniform mesh:
-#     mesh = SquareMesh(nx, nx, lx, lx)
-#
-#     # Re-define function spaces:
-#     Vu = VectorFunctionSpace(mesh, 'CG', 2)                         # \ Taylor-Hood elements
-#     Ve = FunctionSpace(mesh, 'CG', 1)                               # /
-#     Vq = MixedFunctionSpace((Vu, Ve))                               # Mixed FE problem
-#
-#     # Re-establish bathymetry function:
-#     b = Function(Ve, name = 'Bathymetry')
-#     b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))      # Shelf break bathymetry
-#
-# # Construct a function to store our two variables at time n:
-# lam_ = Function(Vq)                                                 # Adjoint solution tuple
-# lu_, le_ = lam_.split()
-#
-# # Interpolate initial and boundary conditions, noting higher magnitude wave used due to geometric spreading:
-# lu_.interpolate(Expression([0, 0]))
-# le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 10 : 0.'))
-#
-# # Set up functions of weak problem:
-# lam = Function(Vq)
-# lam.assign(lam_)
-# w, xi = TestFunctions(Vq)
-# lm, le = split(lam)
-# lm_, le_ = split(lam_)
-#
-# # Set up the variational problem:
-# L2 = ((le - le_) * xi - Dt * g * b * inner(lm, grad(xi)) + inner(lm - lm_, w) + Dt * inner(grad(le), w)) * dx
-# lam_prob = NonlinearVariationalProblem(L2, lam)
-# lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
-#
-# # 'Split' functions to access their data and relabel:
-# lm_, le_ = lam_.split()
-# lm, le = lam.split()
-# lm.rename('Adjoint fluid momentum')
-# le.rename('Adjoint free surface displacement')
-#
-# # Initialise counters and files:
-# cnt = 0
-# mn = 0
-# lam_file = File('plots/adjoint_test_outputs/linear_adjoint.pvd')
-# lam_file.write(lm, le, time=0)
-#
+if remesh == 'y':
+
+    # Reset uniform mesh:
+    mesh = SquareMesh(nx, nx, lx, lx)
+
+    # Re-define function spaces:
+    Vu = VectorFunctionSpace(mesh, 'CG', 1)                         # TODO: Taylor-Hood elements
+    Ve = FunctionSpace(mesh, 'CG', 1)                               #
+    Vq = MixedFunctionSpace((Vu, Ve))                               # Mixed FE problem
+
+    # Re-establish bathymetry function:
+    b = Function(Ve, name = 'Bathymetry')
+    b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))      # Shelf break bathymetry
+
+# Construct a function to store our two variables at time n:
+lam_ = Function(Vq)                                                 # Adjoint solution tuple
+lu_, le_ = lam_.split()
+
+# Interpolate initial and boundary conditions, noting higher magnitude wave used due to geometric spreading:
+lu_.interpolate(Expression([0, 0]))
+le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 10 : 0.'))
+
+# Set up functions of weak problem:
+lam = Function(Vq)
+lam.assign(lam_)
+w, xi = TestFunctions(Vq)
+lu, le = split(lam)
+lu_, le_ = split(lam_)
+luh = 0.5 * (lu + lu_)
+leh = 0.5 * (le + le_)
+
+# Set up the variational problem:
+L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+lam_prob = NonlinearVariationalProblem(L2, lam)
+lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
+
+# 'Split' functions to access their data and relabel:
+lu_, le_ = lam_.split()
+lu, le = lam.split()
+lu.rename('Adjoint fluid velocity')
+le.rename('Adjoint free surface displacement')
+
+# Initialise counters and files:
+cnt = 0
+mn = 0
+lam_file = File('plots/adjoint_test_outputs/linear_adjoint.pvd')
+m_file2 = File('plots/adapt_plots/2D_adj_tsunami_metric.pvd')
+lam_file.write(lu, le, time = 0)
+tic3 = clock()
+
 # if remesh == 'n':
 #
 #     # Initialise a CG1 version of lm and some arrays for storage (with dimension pre-allocated for speed):
@@ -271,59 +273,80 @@ else:
 #     ql_vals[i,:] = mu_vals[i,:,0] * lm_vals[i,:,0] + mu_vals[i,:,1] * lm_vals[i,:,1] + eta_vals[i,:] * le_vals[i,:]
 #     q_dot_lam.dat.data[:] = ql_vals[i,:]
 #
-# # Initialise dump counter:
-# if dumpn == 0:
-#     dumpn = ndump
-#
-# # Enter the backward timeloop:
-# while t > 0:
-#
-#     # Update counters:
-#     mn += 1
-#     cnt = 0
-#
-#     if (t != 0) & (remesh == 'y'):                                          # TODO: why is immediate remeshing so slow?
-#
-#         # Build Hessian and (hence) metric:
-#         Vm = TensorFunctionSpace(mesh, 'CG', 1)
-#         H = construct_hessian(mesh, Vm, le)
-#         M = compute_steady_metric(mesh, Vm, H, le, normalise = ntype)
-#
-#         # Adapt mesh and update FE setup:
-#         mesh_ = mesh
-#         mesh = adapt(mesh, M)
-#         lam_, lam, lm_, lm, le_, le, b, Vq = update_SW_FE(mesh_, mesh, lm_, lm, le_, le, b)
-#
-#         # Set up functions of weak problem:
-#         w, xi = TestFunctions(Vq)
-#         lm, le = split(q)
-#         lm_, le_ = split(q_)
-#
-#         # Establish form:
-#         L2 = adj_linear_form_2d(lm, lm_, le, le_, w, xi, b, Dt)
-#
-#         # Set up the variational problem
-#         lam_prob = NonlinearVariationalProblem(L2, lam)
-#         lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
-#
-#         # 'Split' functions to access their data and relabel:
-#         lm_, le_ = lam_.split()
-#         lm, le = lam.split()
-#         lm.rename('Fluid momentum')
-#         le.rename('Free surface displacement')
-#
-#     # Enter the inner timeloop:
-#     while cnt < rm:
-#         t -= dt
-#         print 't = 1.2fs, mesh number = ' % t, mn
-#         cnt += 1
-#         lam_solv.solve()
-#         lam_.assign(lam)
-#         dumpn -= 1
-#         if dumpn == 0:
-#             dumpn += ndump
-#             lam_file.write(lm, le, time = T-t)                                        # Note time inversion
-#
+# Initialise dump counter:
+if dumpn == 0 :
+    dumpn = ndump
+
+# Enter the backward timeloop:
+while t > 0 :
+
+    # Update counters:
+    mn += 1
+    cnt = 0
+
+    if remesh == 'y' :
+
+        # Build Hessian and (hence) metric:
+        Vm = TensorFunctionSpace(mesh, 'CG', 1)
+        H = construct_hessian(mesh, Vm, le)
+        M = compute_steady_metric(mesh, Vm, H, le, h_min = hmin, h_max = hmax, N = nodes)
+        M.rename('Metric field')
+
+        # Adapt mesh and update FE setup:
+        mesh_ = mesh
+        meshd_ = Meshd(mesh_)
+        tic4 = clock()
+        mesh = adapt(mesh, M)
+        meshd = Meshd(mesh)
+        lam_, lam, lu_, lu, le_, le, b, Vq = update_SW_FE(meshd_, meshd, lu_, lu, le_, le, b)
+        toc4 = clock()
+
+        # Print to screen:
+        print ''
+        print '************ Adaption step %d **************' % mn
+        print 'Time = %1.2fs' % t
+        print 'Number of nodes after adaption step %d: ' % mn, len(mesh.coordinates.dat.data)
+        print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
+        print ''
+
+    # Set up functions of weak problem:
+    w, xi = TestFunctions(Vq)
+    lu, le = split(lam)
+    lu_, le_ = split(lam_)
+    luh = 0.5 * (lu + lu_)
+    leh = 0.5 * (le + le_)
+
+    # Establish form:
+    L2 = (
+        ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) +
+        inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+        )
+    lam_prob = NonlinearVariationalProblem(L2, lam)
+    lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
+
+    # 'Split' functions to access their data and relabel:
+    lu_, le_ = lam_.split()
+    lu, le = lam.split()
+    lu.rename('Adjoint fluid velocity')
+    le.rename('Adjoint free surface displacement')
+
+    # Enter the inner timeloop:
+    while cnt < rm:
+        t -= dt
+        cnt += 1
+        lam_solv.solve()
+        lam_.assign(lam)
+        dumpn -= 1
+        if dumpn == 0 :
+
+            dumpn += ndump
+            lam_file.write(lu, le, time = T - t)                                        # Note time inversion
+
+            if remesh == 'y':
+                m_file2.write(M, time = t)
+            else:
+                print 't = %1.2fs, mesh number =' % t
+
 #             if remesh == 'n':
 #                 i -= 1
 #                 lm_cg1.interpolate(lm)
@@ -333,9 +356,15 @@ else:
 #                                 eta_vals[i, :] * le_vals[i, :]
 #                 q_dot_lam.dat.data[:] = ql_vals[i, :]
 #                 dot_file.write(q_dot_lam, time = t)
-#
-#
-# # Plot damage measures:
+
+# End timing and print:
+toc3 = clock()
+if remesh == 'y':
+    print 'Elapsed time for adaptive adjoint solver: %1.2es' % (toc3 - tic3)
+else:
+    print 'Elapsed time for non-adaptive adjoint solver: %1.2es' % (toc3 - tic3)
+
+                # # Plot damage measures:
 # if remesh == 'n':
 #     plt.rc('text', usetex=True)
 #     plt.rc('font', family='serif')

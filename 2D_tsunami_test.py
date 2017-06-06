@@ -2,6 +2,7 @@ from firedrake import *
 
 import numpy as np
 import matplotlib.pyplot as plt
+from time import clock
 
 from utils import adapt, construct_hessian, compute_steady_metric, Meshd, update_SW_FE
 
@@ -13,11 +14,12 @@ nx = int(lx * n)
 mesh = SquareMesh(nx, nx, lx, lx)
 meshd = Meshd(mesh)
 x,y = SpatialCoordinate(mesh)
+print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
 
 # Specify timestepping parameters:
 ndump = 3
 T = float(raw_input('Simulation duration in s (default 4200): ') or 4200.)
-dt = float(raw_input('Specify timestep (default 10): ') or 10.)
+dt = float(raw_input('Specify timestep (default 1): ') or 1.)
 Dt = Constant(dt)
 
 # Set up adaptivity parameters:
@@ -25,7 +27,7 @@ remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y' :
     hmin = float(raw_input('Minimum element size in km (default 5)?: ') or 5.) * 1e3
     hmax = float(raw_input('Maximum element size in km (default 100)?: ') or 100.) * 1e3
-    rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
+    rm = int(raw_input('Timesteps per remesh (default 10)?: ') or 10)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 else :
@@ -33,32 +35,37 @@ else :
     rm = int(T / dt)
     nodes = 0
     ntype = None                                                             # Timesteps per data dump
-
+    if remesh != 'n':
+        raise ValueError('Please try again, choosing y or n.')
 
 # Define function spaces:
 Vu = VectorFunctionSpace(mesh, 'CG', 1)                                     # TODO: consider Taylor-Hood elements
 Ve = FunctionSpace(mesh, 'CG', 1)
 Vq = MixedFunctionSpace((Vu, Ve))                                           # Mixed FE problem
 
-# Construct a function to store our two variables at time n:
-q_ = Function(Vq)                                                           # Forward solution tuple
-mu_, eta_ = q_.split()
-
 # Establish bathymetry function:
 b = Function(Ve, name = 'Bathymetry')
 b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))  # Shelf break bathymetry
 
+# Construct a function to store our two variables at time n:
+q_ = Function(Vq)                                                           # Forward solution tuple
+u_, eta_ = q_.split()
+
 # Interpolate initial conditions, noting higher magnitude wave used due to geometric spreading:
-mu_.interpolate(Expression([0, 0]))
+u_.interpolate(Expression([0, 0]))
 eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? \
                                         10 * sin(pi*(x[0]-1e5) * 2e-5) * sin(pi*(x[1]-1.8e5) * 2.5e-5) : 0.'))
 
 # Set up functions of forward weak problem:
 q = Function(Vq)
 q.assign(q_)
-nu, ze = TestFunctions(Vq)
-mu, eta = split(q)
-mu_, eta_ = split(q_)
+v, ze = TestFunctions(Vq)
+u, eta = split(q)
+u_, eta_ = split(q_)
+
+# For timestepping we consider the implicit midpoint rule and so must create new 'mid-step' functions:
+uh = 0.5 * (u + u_)
+etah = 0.5 * (eta + eta_)
 
 # Specify solver parameters:
 params = {'mat_type': 'matfree',
@@ -71,42 +78,44 @@ params = {'mat_type': 'matfree',
 
 # Set up the variational problem:
 g = 9.81            # Gravitational acceleration (m s^{-2})
-L1 = ((eta - eta_) * ze - Dt * inner(mu, grad(ze)) +
-         inner(mu - mu_, nu) + Dt * g * b * (inner(grad(eta), nu))) * dx
+L1 = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) +
+     inner(u - u_, v) + Dt * g *(inner(grad(etah), v))) * dx
 q_prob = NonlinearVariationalProblem(L1, q)
 q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
 # 'Split' functions to access their data and relabel:
-mu_, eta_ = q_.split()
-mu, eta = q.split()
-mu.rename('Fluid momentum')
+u_, eta_ = q_.split()
+u, eta = q.split()
+u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Initialise time, counters and files:
-t = 0.0
+t = 0.
 dumpn = 0
 mn = 0
 cnt = 0
 i = 0
 q_file = File('plots/adjoint_test_outputs/linear_forward.pvd')
-q_file.write(mu, eta, time = t)
+m_file = File('plots/adapt_plots/2D_tsunami_metric.pvd')
+q_file.write(u, eta, time = t)
+tic1 = clock()
 
-if remesh == 'n' :
-
-    # Establish a BC object to get 'coastline'
-    bc = DirichletBC(Vq.sub(1), 0, 1)
-    b_nodes = bc.nodes
-
-    # Initialise a CG1 version of mu and some arrays for storage:
-    V1 = VectorFunctionSpace(mesh, 'CG', 1)
-    mu_cg1 = Function(V1)
-    mu_cg1.interpolate(mu)
-    eta_vals = np.zeros((int(T / (ndump * dt)) + 1, (nx + 1) ** 2))
-    mu_vals = np.zeros((int(T / (ndump * dt)) + 1, (nx + 1) ** 2, 2))
-    m = np.zeros((int(T / (ndump * dt)) + 1))
-    eta_vals[i, :] = eta.dat.data
-    mu_vals[i, :, :] = mu_cg1.dat.data
-    m[i] = np.log2(max(max(eta_vals[i, b_nodes]), 0.5))
+# if remesh == 'n' :
+#
+#     # Establish a BC object to get 'coastline'
+#     bc = DirichletBC(Vq.sub(1), 0, 1)
+#     b_nodes = bc.nodes
+#
+#     # Initialise a CG1 version of mu and some arrays for storage:
+#     V1 = VectorFunctionSpace(mesh, 'CG', 1)
+#     mu_cg1 = Function(V1)
+#     mu_cg1.interpolate(mu)
+#     eta_vals = np.zeros((int(T / (ndump * dt)) + 1, (nx + 1) ** 2))
+#     mu_vals = np.zeros((int(T / (ndump * dt)) + 1, (nx + 1) ** 2, 2))
+#     m = np.zeros((int(T / (ndump * dt)) + 1))
+#     eta_vals[i, :] = eta.dat.data
+#     mu_vals[i, :, :] = mu_cg1.dat.data
+#     m[i] = np.log2(max(max(eta_vals[i, b_nodes]), 0.5))
 
 # Enter the forward timeloop:
 while t < T - 0.5 * dt :
@@ -115,57 +124,80 @@ while t < T - 0.5 * dt :
     mn += 1
     cnt = 0
 
-    if (t != 0) & (remesh == 'y') :
+    if remesh == 'y' :
 
         # Build Hessian and (hence) metric:
         Vm = TensorFunctionSpace(mesh, 'CG', 1)
         H = construct_hessian(mesh, Vm, eta)
-        M = compute_steady_metric(mesh, Vm, H, eta, normalise = ntype)
+        M = compute_steady_metric(mesh, Vm, H, eta, h_min = hmin, h_max = hmax, N = nodes)
+        M.rename('Metric field')
 
         # Adapt mesh and update FE setup:
         mesh_ = mesh
         meshd_ = Meshd(mesh_)
+        tic2 = clock()
         mesh = adapt(mesh, M)
-        meshd = Meshd(meshd)
-        q_, q, mu_, mu, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, mu_, mu, eta_, eta, b)
+        meshd = Meshd(mesh)
+        q_, q, mu_, mu, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
+        toc2 = clock()
 
-        # Set up functions of weak problem:
-        v, ze = TestFunctions(Vq)
-        mu, eta = split(q)
-        mu_, eta_ = split(q_)
+        # Print to screen:
+        print ''
+        print '************ Adaption step %d **************' % mn
+        print 'Time = %1.2fs' % t
+        print 'Number of nodes after adaption step %d: ' % mn, len(mesh.coordinates.dat.data)
+        print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
+        print ''
 
-        # Set up the variational problem:
-        L1 = ((eta - eta_) * ze - Dt * inner(mu, grad(ze)) +
-              inner(mu - mu_, nu) + Dt * g * b * (inner(grad(eta), nu))) * dx
-        q_prob = NonlinearVariationalProblem(L1, q)
-        q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
+    # Set up functions of weak problem:
+    v, ze = TestFunctions(Vq)
+    u, eta = split(q)
+    u_, eta_ = split(q_)
+    uh = 0.5 * (u + u_)
+    etah = 0.5 * (eta + eta_)
 
-        # 'Split' functions to access their data and relabel:
-        mu_, eta_ = q_.split()
-        mu, eta = q.split()
-        mu.rename('Fluid momentum')
-        eta.rename('Free surface displacement')
+    # Set up the variational problem:
+    L1 = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) +
+          inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
+    q_prob = NonlinearVariationalProblem(L1, q)
+    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
+
+    # 'Split' functions to access their data and relabel:
+    u_, eta_ = q_.split()
+    u, eta = q.split()
+    u.rename('Fluid velocity')
+    eta.rename('Free surface displacement')
 
         # Enter the inner timeloop:
     while cnt < rm :
         t += dt
-        print 't = %1.2fs, mesh number = %d' % (t, mn)
         cnt += 1
         q_solv.solve()
         q_.assign(q)
         dumpn += 1
         if dumpn == ndump :
+
             dumpn -= ndump
-            q_file.write(mu, eta, time = t)
+            q_file.write(u, eta, time = t)
 
-            if remesh == 'n' :
-                i += 1
-                mu_cg1.interpolate(mu)
-                mu_vals[i, :, :] = mu_cg1.dat.data
-                eta_vals[i, :] = eta.dat.data
+            if remesh == 'y' :
+                m_file.write(M, time = t)
+            else :
+                print 't = %1.2fs, mesh number =' % t
+                # i += 1
+                # mu_cg1.interpolate(mu)
+                # mu_vals[i, :, :] = mu_cg1.dat.data
+                # eta_vals[i, :] = eta.dat.data
+                #
+                # # Implement damage measures:                        # TODO: change this as it is dominated by shoaling
+                # m[i] = np.log2(max(max(eta_vals[i, b_nodes]), 0.5))
 
-                # Implement damage measures:                        # TODO: change this as it is dominated by shoaling
-                m[i] = np.log2(max(max(eta_vals[i, b_nodes]), 0.5))
+# End timing and print:
+toc1 = clock()
+if remesh == 'y':
+    print 'Elapsed time for adaptive forward solver: %1.2es' % (toc1 - tic1)
+else:
+    print 'Elapsed time for non-adaptive forward solver: %1.2es' % (toc1 - tic1)
 
 # TODO: reintroduce adjoint problem
 

@@ -16,6 +16,9 @@ bathy = raw_input('Flat bathymetry or shelf break (f/s)?: ') or 'f'
 if (bathy != 'f') & (bathy != 's') :
     raise ValueError('Please try again, choosing f or s.')
 
+# Simulation duration:
+T = 2.5
+
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y' :
@@ -25,18 +28,12 @@ if remesh == 'y' :
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 else :
-    hmin = 0
-    rm = int(T / dt)
+    hmin = 0.005
+    rm = int(T)
     nodes = 0
     ntype = None
     if remesh != 'n' :
         raise ValueError('Please try again, choosing y or n.')
-
-# Courant number adjusted timestepping parameters:
-ndump = 1
-T = 2.5             # Simulation end time (s)
-dt = 0.8 * hmin     # Timestep length (s)
-Dt = Constant(dt)
 
 # Define function spaces:
 Vu = VectorFunctionSpace(mesh, 'CG', 1)                                     # TODO: consider Taylor-Hood elements
@@ -49,6 +46,13 @@ if bathy == 'f' :
     b.assign(0.1)  # (Constant) tank water depth (m)
 else :
     b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))  # Shelf break bathymetry
+
+# Courant number adjusted timestepping parameters:
+ndump = 1
+g = 9.81                                    # Gravitational acceleration (m s^{-2})
+dt = 0.8 * hmin / np.sqrt(g * 0.1)          # Timestep length (s), using wavespeed sqrt(gh)
+Dt = Constant(dt)
+print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
 # Construct a function to store our two variables at time n:
 q_ = Function(Vq)
@@ -79,7 +83,6 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner_persists': True,}
 
 # Set up the variational problem:
-g = 9.81            # Gravitational acceleration (m s^{-2})
 L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) +
      inner(u - u_, v) + Dt * g *(inner(grad(etah), v))) * dx
 q_prob = NonlinearVariationalProblem(L, q)
@@ -168,7 +171,7 @@ while t < T - 0.5 * dt :
             if remesh == 'y' :
                 m_file.write(M, time = t)
             else :
-                print 't = %1.2fs, mesh number =' % t
+                print 't = %1.2fs' % t
 
 # End timing and print:
 toc1 = clock()

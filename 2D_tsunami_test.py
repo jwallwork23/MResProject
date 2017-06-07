@@ -16,11 +16,8 @@ meshd = Meshd(mesh)
 x,y = SpatialCoordinate(mesh)
 print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
 
-# Specify timestepping parameters:
-ndump = 3
+# Simulation duration:
 T = float(raw_input('Simulation duration in s (default 4200): ') or 4200.)
-dt = float(raw_input('Specify timestep (default 1): ') or 1.)
-Dt = Constant(dt)
 
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
@@ -31,12 +28,19 @@ if remesh == 'y' :
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 else :
-    hmin = 0
+    hmin = 500
     rm = int(T / dt)
     nodes = 0
     ntype = None                                                             # Timesteps per data dump
     if remesh != 'n':
         raise ValueError('Please try again, choosing y or n.')
+
+# Courant number adjusted timestepping parameters:
+ndump = 1
+g = 9.81                                    # Gravitational acceleration (m s^{-2})
+dt = 0.8 * hmin / np.sqrt(g * 4000.)        # Timestep length (s), using wavespeed sqrt(gh)
+Dt = Constant(dt)
+print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
 # Define function spaces:
 Vu = VectorFunctionSpace(mesh, 'CG', 1)                                     # TODO: consider Taylor-Hood elements
@@ -77,7 +81,6 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner_persists': True,}
 
 # Set up the variational problem:
-g = 9.81            # Gravitational acceleration (m s^{-2})
 L1 = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) +
      inner(u - u_, v) + Dt * g *(inner(grad(etah), v))) * dx
 q_prob = NonlinearVariationalProblem(L1, q)

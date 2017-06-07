@@ -209,7 +209,8 @@ def interp(u, meshd, unew, meshdnew) :
 
                     if alpha > 1 :
                         print '## ERROR alpha = %1.4f' % alpha
-                        exit(23)
+                        alpha = 1                                   # TODO: Fix this properly
+                        # exit(23)
 
                     val = alpha * val[0] + (1 - alpha) * val[1]
                 unew.dat.data[offnew] = val 

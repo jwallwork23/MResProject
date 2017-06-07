@@ -144,7 +144,7 @@ def Tohoku_domain(res = 'c') :
     assert mesh_coords.shape[0] == b_vec.shape[0]
 
     # Interpolate data onto initial surface and bathymetry profiles:
-    for i,p in enumerate(mesh_coords) :
+    for i, p in enumerate(mesh_coords) :
         eta0vec[i] = interpolator_surf(p[1], p[0])
         b_vec[i] = - interpolator_surf(p[1], p[0]) - interpolator_bath(p[1], p[0])
 

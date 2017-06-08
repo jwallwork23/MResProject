@@ -11,8 +11,8 @@ lx = 4                                                                  # Extent
 mesh = SquareMesh(lx * n, lx * n, lx, lx)
 meshd = Meshd(mesh)
 x, y = SpatialCoordinate(mesh)
-N1 = len(mesh.coordinates.dat.data)                                     # Label of minimum number of nodes
-N2 = N1                                                                 # Label of maximum number of nodes
+N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
+N2 = N1                                                                 # Maximum number of nodes
 print 'Initial number of nodes : ', N1
 bathy = raw_input('Flat bathymetry or shelf break (f/s)?: ') or 'f'
 if (bathy != 'f') & (bathy != 's') :
@@ -119,7 +119,7 @@ while t < T - 0.5 * dt :
 
     if remesh == 'y' :
 
-        if mtype != 'f' :       # TODO: consider metric intersection, rather than a double computation
+        if mtype != 'f' :
 
             # Establish velocity speed for adaption:
             spd = Function(FunctionSpace(mesh, 'CG', 1))

@@ -14,7 +14,9 @@ nx = int(lx * n)
 mesh = SquareMesh(nx, nx, lx, lx)
 meshd = Meshd(mesh)
 x,y = SpatialCoordinate(mesh)
-print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
+N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
+N2 = N1                                                                 # Maximum number of nodes
+print 'Initial number of nodes : ', N1
 
 # Simulation duration:
 T = float(raw_input('Simulation duration in s (default 4200): ') or 4200.)
@@ -144,11 +146,19 @@ while t < T - 0.5 * dt :
         q_, q, mu_, mu, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
         toc2 = clock()
 
+        # Data analysis:
+        n = len(mesh.coordinates.dat.data)
+        if n < N1:
+            N1 = n
+        elif n > N2:
+            N2 = n
+
         # Print to screen:
         print ''
         print '************ Adaption step %d **************' % mn
         print 'Time = %1.2fs' % t
-        print 'Number of nodes after adaption step %d: ' % mn, len(mesh.coordinates.dat.data)
+        print 'Number of nodes after adaption step %d: ' % mn, n
+        print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
         print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
         print ''
 

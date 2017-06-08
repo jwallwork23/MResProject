@@ -11,7 +11,9 @@ if (res != 'f') & (res != 'm') & (res != 'c') :
     raise ValueError('Please try again, choosing f, m or c.')
 mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
 meshd = Meshd(mesh)
-print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
+N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
+N2 = N1                                                                 # Maximum number of nodes
+print 'Initial number of nodes : ', N1
 
 # Choose linear or nonlinear equations:
 # mode = raw_input('Linear or nonlinear equations? (l/n): ') or 'l'             # TODO: reintroduce nonlinear option
@@ -107,11 +109,19 @@ while t < T - 0.5 * dt:
         q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
         toc2 = clock()
 
+        # Data analysis:
+        n = len(mesh.coordinates.dat.data)
+        if n < N1:
+            N1 = n
+        elif n > N2:
+            N2 = n
+
         # Print to screen:
         print ''
         print '************ Adaption step %d **************' % mn
         print 'Time = %1.2fs' % t
-        print 'Number of nodes after adaption step %d: ' % mn, len(mesh.coordinates.dat.data)
+        print 'Number of nodes after adaption step %d: ' % mn, n
+        print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
         print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
         print ''
 

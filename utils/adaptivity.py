@@ -180,6 +180,22 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
 
     return M
 
+def metric_intersection(mesh, V, M1, M2) :
+    """A function which computes the metric with respect to two different fields."""
+
+    # Establish metric intersection object:
+    M12 = Function(V)
+
+    for i in range(mesh.topology.num_vertices()) :
+
+        M = M1.dat.data[i]
+        M = np.transpose(M ** -0.5) * M2.dat.data[i] * (M ** -0.5)
+        lam, v = la.eig(M.dat.data[i])
+        M12.dat.data[i] = v * diag(max(lam[0], 1), max(lam[1], 1)) * np.transpose(v)
+        M12.dat.data[i] = np.transpose(M ** 0.5) * M.dat.data[i] * (M ** 0.5)
+
+    return M12
+
 def update_SW_FE(meshd1, meshd2, u_, u, eta_, eta, b) :
     """A function which updates shallow water solution fields and bathymetry from one mesh to another."""
 

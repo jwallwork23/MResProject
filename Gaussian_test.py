@@ -6,12 +6,14 @@ from time import clock
 from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, update_SW_FE
 
 # Define initial (uniform) mesh:
-n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)                    # Resolution of initial uniform mesh
-lx = 4                                                                          # Extent in x-direction (m)                                                                          # Extent in y-direction (m)
+n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
+lx = 4                                                                  # Extent in x-direction (m)                                                                          # Extent in y-direction (m)
 mesh = SquareMesh(lx * n, lx * n, lx, lx)
 meshd = Meshd(mesh)
 x, y = SpatialCoordinate(mesh)
-print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
+N1 = len(mesh.coordinates.dat.data)                                     # Label of minimum number of nodes
+N2 = N1                                                                 # Label of maximum number of nodes
+print 'Initial number of nodes : ', N1
 bathy = raw_input('Flat bathymetry or shelf break (f/s)?: ') or 'f'
 if (bathy != 'f') & (bathy != 's') :
     raise ValueError('Please try again, choosing f or s.')
@@ -118,7 +120,7 @@ while t < T - 0.5 * dt :
 
     if remesh == 'y' :
 
-        if mtype != 'f' :
+        if mtype != 'f' :       # TODO: consider metric intersection, rather than a double computation
 
             # Establish velocity speed for adaption:
             spd = Function(FunctionSpace(mesh, 'CG', 1))
@@ -139,11 +141,18 @@ while t < T - 0.5 * dt :
             q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
             toc2 = clock()
 
+            # Data analysis:
+            n = len(mesh.coordinates.dat.data)
+            if n < N1 :
+                N1 = n
+            elif n > N2 :
+                N2 = n
+
             # Print to screen:
             print ''
             print '************ Adaption step %d **************' % mn
             print 'Time = %1.2fs' % t
-            print 'Number of nodes after speed adaption step %d: ' % mn, len(mesh.coordinates.dat.data)
+            print 'Number of nodes after speed adaption step %d: ' % mn, n
             print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
             print ''
 
@@ -164,11 +173,18 @@ while t < T - 0.5 * dt :
             q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
             toc3 = clock()
 
+            # Data analysis:
+            n = len(mesh.coordinates.dat.data)
+            if n < N1:
+                N1 = n
+            elif n > N2:
+                N2 = n
+
             # Print to screen:
             print ''
             print '************ Adaption step %d **************' % mn
             print 'Time = %1.2fs' % t
-            print 'Number of nodes after free surface adaption step %d: ' % mn, len(mesh.coordinates.dat.data)
+            print 'Number of nodes after free surface adaption step %d: ' % mn, n
             print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc3 - tic3)
             print ''
 
@@ -215,5 +231,7 @@ while t < T - 0.5 * dt :
 toc1 = clock()
 if remesh == 'y' :
     print 'Elapsed time for adaptive solver: %1.2es' % (toc1 - tic1)
+    print 'Minimum number of nodes: %1.4fs' % N1
+    print 'Maximum number of nodes: %1.4fs' % N2
 else :
     print 'Elapsed time for non-adaptive solver: %1.2es' % (toc1 - tic1)

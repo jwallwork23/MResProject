@@ -164,6 +164,6 @@ while t < T - 0.5 * dt:
 # End timing and print:
 toc1 = clock()
 if remesh == 'y' :
-    print 'Elapsed time for adaptive tank solver: %1.2es' % (toc1 - tic1)
+    print 'Elapsed time for adaptive tank solver: %1.2fs' % (toc1 - tic1)
 else :
-    print 'Elapsed time for non-adaptive tank solver: %1.2es' % (toc1 - tic1)
+    print 'Elapsed time for non-adaptive tank solver: %1.2fs' % (toc1 - tic1)

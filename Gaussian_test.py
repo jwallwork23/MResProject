@@ -119,20 +119,21 @@ while t < T - 0.5 * dt :
 
     if remesh == 'y' :
 
+        V = TensorFunctionSpace(mesh, 'CG', 1)
+
         if mtype != 'f' :
 
-            # Establish velocity speed for adaption:
+            # Establish fluid speed for adaption:
             spd = Function(FunctionSpace(mesh, 'CG', 1))
             spd.interpolate(sqrt(dot(u, u)))
 
             # Compute Hessian and metric:
-            V = TensorFunctionSpace(mesh, 'CG', 1)
             H = construct_hessian(mesh, V, spd)
             M = compute_steady_metric(mesh, V, H, spd, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
-            M.rename('Metric field')
 
         if mtype != 's' :
 
+            # Compute Hessian and metric:
             H = construct_hessian(mesh, V, eta)
             M2 = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
 
@@ -141,16 +142,16 @@ while t < T - 0.5 * dt :
 
             else :
                 M = M2
-            M.rename('Metric field')
 
-            # Adapt mesh and set up new function spaces:
-            mesh_ = mesh
-            meshd_ = Meshd(mesh_)
-            tic2 = clock()
-            mesh = adapt(mesh, M)
-            meshd = Meshd(mesh)
-            q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
-            toc2 = clock()
+        # Adapt mesh and set up new function spaces:
+        M.rename('Metric field')
+        mesh_ = mesh
+        meshd_ = Meshd(mesh_)
+        tic2 = clock()
+        mesh = adapt(mesh, M)
+        meshd = Meshd(mesh)
+        q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
+        toc2 = clock()
 
         # Data analysis:
         n = len(mesh.coordinates.dat.data)
@@ -207,8 +208,6 @@ while t < T - 0.5 * dt :
 # End timing and print:
 toc1 = clock()
 if remesh == 'y' :
-    print 'Elapsed time for adaptive solver: %1.2es' % (toc1 - tic1)
-    print 'Minimum number of nodes: %1.4fs' % N1
-    print 'Maximum number of nodes: %1.4fs' % N2
+    print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
 else :
-    print 'Elapsed time for non-adaptive solver: %1.2es' % (toc1 - tic1)
+    print 'Elapsed time for non-adaptive solver: %1.2fs' % (toc1 - tic1)

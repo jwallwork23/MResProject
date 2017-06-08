@@ -29,12 +29,16 @@ if remesh == 'y' :
     rm = int(raw_input('Timesteps per remesh (default 10)?: ') or 10)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+    mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
+    if mtype not in ('s', 'f', 'b') :
+        raise ValueError('Please try again, choosing s, f or b.')
 else :
     hmin = 500
     rm = int(T / dt)
     nodes = 0
     ntype = None                                                             # Timesteps per data dump
-    if remesh != 'n':
+    mtype = None
+    if remesh != 'n' :
         raise ValueError('Please try again, choosing y or n.')
 
 # Courant number adjusted timestepping parameters:
@@ -131,19 +135,37 @@ while t < T - 0.5 * dt :
 
     if remesh == 'y' :
 
-        # Build Hessian and (hence) metric:
-        Vm = TensorFunctionSpace(mesh, 'CG', 1)
-        H = construct_hessian(mesh, Vm, eta)
-        M = compute_steady_metric(mesh, Vm, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
-        M.rename('Metric field')
+        V = TensorFunctionSpace(mesh, 'CG', 1)
 
-        # Adapt mesh and update FE setup:
+        if mtype != 'f' :
+            # Establish velocity speed for adaption:
+            spd = Function(FunctionSpace(mesh, 'CG', 1))
+            spd.interpolate(sqrt(dot(u, u)))
+
+            # Compute Hessian and metric:
+            H = construct_hessian(mesh, V, spd)
+            M = compute_steady_metric(mesh, V, H, spd, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
+
+        if mtype != 's' :
+
+            # Compute Hessian and metric:
+            H = construct_hessian(mesh, V, eta)
+            M2 = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
+
+            if mtype == 'b' :
+                M = metric_intersection(mesh, V, M, M2)
+
+            else :
+                M = M2
+
+        # Adapt mesh and set up new function spaces:
+        M.rename('Metric field')
         mesh_ = mesh
         meshd_ = Meshd(mesh_)
         tic2 = clock()
         mesh = adapt(mesh, M)
         meshd = Meshd(mesh)
-        q_, q, mu_, mu, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
+        q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
         toc2 = clock()
 
         # Data analysis:
@@ -159,7 +181,7 @@ while t < T - 0.5 * dt :
         print 'Time = %1.2fs' % t
         print 'Number of nodes after adaption step %d: ' % mn, n
         print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
-        print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
+        print 'Elapsed time for adaption step %d: %1.2fs' % (mn, toc2 - tic2)
         print ''
 
     # Set up functions of weak problem:
@@ -208,9 +230,9 @@ while t < T - 0.5 * dt :
 # End timing and print:
 toc1 = clock()
 if remesh == 'y':
-    print 'Elapsed time for adaptive forward solver: %1.2es' % (toc1 - tic1)
-else:
-    print 'Elapsed time for non-adaptive forward solver: %1.2es' % (toc1 - tic1)
+    print 'Elapsed time for adaptive forward solver: %1.2fs' % (toc1 - tic1)
+else :
+    print 'Elapsed time for non-adaptive forward solver: %1.2fs' % (toc1 - tic1)
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
@@ -299,11 +321,28 @@ while t > 0 :
 
     if remesh == 'y' :
 
-        # Build Hessian and (hence) metric:
-        Vm = TensorFunctionSpace(mesh, 'CG', 1)
-        H = construct_hessian(mesh, Vm, le)
-        M = compute_steady_metric(mesh, Vm, H, le, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
-        M.rename('Metric field')
+        V = TensorFunctionSpace(mesh, 'CG', 1)
+
+        if mtype != 'f' :
+            # Establish fluid speed for adaption:
+            spd = Function(FunctionSpace(mesh, 'CG', 1))
+            spd.interpolate(sqrt(dot(u, u)))
+
+            # Compute Hessian and metric:
+            H = construct_hessian(mesh, V, spd)
+            M = compute_steady_metric(mesh, V, H, spd, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
+
+        if mtype != 's' :
+
+            # Compute Hessian and metric:
+            H = construct_hessian(mesh, V, eta)
+            M2 = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
+
+            if mtype == 'b' :
+                M = metric_intersection(mesh, V, M, M2)
+
+            else :
+                M = M2
 
         # Adapt mesh and update FE setup:
         mesh_ = mesh
@@ -314,12 +353,20 @@ while t > 0 :
         lam_, lam, lu_, lu, le_, le, b, Vq = update_SW_FE(meshd_, meshd, lu_, lu, le_, le, b)
         toc4 = clock()
 
+        # Data analysis:
+        n = len(mesh.coordinates.dat.data)
+        if n < N1:
+            N1 = n
+        elif n > N2:
+            N2 = n
+
         # Print to screen:
         print ''
         print '************ Adaption step %d **************' % mn
         print 'Time = %1.2fs' % t
         print 'Number of nodes after adaption step %d: ' % mn, len(mesh.coordinates.dat.data)
-        print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
+        print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
+        print 'Elapsed time for adaption step %d: %1.2fs' % (mn, toc2 - tic2)
         print ''
 
     # Set up functions of weak problem:
@@ -373,9 +420,9 @@ while t > 0 :
 # End timing and print:
 toc3 = clock()
 if remesh == 'y':
-    print 'Elapsed time for adaptive adjoint solver: %1.2es' % (toc3 - tic3)
-else:
-    print 'Elapsed time for non-adaptive adjoint solver: %1.2es' % (toc3 - tic3)
+    print 'Elapsed time for adaptive adjoint solver: %1.2fs' % (toc3 - tic3)
+else :
+    print 'Elapsed time for non-adaptive adjoint solver: %1.2fs' % (toc3 - tic3)
 
                 # # Plot damage measures:
 # if remesh == 'n':

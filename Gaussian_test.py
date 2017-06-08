@@ -127,7 +127,7 @@ while t < T - 0.5 * dt :
             # Compute Hessian and metric:
             V = TensorFunctionSpace(mesh, 'CG', 1)
             H = construct_hessian(mesh, V, spd)
-            M1 = compute_steady_metric(mesh, V, H, spd, h_min = hmin, h_max = hmax, N = nodes)
+            M1 = compute_steady_metric(mesh, V, H, spd, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
             M1.rename('Metric field for speed')
 
             # Adapt mesh and set up new function spaces:
@@ -152,7 +152,7 @@ while t < T - 0.5 * dt :
             # Compute Hessian and metric:
             V = TensorFunctionSpace(mesh, 'CG', 1)
             H = construct_hessian(mesh, V, eta)
-            M2 = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes)
+            M2 = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
             M2.rename('Metric field for free surface')
 
             # Adapt mesh and set up new function spaces:

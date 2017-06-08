@@ -95,7 +95,7 @@ while t < T - 0.5 * dt:
         # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)
         H = construct_hessian(mesh, V, eta)
-        M = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes)
+        M = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
         M.rename('Metric field')
 
         # Adapt mesh and update FE setup:

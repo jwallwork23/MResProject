@@ -106,8 +106,7 @@ mn = 0
 cnt = 0
 i = 0
 q_file = File('plots/adapt_plots/gaussian_test.pvd')
-m_file1 = File('plots/adapt_plots/advection_test_metric_speed.pvd')
-m_file2 = File('plots/adapt_plots/advection_test_metric_free_surface.pvd')
+m_file = File('plots/adapt_plots/advection_test_metric.pvd')
 q_file.write(u, eta, time = t)
 tic1 = clock()
 
@@ -129,64 +128,45 @@ while t < T - 0.5 * dt :
             # Compute Hessian and metric:
             V = TensorFunctionSpace(mesh, 'CG', 1)
             H = construct_hessian(mesh, V, spd)
-            M1 = compute_steady_metric(mesh, V, H, spd, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
-            M1.rename('Metric field for speed')
+            M = compute_steady_metric(mesh, V, H, spd, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
+            M.rename('Metric field')
+
+        if mtype != 's' :
+
+            H = construct_hessian(mesh, V, eta)
+            M2 = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
+
+            if mtype == 'b' :
+                M = metric_intersection(mesh, V, M, M2)
+
+            else :
+                M = M2
+            M.rename('Metric field')
 
             # Adapt mesh and set up new function spaces:
             mesh_ = mesh
             meshd_ = Meshd(mesh_)
             tic2 = clock()
-            mesh = adapt(mesh, M1)
+            mesh = adapt(mesh, M)
             meshd = Meshd(mesh)
             q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
             toc2 = clock()
 
-            # Data analysis:
-            n = len(mesh.coordinates.dat.data)
-            if n < N1 :
-                N1 = n
-            elif n > N2 :
-                N2 = n
+        # Data analysis:
+        n = len(mesh.coordinates.dat.data)
+        if n < N1 :
+            N1 = n
+        elif n > N2 :
+            N2 = n
 
-            # Print to screen:
-            print ''
-            print '************ Adaption step %d **************' % mn
-            print 'Time = %1.2fs' % t
-            print 'Number of nodes after speed adaption step %d: ' % mn, n
-            print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc2 - tic2)
-            print ''
-
-        if mtype != 's' :
-
-            # Compute Hessian and metric:
-            V = TensorFunctionSpace(mesh, 'CG', 1)
-            H = construct_hessian(mesh, V, eta)
-            M2 = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
-            M2.rename('Metric field for free surface')
-
-            # Adapt mesh and set up new function spaces:
-            mesh_ = mesh
-            meshd_ = Meshd(mesh_)
-            tic3 = clock()
-            mesh = adapt(mesh, M2)
-            meshd = Meshd(mesh)
-            q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
-            toc3 = clock()
-
-            # Data analysis:
-            n = len(mesh.coordinates.dat.data)
-            if n < N1:
-                N1 = n
-            elif n > N2:
-                N2 = n
-
-            # Print to screen:
-            print ''
-            print '************ Adaption step %d **************' % mn
-            print 'Time = %1.2fs' % t
-            print 'Number of nodes after free surface adaption step %d: ' % mn, n
-            print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc3 - tic3)
-            print ''
+        # Print to screen:
+        print ''
+        print '************ Adaption step %d **************' % mn
+        print 'Time = %1.2fs' % t
+        print 'Number of nodes after adaption step %d: ' % mn, n
+        print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
+        print 'Elapsed time for adaption step %d: %1.2fs' % (mn, toc2 - tic2)
+        print ''
 
     # Set up functions of weak problem:
     v, ze = TestFunctions(Vq)
@@ -220,10 +200,7 @@ while t < T - 0.5 * dt :
             q_file.write(u, eta, time = t)
 
             if remesh == 'y' :
-                if mtype != 'f' :
-                    m_file1.write(M1, time = t)
-                if mtype != 's' :
-                    m_file2.write(M2, time = t)
+                    m_file.write(M, time = t)
             else :
                 print 't = %1.2fs' % t
 

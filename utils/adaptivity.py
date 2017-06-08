@@ -1,6 +1,7 @@
 from firedrake import *
 import numpy as np
 from numpy import linalg as la
+from scipy import linalg as sla
 
 from interp import *
 
@@ -86,7 +87,7 @@ def construct_hessian(mesh, V, sol) :
 def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100., normalise = 'lp', p = 2, N = 1000.,
                           ieps = 1000.) :
     """A function which computes the steady metric for re-meshing, provided with the current mesh, hessian and 
-    free surface. Here h_min and h_max denote the respective minimum and maxiumum tolerated side-lengths, while a 
+    free surface. Here h_min and h_max denote the respective minimum and maximum tolerated side-lengths, while a 
     denotes the maximum tolerated aspect ratio. Further,  N denotes the target number of nodes and ieps denotes the
     inverse of the target error for the two respective normalisation approaches. This code is based on Nicolas Barral's 
     function ``computeSteadyMetric``, from ``adapt.py``."""
@@ -189,10 +190,11 @@ def metric_intersection(mesh, V, M1, M2) :
     for i in range(mesh.topology.num_vertices()) :
 
         M = M1.dat.data[i]
-        Mbar = np.transpose(M ** -0.5) * M2.dat.data[i] * (M ** -0.5)
+        iM = la.inv(M)
+        Mbar = np.transpose(sla.sqrtm(iM)) * M2.dat.data[i] * sla.sqrtm(iM)
         lam, v = la.eig(Mbar)
-        M12.dat.data[i] = v * diag(max(lam[0], 1), max(lam[1], 1)) * np.transpose(v)
-        M12.dat.data[i] = np.transpose(M ** 0.5) * M12.dat.data[i] * (M ** 0.5)
+        M12.dat.data[i] = v * [[max(lam[0], 1), 0], [0, max(lam[1], 1)]] * np.transpose(v)
+        M12.dat.data[i] = np.transpose(sla.sqrtm(M)) * M12.dat.data[i] * sla.sqrtm(M)
 
     return M12
 

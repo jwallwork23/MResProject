@@ -83,8 +83,7 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner_persists': True,}
 
 # Set up the variational problem:
-L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) +
-     inner(u - u_, v) + Dt * g *(inner(grad(etah), v))) * dx
+L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) + inner(u - u_, v) + Dt * g *(inner(grad(etah), v))) * dx
 q_prob = NonlinearVariationalProblem(L, q)
 q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
@@ -114,10 +113,14 @@ while t < T - 0.5 * dt :
 
     if remesh == 'y' :
 
+        # Establish velocity speed for adaption:
+        spd = Function(FunctionSpace(mesh, 'CG', 1))
+        spd.interpolate(sqrt(dot(u, u)))
+
         # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)
-        H = construct_hessian(mesh, V, eta)
-        M = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes)
+        H = construct_hessian(mesh, V, spd)
+        M = compute_steady_metric(mesh, V, H, spd, h_min = hmin, h_max = hmax, N = nodes)
         M.rename('Metric field')
 
         # Adapt mesh and set up new function spaces:

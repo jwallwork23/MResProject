@@ -189,10 +189,10 @@ def metric_intersection(mesh, V, M1, M2) :
     for i in range(mesh.topology.num_vertices()) :
 
         M = M1.dat.data[i]
-        M = np.transpose(M ** -0.5) * M2.dat.data[i] * (M ** -0.5)
-        lam, v = la.eig(M.dat.data[i])
+        Mbar = np.transpose(M ** -0.5) * M2.dat.data[i] * (M ** -0.5)
+        lam, v = la.eig(Mbar)
         M12.dat.data[i] = v * diag(max(lam[0], 1), max(lam[1], 1)) * np.transpose(v)
-        M12.dat.data[i] = np.transpose(M ** 0.5) * M.dat.data[i] * (M ** 0.5)
+        M12.dat.data[i] = np.transpose(M ** 0.5) * M12.dat.data[i] * (M ** 0.5)
 
     return M12
 

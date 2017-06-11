@@ -41,9 +41,9 @@ else :
 
 # Courant number adjusted timestepping parameters:
 ndump = 1
-g = 9.81                                        # Gravitational acceleration (m s^{-2})
-dt = 0.8 * hmin / np.sqrt(g * 4000.)            # Timestep length (s), using wavespeed sqrt(gh)
-Dt = Constant(dt)       # TODO ^^ use max ocean depth
+g = 9.81                                                # Gravitational acceleration (m s^{-2})
+dt = 0.8 * hmin / np.sqrt(g * max(b.dat.data))          # Timestep length (s), using wavespeed sqrt(gh)
+Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
 # Set up functions of the weak problem:

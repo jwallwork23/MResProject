@@ -146,7 +146,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             v1, v2 = v[0], v[1]
             lam1 = max(abs(lam[0]), 1e-10)                                      # \ To avoid round-off error
             lam2 = max(abs(lam[1]), 1e-10)                                      # /
-            det = lam1*lam2
+            det = lam1 * lam2
 
             # Reconstruct edited Hessian and rescale:
             M.dat.data[i][0,0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]

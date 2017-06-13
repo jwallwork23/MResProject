@@ -175,7 +175,7 @@ while t < T - 0.5 * dt :
         print 'Time = %1.2fs' % t
         print 'Number of nodes after adaption step %d: ' % mn, n
         print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
-        print 'Max. free surface in important region: %1.2f' % m[cnt]
+ #       print 'Max. free surface in important region: %1.2f' % m[cnt]
         print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
         print ''
 

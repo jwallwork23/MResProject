@@ -165,7 +165,7 @@ while t < T - 0.5 * dt :
         tic2 = clock()
         mesh = adapt(mesh, M)
         meshd = Meshd(mesh)
-        q_, q, u_, u, eta_, eta, b, Vq = update_SW(meshd_, meshd, u_, u, eta_, eta)
+        q_, q, u_, u, eta_, eta, Vq = update_SW(meshd_, meshd, u_, u, eta_, eta)
         b = update_variable(meshd_, meshd, b)
         toc2 = clock()
 
@@ -351,7 +351,7 @@ while t > 0 :
         tic4 = clock()
         mesh = adapt(mesh, M)
         meshd = Meshd(mesh)
-        lam_, lam, lu_, lu, le_, le, b, Vq = update_SW(meshd_, meshd, lu_, lu, le_, le)
+        lam_, lam, lu_, lu, le_, le, Vq = update_SW(meshd_, meshd, lu_, lu, le_, le)
         b = update_variable(meshd_, meshd, b)
         toc4 = clock()
 

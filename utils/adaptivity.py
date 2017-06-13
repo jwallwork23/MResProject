@@ -9,7 +9,7 @@ def adapt(mesh, metric) :
     """A function which generates a new mesh, provided with a previous mesh and an adaptivity metric. Courtesy of 
     Nicolas Barral."""
 
-    # Establish topological and geometric dimensions (usually both 2 for our purposes):
+    # Establish topological and geometric dimensions:
     dim = mesh._topological_dimension
     entity_dofs = np.zeros(dim + 1, dtype = np.int32)
     entity_dofs[0] = mesh.geometric_dimension()
@@ -17,11 +17,10 @@ def adapt(mesh, metric) :
     # Generate list of dimensions and offsets vertices and faces (for visualisation, use .view):
     coordSection = mesh._plex.createSection([1], entity_dofs, perm = mesh.topology._plex_renumbering)
 
-    # Get the DMPlex object encapsulating the mesh topology and determine the vertices of plex to consider (?):
+    # Get the DMPlex object encapsulating the mesh topology and determine the vertices of plex to consider:
     plex = mesh._plex
     vStart, vEnd = plex.getDepthStratum(0)
     nbrVer = vEnd - vStart
-##    print  "DEBUG  vStart: %d  vEnd: %d" % (vStart, vEnd)
 
     # Establish DM coordinates (a DM is an abstract PETSc object that manages an abstract grid object and its
     # interactions with the algebraic solvers):
@@ -197,33 +196,6 @@ def metric_intersection(mesh, V, M1, M2) :
         M12.dat.data[i] = np.transpose(sla.sqrtm(M)) * M12.dat.data[i] * sla.sqrtm(M)
 
     return M12
-
-# def update_SW_FE(meshd1, meshd2, u_, u, eta_, eta, b) :
-#     """A function which updates shallow water solution fields and bathymetry from one mesh to another."""
-#
-#     # Get mesh:
-#     mesh2 = meshd2.mesh
-#
-#     # Establish function spaces on the new mesh:
-#     Vu = VectorFunctionSpace(mesh2, 'CG', 1)        # TODO: use Taylor-Hood
-#     Ve = FunctionSpace(mesh2, 'CG', 1)
-#     Vq = MixedFunctionSpace((Vu, Ve))
-#
-#     # Establish functions in the new spaces:
-#     q_2 = Function(Vq)
-#     u_2, eta_2 = q_2.split()
-#     q2 = Function(Vq)
-#     u2, eta2 = q2.split()
-#     b2 = Function(Ve)
-#
-#     # Interpolate functions across from the previous mesh:
-#     interp(u_, meshd1, u_2, meshd2)
-#     interp(u, meshd1, u2, meshd2)
-#     interp(eta_, meshd1, eta_2, meshd2)
-#     interp(eta, meshd1, eta2, meshd2)
-#     interp(b, meshd1, b2, meshd2)
-#
-#     return q_2, q2, u_2, u2, eta_2, eta2, b2, Vq
 
 def update_SW(meshd1, meshd2, u_, u, eta_, eta) :
     """A function which updates shallow water solution fields and bathymetry from one mesh to another."""

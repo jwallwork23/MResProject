@@ -79,7 +79,7 @@ m[i] = np.log2(max(eta_vals[i, 0], 0.5))
 
 # Determine signifiant values (for domain of dependence plot):
 for j in range(nx + 1) :
-    if (eta_vals[i, j] >= tol) | (eta_vals[i, j] <= -tol):
+    if (eta_vals[i, j] >= tol) | (eta_vals[i, j] <= -tol) :
         sig_eta[i, j] = 1
 
 # Enter the forward timeloop:
@@ -104,7 +104,7 @@ while t < T - 0.5 * dt :
         m[i] = np.log2(max(eta_vals[i, 0], 0.5))
         
         # Dump video data:
-        if vid == 'y':
+        if vid == 'y' :
             eta_vid.append(Function(eta))
             
     # Dump snapshot data:
@@ -165,7 +165,7 @@ for j in range(nx + 1) :
         q_dot_lam[i, j] = 0
 
 # Enter the backward timeloop:
-while t > 0 :
+while t > 0.5 * dt :
     t -= dt
     print 't = ', t, ' seconds'
     lam_solv.solve()

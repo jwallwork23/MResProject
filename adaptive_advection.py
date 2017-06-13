@@ -3,7 +3,7 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, update_advection_FE
+from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, update_variable
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)                    # Resolution of initial uniform mesh
@@ -74,7 +74,8 @@ while t < T - 0.5 * dt :
         tic2 = clock()
         mesh = adapt(mesh, M)
         meshd = Meshd(mesh)
-        phi_, phi = update_advection_FE(meshd_, meshd, phi_, phi)
+        phi_ = update_variable(meshd_, meshd, phi_)
+        phi = update_variable(meshd_, meshd, phi)
         W = meshd.V
         toc2 = clock()
         phi.rename('Concentration')

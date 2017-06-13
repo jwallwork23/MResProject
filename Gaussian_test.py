@@ -1,9 +1,10 @@
 from firedrake import *
 
 import numpy as np
+import matplotlib.pyplot as plt
 from time import clock
 
-from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, metric_intersection, update_SW_FE
+from utils import *
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
@@ -53,12 +54,18 @@ if bathy == 'f' :
 else :
     b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))  # Shelf break bathymetry
 
+# # Establish a function to hold the maximum free surface:
+# maxi = Function(meshd.V)
+
 # Courant number adjusted timestepping parameters:
 ndump = 1
 g = 9.81                                    # Gravitational acceleration (m s^{-2})
 dt = 0.8 * hmin / np.sqrt(g * 0.1)          # Timestep length (s), using wavespeed sqrt(gh)
 Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
+
+# # Create a vector to store maximal free surface values:
+# m = np.zeros((int(T / dt) + 1))
 
 # Construct a function to store our two variables at time n:
 q_ = Function(Vq)
@@ -143,14 +150,16 @@ while t < T - 0.5 * dt :
             else :
                 M = M2
 
-        # Adapt mesh and set up new function spaces:
+        # Adapt mesh and interpolate functions:
         M.rename('Metric field')
         mesh_ = mesh
         meshd_ = Meshd(mesh_)
         tic2 = clock()
         mesh = adapt(mesh, M)
         meshd = Meshd(mesh)
-        q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
+        q_, q, u_, u, eta_, eta, Vq = update_SW(meshd_, meshd, u_, u, eta_, eta)
+        b = update_variable(meshd_, meshd, b)
+        maxi = Function(meshd.V)
         toc2 = clock()
 
         # Data analysis:
@@ -166,7 +175,8 @@ while t < T - 0.5 * dt :
         print 'Time = %1.2fs' % t
         print 'Number of nodes after adaption step %d: ' % mn, n
         print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
-        print 'Elapsed time for adaption step %d: %1.2fs' % (mn, toc2 - tic2)
+        print 'Max. free surface in important region: %1.2f' % m[cnt]
+        print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
         print ''
 
     # Set up functions of weak problem:
@@ -190,11 +200,16 @@ while t < T - 0.5 * dt :
 
     # Enter inner timeloop:
     while cnt < rm :
+
         t += dt
         cnt += 1
+        dumpn += 1
+
         q_solv.solve()
         q_.assign(q)
-        dumpn += 1
+        # maxi.interpolate(Expression('(x[0] >= 0.2) & (x[0] <= 0.4) & (x[1] >= 1.5) & (x[1] <= 1.8) ? eta : 0'))
+        # m[cnt] = max(maxi.dat.data)
+
         if dumpn == ndump :
 
             dumpn -= ndump
@@ -211,3 +226,13 @@ if remesh == 'y' :
     print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
 else :
     print 'Elapsed time for non-adaptive solver: %1.2fs' % (toc1 - tic1)
+
+
+# # Plot damage measures:
+# plt.rc('text', usetex = True)
+# plt.rc('font', family = 'serif')
+# plt.plot(np.linspace(0, T, T / dt + 1), m, color = 'blue')
+# plt.xlabel(r'Time (s)')
+# plt.ylabel(r'Maximal free surface (m)')
+# plt.title(r'Damage measures')
+# plt.savefig('plots/screenshots/2Ddamage_measures.png')

@@ -3,7 +3,7 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, Tohoku_domain, update_SW_FE
+from utils import *
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
@@ -106,14 +106,15 @@ while t < T - 0.5 * dt:
         tic2 = clock()
         mesh = adapt(mesh, M)
         meshd = Meshd(mesh)
-        q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
+        q_, q, u_, u, eta_, eta, b, Vq = update_SW(meshd_, meshd, u_, u, eta_, eta)
+        b = update_variable(meshd_, meshd, b)
         toc2 = clock()
 
         # Data analysis:
         n = len(mesh.coordinates.dat.data)
-        if n < N1:
+        if n < N1 :
             N1 = n
-        elif n > N2:
+        elif n > N2 :
             N2 = n
 
         # Print to screen:

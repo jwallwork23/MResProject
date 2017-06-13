@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from time import clock
 
-from utils import adapt, construct_hessian, compute_steady_metric, Meshd, update_SW_FE
+from utils import adapt, construct_hessian, compute_steady_metric, Meshd, update_SW, update_variable
 
 # Define initial (uniform) mesh:
 inv_n = float(raw_input('Size of cells in km (default 10): ') or 10) * 1e3
@@ -165,7 +165,8 @@ while t < T - 0.5 * dt :
         tic2 = clock()
         mesh = adapt(mesh, M)
         meshd = Meshd(mesh)
-        q_, q, u_, u, eta_, eta, b, Vq = update_SW_FE(meshd_, meshd, u_, u, eta_, eta, b)
+        q_, q, u_, u, eta_, eta, b, Vq = update_SW(meshd_, meshd, u_, u, eta_, eta)
+        b = update_variable(meshd_, meshd, b)
         toc2 = clock()
 
         # Data analysis:
@@ -350,7 +351,8 @@ while t > 0 :
         tic4 = clock()
         mesh = adapt(mesh, M)
         meshd = Meshd(mesh)
-        lam_, lam, lu_, lu, le_, le, b, Vq = update_SW_FE(meshd_, meshd, lu_, lu, le_, le, b)
+        lam_, lam, lu_, lu, le_, le, b, Vq = update_SW(meshd_, meshd, lu_, lu, le_, le)
+        b = update_variable(meshd_, meshd, b)
         toc4 = clock()
 
         # Data analysis:

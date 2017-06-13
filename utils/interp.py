@@ -85,7 +85,7 @@ def interp(u, meshd, unew, meshdnew) :
         if mesh._topological_dimension == 2 :
             plex = mesh._plex
             fStart, fEnd = plex.getHeightStratum(1)         # Edges/facets
-            vStart, vEnd = plex.getDepthStratum(0)
+            vStart, vEnd = plex.getDepthStratum(0)          # Vertices
 
             # Loop over edges:
             for f in range(fStart, fEnd) :
@@ -133,7 +133,6 @@ def interp(u, meshd, unew, meshdnew) :
                 v = nid[0]                                      # Vertex not in domain
                 offnew = meshdnew.section.getOffset(v) / 2      # Corresponding section
                 crdP = meshnew.coordinates.dat.data[offnew]     # Coordinates of vertex not in domain
-                # val = -1                                        # TODO: is this needed?
 
                 if nid[1] > 0.01 :                              # If distance is sufficiently large
 

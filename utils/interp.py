@@ -52,12 +52,13 @@ def interp(u, meshd, unew, meshdnew) :
     mesh = meshd.mesh
     meshnew = meshdnew.mesh
 
-    # Establish topological dimension (usually 2 for our purposes):
+    # Establish topological dimension:
     dim = mesh._topological_dimension
+    assert(dim == 2)                                        # 3D implementation not yet considered
 
     # Get the DMPlex object encapsulating the mesh topology and determine the vertices of plex to consider:
     plexnew = meshnew._plex
-    vStart, vEnd = plexnew.getDepthStratum(0)
+    vStart, vEnd = plexnew.getDepthStratum(0)               # Vertices of new plex
 
     notInDomain = []
 
@@ -73,7 +74,7 @@ def interp(u, meshd, unew, meshdnew) :
         except PointNotInDomainError :
             print '####  New vertex not in domain: %f %f' % (newCrd[0], newCrd[1])
             val = 0.
-            notInDomain.append([v, INF, -1])   # TODO: store newCrd here instead of v
+            notInDomain.append([v, INF, -1])   # (Vertex, distance, edge) tuple... TODO: store newCrd here instead of v
         finally :
             unew.dat.data[offnew] = val
     
@@ -82,137 +83,141 @@ def interp(u, meshd, unew, meshdnew) :
         print '####  Warning: number of points not in domain: %d / %d' % \
               (len(notInDomain), meshnew.topology.num_vertices())
 
-        if mesh._topological_dimension == 2 :
-            plex = mesh._plex
-            fStart, fEnd = plex.getHeightStratum(1)         # Edges/facets
-            vStart, vEnd = plex.getDepthStratum(0)          # Vertices
+        plex = mesh._plex
+        fStart, fEnd = plex.getHeightStratum(1)                         # Edges/facets of old plex
+        vStart, vEnd = plex.getDepthStratum(0)                          # Vertices of old plex
 
-            # Loop over edges:
-            for f in range(fStart, fEnd) :
+        # Loop over edges:
+        for f in range(fStart, fEnd) :
 
-                if plex.getLabelValue('boundary_ids', f) == -1 : continue
-                closure = plex.getTransitiveClosure(f)[0]
-                crdE = []                                   # Coordinates of the two vertices of the edge
+            if plex.getLabelValue('boundary_ids', f) == -1 : continue
+            closure = plex.getTransitiveClosure(f)[0]                   # Get endpoints of edge
+            crdE = []                                                   # Coordinates of the two vertices of the edge
 
-                # Loop over closure of edge:
-                for cl in closure:
+            # Loop over closure of edge:
+            for cl in closure :
+                if vStart <= cl and cl < vEnd :                         # Check they are really vertices
+                    off = meshd.section.getOffset(cl) / 2
+                    crdE.append(mesh.coordinates.dat.data[off])
+
+            if len(crdE) != 2 :
+                print '## ERROR  number of points in crdE: %d' % len(crdE)
+                exit(16)
+
+            vn =  [crdE[0][1] - crdE[1][1], crdE[0][0] - crdE[1][0]]    # Normal vector of the edge
+            nrm = sqrt(vn[0] * vn[0] + vn[1] * vn[1])                   # Norm of normal vector
+            vn = [vn[0] / nrm, vn[1] / nrm]                             # Normalised normal vector
+
+            for nid in notInDomain :
+
+                v = nid[0]                                              # Vertex not in domain
+                offnew = meshdnew.section.getOffset(v) / 2              # Corresponding section
+                crdP = meshnew.coordinates.dat.data[offnew]             # Coordinates of vertex not in domain
+                dst = abs(vn[0] * (crdE[0][0] - crdP[0]) +              # | vn . (crdE[0] - crdP)|
+                          vn[1] * (crdE[0][1] - crdP[1]))               # = | crdE[0] - crdP | | cos(angle) |
+
+                # Control if the vertex is between the two edge vertices (a big assumption corners are preserved):
+                if dst < nid[1] :
+                    # (crdP - crdE[0]) . (crdE[1] - crdE[0]) :
+                    sca1 = (crdP[0] - crdE[0][0]) * (crdE[1][0] - crdE[0][0]) + \
+                           (crdP[1] - crdE[0][1]) * (crdE[1][1] - crdE[0][1])
+                    # (crdP - crdE[1]) . (crdE[0] - crdE[1]) :
+                    sca2 = (crdP[0] - crdE[1][0]) * (crdE[0][0] - crdE[1][0]) + \
+                           (crdP[1] - crdE[1][1]) * (crdE[0][1] - crdE[1][1])
+
+                    if sca1 >= 0 and sca2 > 0 :
+                        nid[1] = dst                                    # Specify (finite) distance
+                        nid[2] = f                                      # Replace -1 by edge
+
+        # Having looped over edges, loop over points not in domain (with edited notInDomain tuples):
+        for nid in notInDomain :
+
+            v = nid[0]                                          # Vertex not in domain
+            offnew = meshdnew.section.getOffset(v) / 2          # Corresponding section
+            crdP = meshnew.coordinates.dat.data[offnew]         # Coordinates of vertex not in domain
+
+            if nid[1] > 0.01 :                                  # If distance is sufficiently large,
+
+                cStart, cEnd = plex.getHeightStratum(0)         # Triangles / cells
+                barCrd = [0, 0, 0]                              # Setup barycentric coordinates
+                inCell = 0                                      # 0 when v is outside of cell, 1 when it is inside
+
+                # Loop over cells:
+                for c in range(cStart, cEnd) :
+                    closure = plex.getTransitiveClosure(c)[0]   # Closure of triangle
+                    crdC = []                                   # Coordinates of the three vertices of the triangle
+                    val = []                                    # u values at vertices of the triangle
+
+                    # Loop over entities of the triangle closure and collect u values:
+                    for cl in closure :
+                        if vStart <= cl and cl < vEnd :
+                            off = meshd.section.getOffset(cl) / 2
+                            crdC.append(mesh.coordinates.dat.data[off])
+                            val.append(u.dat.data[off])
+
+                    # Establish barycentric coordinates of v:
+                    barCrd[0] = barCoord(crdP, crdC, 0)
+                    barCrd[1] = barCoord(crdP, crdC, 1)
+                    barCrd[2] = barCoord(crdP, crdC, 2)
+
+                    # If v lies within the triangle,
+                    if barCrd[0] >= 0 and barCrd[1] >= 0 and barCrd[2] >= 0 :
+                        print 'DEBUG  Cell : %1.4f %1.4f   %1.4f %1.4f   %1.4f %1.4f   bary:  %e %e %e' % \
+                              (crdC[0][0], crdC[0][1], crdC[1][0], crdC[1][1], crdC[2][0], crdC[2][1], barCrd[0],
+                               barCrd[1], barCrd[2])
+
+                        # Interpolate by expanding over barycentric basis:
+                        val = barCrd[0] * val[0] + barCrd[1] * val[1] + barCrd[2] * val[2]
+                        inCell = 1
+                        break
+
+                if not inCell :
+                    print 'ERROR  vertex too far from the boundary but no enclosing cell found. Crd: %f %f' \
+                          % (crdP[0], crdP[1])
+                    exit(16)
+
+            else :                                              # The case where a vertex is very close to the edge
+
+                f = nid[2]                                      # Edge (which replaces -1)
+
+                # Loop over edges:
+                if f < fStart or f > fEnd :
+                    print '## ERROR   f: %d,   fStart: %d,  fEnd: %d' % (f, fStart, fEnd)
+                    exit(14)
+
+                closure = plex.getTransitiveClosure(f)[0]       # Closure of edge
+                crdE = []                                       # Coordinates of the two vertices of the edge
+                val = []                                        # u values at the vertices of the edge
+
+                # Loop over entities in the edge closure and collect u values:
+                for cl in closure :
                     if vStart <= cl and cl < vEnd :
                         off = meshd.section.getOffset(cl) / 2
                         crdE.append(mesh.coordinates.dat.data[off])
+                        val.append(u.dat.data[off])
 
                 if len(crdE) != 2 :
                     print '## ERROR  number of points in crdE: %d' % len(crdE)
                     exit(16)
 
-                vn =  [crdE[0][1] - crdE[1][1], crdE[0][0] - crdE[1][0]]    # Normal vector of the edge
-                nrm = sqrt(vn[0] * vn[0] + vn[1] * vn[1])                   # Norm of normal vector
-                vn = [vn[0] / nrm, vn[1] / nrm]                             # Normalised normal vector
+                # Normalised edge vector:
+                edg =  [crdE[0][0] - crdE[1][0], crdE[0][1] - crdE[1][1]]
+                nrm = sqrt(edg[0] * edg[0] + edg[1] * edg[1])
+                edg = [edg[0] / nrm, edg[1] / nrm]
 
-                for nid in notInDomain :
+                # Debugging:                                                        # TODO: Do properly
+                print 'Coords e1 = (%1.4f, %1.4f)' % (crdE[0][0], crdE[0][1])
+                print 'Coords e2 = (%1.4f, %1.4f)' % (crdE[1][0], crdE[1][1])
+                print 'Coords p = (%1.4f, %1.4f)' % (crdP[0], crdP[1])
 
-                    v = nid[0]                                              # Vertex not in domain
-                    offnew = meshdnew.section.getOffset(v) / 2              # Corresponding section
-                    crdP = meshnew.coordinates.dat.data[offnew]             # Coordinates of vertex not in domain
-                    dst = abs(vn[0] * (crdE[0][0] - crdP[0]) + vn[1] * (crdE[0][1] - crdP[1]))
+                # H = alpha e1 + (1-alpha) e2    and   alpha = e2P.e2e1/||e2e1||
+                alpha = (crdP[0] - crdE[1][0]) * edg[0] + (crdP[1] - crdE[1][1]) * edg[1]
 
-                    # Control if the vertex is between the two edge vertices (a big assumption corners are preserved):
-                    if dst < nid[1] :
-                        # e1P.e1e2
-                        sca1 = (crdP[0] - crdE[0][0]) * (crdE[1][0] - crdE[0][0]) + \
-                               (crdP[1] - crdE[0][1]) * (crdE[1][1] - crdE[0][1])
-                        # e2P.e2e1
-                        sca2 = (crdP[0] - crdE[1][0]) * (crdE[0][0] - crdE[1][0]) + \
-                               (crdP[1] - crdE[1][1]) * (crdE[0][1] - crdE[1][1])
-                        if sca1 >= 0 and sca2 > 0 :
-                            nid[1] = dst                                    # Specify (finite) distance
-                            nid[2] = f                                      # Replace -1 by edge
+                print 'alpha = ', alpha
 
-            # Having looped over edges, loop over points not in domain (with edited notInDomain tuples):
-            for nid in notInDomain :
+                if alpha > 1 :
+                    print '## ERROR alpha = %1.4f' % alpha
+                    exit(23)
+                val = alpha * val[0] + (1 - alpha) * val[1]
 
-                v = nid[0]                                      # Vertex not in domain
-                offnew = meshdnew.section.getOffset(v) / 2      # Corresponding section
-                crdP = meshnew.coordinates.dat.data[offnew]     # Coordinates of vertex not in domain
-
-                if nid[1] > 0.01 :                              # If distance is sufficiently large
-
-                    cStart, cEnd = plex.getHeightStratum(0)     # Cells
-                    barCrd = [0, 0, 0]
-                    inCell = 0                                  # 0 when v is outside of cell, 1 when it is inside
-
-                    # Loop over cells:
-                    for c in range(cStart, cEnd) :
-                        closure = plex.getTransitiveClosure(c)[0]   # Closure of triangle
-                        crdC = []                                   # Coordinates of the three vertices of the triangle
-                        val = []                                    # u values at vertices of the triangle
-
-                        # Loop over entities of the triangle closure and collect u values:
-                        for cl in closure :
-                            if vStart <= cl and cl < vEnd :
-                                off = meshd.section.getOffset(cl) / 2
-                                crdC.append(mesh.coordinates.dat.data[off])
-                                val.append(u.dat.data[off])
-
-                        # Establish barycentric coordinates of v:
-                        barCrd[0] = barCoord(crdP, crdC, 0)
-                        barCrd[1] = barCoord(crdP, crdC, 1)
-                        barCrd[2] = barCoord(crdP, crdC, 2)
-
-                        # If v lies within the triangle,
-                        if barCrd[0] >= 0 and barCrd[1] >= 0 and barCrd[2] >= 0 :
-                            print 'DEBUG  Cell : %1.4f %1.4f   %1.4f %1.4f   %1.4f %1.4f   bary:  %e %e %e' % \
-                                  (crdC[0][0], crdC[0][1], crdC[1][0], crdC[1][1], crdC[2][0], crdC[2][1], barCrd[0],
-                                   barCrd[1], barCrd[2])
-
-                            # Interpolate by expanding over barycentric basis:
-                            val = barCrd[0] * val[0] + barCrd[1] * val[1] + barCrd[2] * val[2]
-                            inCell = 1
-                            break
-
-                    if not inCell :
-                        print 'ERROR  vertex too far from the boundary but no enclosing cell found. Crd: %f %f' \
-                              % (crdP[0], crdP[1])
-                        exit(16)
-
-                else :                                              # The case where a vertex is very close to the edge
-
-                    f = nid[2]                                      # Edge (which replaced -1)
-
-                    # Loop over edges:
-                    if f < fStart or f > fEnd :
-                        print '## ERROR   f: %d,   fStart: %d,  fEnd: %d' % (f, fStart, fEnd)
-                        exit(14)
-
-                    closure = plex.getTransitiveClosure(f)[0]       # Closure of edge
-                    crdE = []                                       # Coordinates of the two vertices of the edge
-                    val = []                                        # u values at the vertices of the edge
-
-                    # Loop over entities in the edge closure and collect u values:
-                    for cl in closure :
-                        if vStart <= cl and cl < vEnd :
-                            off = meshd.section.getOffset(cl) / 2
-                            crdE.append(mesh.coordinates.dat.data[off])
-                            val.append(u.dat.data[off])
-
-                    if len(crdE) != 2 :
-                        print '## ERROR  number of points in crdE: %d' % len(crdE)
-                        exit(16)
-
-                    # Normalise edge vector e2e1:
-                    edg =  [crdE[0][0] - crdE[1][0], crdE[0][1] - crdE[1][1]]
-                    nrm = sqrt(edg[0] * edg[0] + edg[1] * edg[1])
-                    edg = [edg[0] / nrm, edg[1] / nrm]
-
-                    # H = alpha e1 + (1-alpha) e2    and   alpha = e2P.e2e1/||e2e1||
-                    alpha = (crdP[0] - crdE[1][0]) * edg[0] + (crdP[1] - crdE[1][1]) * edg[1]
-
-                    if alpha > 1 :
-                        print '## ERROR alpha = %1.4f' % alpha
-                        alpha = 1                                   # TODO: Fix this properly
-                        # exit(23)
-
-                    val = alpha * val[0] + (1 - alpha) * val[1]
-                unew.dat.data[offnew] = val 
-        else :
-            print '#### ERROR no recovery procedure implemented in 3D yet'
-            exit(1)
+            unew.dat.data[offnew] = val

@@ -88,10 +88,7 @@ mn = 0
 dumpn = 0
 q_file = File('plots/adapt_plots/tohoku_adapt.pvd')
 m_file = File('plots/adapt_plots/tohoku_adapt_metric.pvd')
-lam_file = File('plots/adapt_plots/tohoku_adjoint.pvd')
-m_file2 = File('plots/adapt_plots/tohoku_adjoint_metric.pvd')
 q_file.write(u, eta, time = t)
-lam_file.write(lu, le, time = 0)
 tic1 = clock()
 
 while t < T - 0.5 * dt:
@@ -131,7 +128,7 @@ while t < T - 0.5 * dt:
         tic2 = clock()
         mesh = adapt(mesh, M)
         meshd = Meshd(mesh)
-        q_, q, u_, u, eta_, eta, b, Vq = update_SW(meshd_, meshd, u_, u, eta_, eta)
+        q_, q, u_, u, eta_, eta, Vq = update_SW(meshd_, meshd, u_, u, eta_, eta)
         b = update_variable(meshd_, meshd, b)
         toc2 = clock()
 
@@ -224,3 +221,6 @@ le.rename('Adjoint free surface displacement')
 # Initialise counters and files:
 cnt = 0
 mn = 0
+lam_file = File('plots/adapt_plots/tohoku_adjoint.pvd')
+m_file2 = File('plots/adapt_plots/tohoku_adjoint_metric.pvd')
+lam_file.write(lu, le, time = 0)

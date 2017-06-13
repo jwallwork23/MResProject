@@ -31,11 +31,15 @@ if remesh == 'y' :
     rm = int(raw_input('Timesteps per remesh (default 10)?: ') or 10)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+    mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
+    if mtype not in ('s', 'f', 'b') :
+        raise ValueError('Please try again, choosing s, f or b.')
 else :
     hmin = 500
     rm = int(T)
     nodes = 0
     ntype = None
+    mtype = None
     if remesh != 'n':
         raise ValueError('Please try again, choosing y or n.')
 
@@ -84,7 +88,10 @@ mn = 0
 dumpn = 0
 q_file = File('plots/adapt_plots/tohoku_adapt.pvd')
 m_file = File('plots/adapt_plots/tohoku_adapt_metric.pvd')
+lam_file = File('plots/adapt_plots/tohoku_adjoint.pvd')
+m_file2 = File('plots/adapt_plots/tohoku_adjoint_metric.pvd')
 q_file.write(u, eta, time = t)
+lam_file.write(lu, le, time = 0)
 tic1 = clock()
 
 while t < T - 0.5 * dt:
@@ -94,13 +101,31 @@ while t < T - 0.5 * dt:
 
     if remesh == 'y' :
 
-        # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)
-        H = construct_hessian(mesh, V, eta)
-        M = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
-        M.rename('Metric field')
 
-        # Adapt mesh and update FE setup:
+        if mtype != 'f' :
+            # Establish velocity speed for adaption:
+            spd = Function(FunctionSpace(mesh, 'CG', 1))
+            spd.interpolate(sqrt(dot(u, u)))
+
+            # Compute Hessian and metric:
+            H = construct_hessian(mesh, V, spd)
+            M = compute_steady_metric(mesh, V, H, spd, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
+
+        if mtype != 's' :
+
+            # Compute Hessian and metric:
+            H = construct_hessian(mesh, V, eta)
+            M2 = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
+
+            if mtype == 'b' :
+                M = metric_intersection(mesh, V, M, M2)
+
+            else :
+                M = M2
+
+        # Adapt mesh and set up new function spaces:
+        M.rename('Metric field')
         mesh_ = mesh
         meshd_ = Meshd(mesh_)
         tic2 = clock()
@@ -168,3 +193,34 @@ if remesh == 'y' :
     print 'Elapsed time for adaptive tank solver: %1.2fs' % (toc1 - tic1)
 else :
     print 'Elapsed time for non-adaptive tank solver: %1.2fs' % (toc1 - tic1)
+
+print 'Forward problem solved.... now for the adjoint problem.'
+
+if remesh == 'y':
+
+    # Reset mesh and setup:
+    mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
+
+# Set up functions of weak problem:
+lam = Function(Vq)
+lam.assign(lam_)
+w, xi = TestFunctions(Vq)
+lu, le = split(lam)
+lu_, le_ = split(lam_)
+luh = 0.5 * (lu + lu_)
+leh = 0.5 * (le + le_)
+
+# Set up the variational problem:
+L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+lam_prob = NonlinearVariationalProblem(L2, lam)
+lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
+
+# 'Split' functions to access their data and relabel:
+lu_, le_ = lam_.split()
+lu, le = lam.split()
+lu.rename('Adjoint fluid velocity')
+le.rename('Adjoint free surface displacement')
+
+# Initialise counters and files:
+cnt = 0
+mn = 0

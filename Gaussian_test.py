@@ -159,7 +159,7 @@ while t < T - 0.5 * dt :
         meshd = Meshd(mesh)
         q_, q, u_, u, eta_, eta, Vq = update_SW(meshd_, meshd, u_, u, eta_, eta)
         b = update_variable(meshd_, meshd, b)
-        maxi = Function(meshd.V)
+        # maxi = Function(meshd.V)
         toc2 = clock()
 
         # Data analysis:

@@ -6,9 +6,9 @@ from time import clock
 from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, update_variable
 
 # Define initial (uniform) mesh:
-n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)                    # Resolution of initial uniform mesh
-lx = 4                                                                          # Extent in x-direction (m)
-ly = 1                                                                          # Extent in y-direction (m)
+n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
+lx = 4                                                                  # Extent in x-direction (m)
+ly = 1                                                                  # Extent in y-direction (m)
 mesh = RectangleMesh(lx * n, ly * n, lx, ly)
 meshd = Meshd(mesh)
 x, y = SpatialCoordinate(mesh)
@@ -24,6 +24,8 @@ if remesh == 'y' :
     rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+    if ntype not in ('lp', 'manual') :
+        raise ValueError('Please try again, choosing lp or manual.')
 else :
     hmin = 0
     rm = int(T / dt)
@@ -82,9 +84,9 @@ while t < T - 0.5 * dt :
 
         # Data analysis:
         n = len(mesh.coordinates.dat.data)
-        if n < N1:
+        if n < N1 :
             N1 = n
-        elif n > N2:
+        elif n > N2 :
             N2 = n
 
         # Print to screen:

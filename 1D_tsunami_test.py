@@ -14,7 +14,7 @@ n = float(raw_input('Specify no. of cells per km (default 1): ') or 1) * 1e-3
 T = float(raw_input('Specify duration in s (default 4200): ') or 4200.)
 tol = float(raw_input( 'Specify significance tolerance (default 0.1): ') or 0.1)
 vid = raw_input('Show video output? (y/n, default n): ') or 'n'
-if (vid != 'y') & (vid != 'n'):
+if vid not in ('y', 'n') :
     raise ValueError('Please try again, choosing y or n.')
 ndump = 60                                                                      # Timesteps per data dump
 g = 9.81                                                                        # Gravitational acceleration (m s^{-2})
@@ -258,7 +258,7 @@ else :
     plots = {'Forward' : sig_eta, 'Adjoint' : sig_le, 'Domain of dependence' : q_dot_lam}
 
     # Make significance and domain-of-dependence plots:
-    for k in plots:
+    for k in plots :
         plt.rc('text', usetex = True)
         plt.rc('font', family = 'serif')
         plt.pcolor(plots[k], cmap = 'gray_r')

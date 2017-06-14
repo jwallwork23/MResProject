@@ -16,7 +16,7 @@ N1 = len(mesh.coordinates.dat.data)                                     # Minimu
 N2 = N1                                                                 # Maximum number of nodes
 print 'Initial number of nodes : ', N1
 bathy = raw_input('Flat bathymetry or shelf break (f/s)?: ') or 'f'
-if (bathy != 'f') & (bathy != 's') :
+if bathy not in ('f', 's') :
     raise ValueError('Please try again, choosing f or s.')
 
 # Simulation duration:
@@ -30,8 +30,10 @@ if remesh == 'y' :
     rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+    if ntype not in ('lp', 'manual') :
+        raise ValueError('Please try again, choosing lp or manual.')
     mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
-    if mtype not in ('s','f','b'):
+    if mtype not in ('s', 'f', 'b'):
         raise ValueError('Please try again, choosing s, f or b.')
 else :
     hmin = 0.005

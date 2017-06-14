@@ -70,15 +70,15 @@ def construct_hessian(mesh, V, sol) :
             (sigma[0,1] * nhat[1] * sol.dx(0) + sigma[1,0] * nhat[0] * sol.dx(1)) * ds
         )
     H_prob = NonlinearVariationalProblem(Lh, H)
-    H_solv = NonlinearVariationalSolver(H_prob, solver_parameters={'snes_rtol': 1e8,
-                                                                   'ksp_rtol': 1e-5,
-                                                                   'ksp_gmres_restart': 20,
-                                                                   'pc_type': 'sor',
-                                                                   'snes_monitor': False,
-                                                                   'snes_view': False,
-                                                                   'ksp_monitor_true_residual': False,
-                                                                   'snes_converged_reason': False,
-                                                                   'ksp_converged_reason': False,})
+    H_solv = NonlinearVariationalSolver(H_prob, solver_parameters = {'snes_rtol' : 1e8,
+                                                                     'ksp_rtol' : 1e-5,
+                                                                     'ksp_gmres_restart' : 20,
+                                                                     'pc_type' : 'sor',
+                                                                     'snes_monitor' : False,
+                                                                     'snes_view' : False,
+                                                                     'ksp_monitor_true_residual' : False,
+                                                                     'snes_converged_reason' : False,
+                                                                     'ksp_converged_reason' : False, })
     H_solv.solve()
 
     return H
@@ -107,7 +107,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             sol_min = 0.001
         
             # Generate local Hessian:
-            H_loc = H.dat.data[i] * ieps * 1. / (max(abs(sol.dat.data[i]), sol_min))  # To avoid round-off error
+            H_loc = H.dat.data[i] * ieps / (max(abs(sol.dat.data[i]), sol_min))  # To avoid round-off error
             mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
             H_loc[0][1] = mean_diag
             H_loc[1][0] = mean_diag

@@ -23,6 +23,11 @@ print 'Initial number of nodes : ', N1
 # Simulation duration:
 T = float(raw_input('Simulation duration in hours (default 2)?: ') or 2.) * 3600.
 
+# Coriolis effect test:                                                         # TODO: implement this test
+cor = raw_input('Rotational or non-rotational case? (r/n)') or 'n'
+if cor not in ('n', 'r') :
+    raise ValueError('Please try again, choosing r or n.')
+
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y' :
@@ -31,6 +36,8 @@ if remesh == 'y' :
     rm = int(raw_input('Timesteps per remesh (default 10)?: ') or 10)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+    if ntype not in ('lp', 'manual') :
+        raise ValueError('Please try again, choosing lp or manual.')
     mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
     if mtype not in ('s', 'f', 'b') :
         raise ValueError('Please try again, choosing s, f or b.')

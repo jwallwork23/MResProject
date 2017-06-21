@@ -83,54 +83,57 @@ def construct_hessian(mesh, V, sol) :
 
     return H
 
-def construct_hessian2(meshd, V, sol) :
-    """A function which computes the Hessian of a scalar solution field w.r.t. the current mesh."""
-
-    mesh = meshd.mesh
-    dim = mesh._topological_dimension
-    assert (dim == 2)                           # 3D implementation not yet considered
-
-    # Get the DMPlex object encapsulating the mesh topology and determine the vertices of plex to consider:
-    plex = mesh._plex
-    vStart, vEnd = plex.getDepthStratum(0)      # Vertices of new plex
-    bc = DirichletBC(V, 0, on_boundary)
-    b_nodes = bc.nodes
-
-    H = Function(V)                             # Hessian-to-be
-
-    for v in range(vStart, vEnd) and not b_nodes :
-
-        # [Compute ML]
-
-        for i in range(2) :
-
-            for j in range(i) :
-
-                # [Compute Hij]
-
-        # [Put H21 = H12]
-
-    noIntNbrs = []
-
-    # [Create some functions int_nbrs and bdy_nbrs]
-
-    for v in b_nodes:
-
-        if len(int_nbrs(v)) == 0:
-            noIntNbrs.append(v)
-        else :
-            Nn = 0
-            Dn = np.zeros((2, 2))
-            for w in int_nbrs(v) :
-                # [Calculate Nn += H*Mnk and Dn += Mnk]
-
-    if len(noIntNbrs) > 0 :
-        for v in noIntNbrs :
-            for w in bdy_nbrs(v) :
-                # [Calculate Nn += H*Mnk and Dn += Mnk]
-
-
-    return H
+# def construct_hessian2(meshd, V, sol) :
+#     """A function which computes the Hessian of a scalar solution field w.r.t. the current mesh."""
+#
+#     mesh = meshd.mesh
+#     dim = mesh._topological_dimension
+#     assert (dim == 2)                           # 3D implementation not yet considered
+#
+#     # Get the DMPlex object encapsulating the mesh topology and determine the vertices of plex to consider:
+#     plex = mesh._plex
+#     vStart, vEnd = plex.getDepthStratum(0)      # Vertices of new plex
+#     bc = DirichletBC(V, 0, on_boundary)
+#     b_nodes = bc.nodes
+#
+#     H = Function(V)                             # Hessian-to-be
+#
+#     for v in range(vStart, vEnd) and not b_nodes :
+#
+#         # [Compute ML]
+#
+#         for i in range(2) :
+#
+#             for j in range(i) :
+#
+#                 # [Compute Hij]
+#
+#         # [Put H21 = H12]
+#
+#     noIntNbrs = []
+#
+#     # [Create some functions int_nbrs and bdy_nbrs]
+#
+#     for v in b_nodes:
+#
+#         if len(int_nbrs(v)) == 0:
+#             noIntNbrs.append(v)
+#         else :
+#             Nn = np.zeros((2, 2))
+#             Dn = np.zeros((2, 2))
+#             for w in int_nbrs(v) :
+#                 # [Calculate Nn += H*Mnk and Dn += Mnk]
+#         # [Set H = Nn/Dn]
+#
+#     if len(noIntNbrs) > 0 :
+#         for v in noIntNbrs :
+#             Nn = np.zeros((2, 2))
+#             Dn = np.zeros((2, 2))
+#             for w in bdy_nbrs(v) :
+#                 # [Calculate Nn += H*Mnk and Dn += Mnk]
+#         # [Set H = Nn/Dn]
+#
+#     return H
 
 def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100., normalise = 'lp', p = 2, N = 1000.,
                           ieps = 1000.) :
@@ -156,7 +159,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             sol_min = 0.001
         
             # Generate local Hessian:
-            H_loc = H.dat.data[i] * ieps / (max(abs(sol.dat.data[i]), sol_min))  # To avoid round-off error
+            H_loc = H.dat.data[i] * ieps / (max(np.sqrt(assemble(sol * sol * dx)), sol_min))  # To avoid round-off error
             mean_diag = 0.5 * (H_loc[0][1] + H_loc[1][0])
             H_loc[0][1] = mean_diag
             H_loc[1][0] = mean_diag

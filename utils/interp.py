@@ -205,15 +205,15 @@ def interp(u, meshd, unew, meshdnew) :
                 nrm = sqrt(edg[0] * edg[0] + edg[1] * edg[1])
                 edg = [edg[0] / nrm, edg[1] / nrm]
 
-                # Debugging:                                                        # TODO: Fix this!
-                print 'Coords e1 = (%1.4f, %1.4f)' % (crdE[0][0], crdE[0][1])
-                print 'Coords e2 = (%1.4f, %1.4f)' % (crdE[1][0], crdE[1][1])
-                print 'Coords p = (%1.4f, %1.4f)' % (crdP[0], crdP[1])
+                # # Debugging:                                                        # TODO: Fix this!
+                # print 'Coords e1 = (%1.4f, %1.4f)' % (crdE[0][0], crdE[0][1])
+                # print 'Coords e2 = (%1.4f, %1.4f)' % (crdE[1][0], crdE[1][1])
+                # print 'Coords p = (%1.4f, %1.4f)' % (crdP[0], crdP[1])
 
                 # H = alpha e1 + (1-alpha) e2    and   alpha = e2P.e2e1/||e2e1||
                 alpha = (crdP[0] - crdE[1][0]) * edg[0] + (crdP[1] - crdE[1][1]) * edg[1]
 
-                print 'alpha = ', alpha
+                # print 'alpha = ', alpha
 
                 if alpha > 1 :
                     print '## ERROR alpha = %1.4f' % alpha

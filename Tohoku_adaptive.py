@@ -14,6 +14,17 @@ N1 = len(mesh.coordinates.dat.data)                                     # Minimu
 N2 = N1                                                                 # Maximum number of nodes
 print 'Initial number of nodes : ', N1
 
+# Set pressure gauge locations:
+P02x, P02y = lonlat2tangentxy(142.5, 38.5, 143, 37)
+P06x, P06y = lonlat2tangentxy(142.6, 38.7, 143, 37)
+P02 = [P02x, P02y]
+P06 = [P06x, P06y]
+print 'Coordinates of P02: (%1.1f, %1.1f)' % (P02x, P02y)
+print 'Coordinates of P06: (%1.1f, %1.1f)' % (P06x, P06y)
+
+print 'Initial value at P02: %1.4fm' % eta_.at(P02)
+print 'Initial value at P06: %1.4fm' % eta_.at(P06)
+
 # Choose linear or nonlinear equations:
 # mode = raw_input('Linear or nonlinear equations? (l/n): ') or 'l'             # TODO: reintroduce nonlinear option
 # if (mode != 'l') & (mode != 'n'):
@@ -21,11 +32,6 @@ print 'Initial number of nodes : ', N1
 
 # Simulation duration:
 T = float(raw_input('Simulation duration in hours (default 2)?: ') or 2.) * 3600.
-
-# Coriolis effect test:                                                         # TODO: implement this test
-cor = raw_input('Rotational or non-rotational case? (r/n)') or 'n'
-if cor not in ('n', 'r') :
-    raise ValueError('Please try again, choosing r or n.')
 
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'

@@ -4,6 +4,7 @@ import numpy as np
 import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
 from math import radians
+from time import clock
 
 from utils import *
 
@@ -18,8 +19,8 @@ Vq = MixedFunctionSpace((Vu, Vv, Ve))                               # Mixed FE p
 # Construct functions to store forward and adjoint variables, along with bathymetry:
 q_ = Function(Vq)
 u_, v_, eta_ = q_.split()
-eta0 = Function(Vq.sub(1), name = 'Initial surface')
-b = Function(Vq.sub(1), name = 'Bathymetry')
+eta0 = Function(Vq.sub(2), name = 'Initial surface')
+b = Function(Vq.sub(2), name = 'Bathymetry')
 
 # Read and interpolate initial surface data (courtesy of Saito):
 nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap = False)
@@ -54,12 +55,9 @@ b.assign(conditional(lt(30, b), b, 30))
 
 # Simulation duration:
 T = float(raw_input('Simulation duration in hours (default 2)?: ') or 2.) * 3600.
-# Courant number adjusted timestepping parameters:
-ndump = 1
-g = 9.81                                                # Gravitational acceleration (m s^{-2})
-dt = 0.8 * 500 / np.sqrt(g * max(b.dat.data))           # Timestep length (s), using wavespeed sqrt(gh)
+ndump = 4
+dt = 15
 Dt = Constant(dt)
-print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
 # Determine Coriolis coefficient:
 Om = 7.291e-5
@@ -73,11 +71,6 @@ w, z, ze = TestFunctions(Vq)
 u, v, eta = split(q)
 u_, v_, eta_ = split(q_)
 
-# For timestepping we consider the implicit midpoint rule and so must create new 'mid-step' functions:
-uh = 0.5 * (u + u_)
-vh = 0.5 * (v + v_)
-etah = 0.5 * (eta + eta_)
-
 # Specify solver parameters:
 params = {'mat_type': 'matfree',
           'snes_type': 'ksponly',
@@ -88,9 +81,9 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner_persists': True,}
 
 # Set up the variational problem:
-L = (ze * (eta - eta_) - Dt * b * (uh * ze.dx(0) + vh * ze.dx(1)) +
-     (u - u_) * w + Dt * g * etah.dx(0) * w - f * vh * w +
-     (v - v_) * z + Dt * g * etah.dx(1) * z + f * uh * z) * dx
+L = (ze * (eta - eta_) - Dt * b * (u * ze.dx(0) + v * ze.dx(1)) +
+     (u - u_) * w + Dt * g * eta.dx(0) * w - f * v * w +
+     (v - v_) * z + Dt * g * eta.dx(1) * z + f * u * z) * dx
 q_prob = NonlinearVariationalProblem(L, q)
 q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
 
@@ -109,8 +102,8 @@ q_file.write(u, v, eta, time = t)
 tic1 = clock()
 
 while t < T - 0.5 * dt :
-
     t += dt
+    print 't = %1.1fs' % t
     q_solv.solve()
     q_.assign(q)
     dumpn += 1
@@ -120,4 +113,4 @@ while t < T - 0.5 * dt :
 
 # End timing and print:
 toc1 = clock()
-print 'Elapsed time: %1.2fs' % (toc1 - tic1)
+print 'Elapsed time: %1.1fs' % (toc1 - tic1)

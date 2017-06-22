@@ -22,7 +22,7 @@ print 'Initial number of nodes : ', N1
 #     raise ValueError('Please try again, choosing l or n.')
 
 # Simulation duration:
-T = float(raw_input('Simulation duration in hours (default 2)?: ') or 2.) * 3600.
+T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600.
 
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
@@ -39,10 +39,6 @@ if remesh == 'y' :
         raise ValueError('Please try again, choosing s, f or b.')
 else :
     hmin = 500
-    rm = int(T)
-    nodes = 0
-    ntype = None
-    mtype = None
     if remesh != 'n':
         raise ValueError('Please try again, choosing y or n.')
 
@@ -100,8 +96,8 @@ dumpn = 0
 q_file = File('plots/adapt_plots/tohoku_adapt.pvd')
 m_file = File('plots/adapt_plots/tohoku_adapt_metric.pvd')
 q_file.write(u, eta, time = t)
-P02_dat[0] = eta.at(P02)
-P06_dat[0] = eta.at(P06)
+P02_dat = [eta.at(P02)]
+P06_dat = [eta.at(P06)]
 tic1 = clock()
 
 while t < T - 0.5 * dt :
@@ -181,25 +177,35 @@ while t < T - 0.5 * dt :
     eta.rename('Free surface displacement')
 
     # Enter the inner timeloop:
-    while (cnt < rm) and (t < T - 0.5 * dt) :
-        t += dt
-        cnt += 1
-        q_solv.solve()
-        q_.assign(q)
-        dumpn += 1
-        if dumpn == ndump :
-
-            dumpn -= ndump
-            q_file.write(u, eta, time = t)
+    if remesh == 'y':
+        while cnt < rm :
+            t += dt
+            cnt += 1
+            q_solv.solve()
+            q_.assign(q)
+            dumpn += 1
 
             if t < T :
-                P02_dat[(mn - 1) * rm + cnt + 1] = eta.at(P02)
-                P06_dat[(mn - 1) * rm + cnt + 1] = eta.at(P06)
+                P02_dat.append(eta.at(P02))
+                P06_dat.append(eta.at(P06))
 
-            if remesh == 'y' :
+            if dumpn == ndump :
+                dumpn -= ndump
+                q_file.write(u, eta, time = t)
                 m_file.write(M, time = t)
-            else :
-                print 't = %1.2fs' % t
+    else :
+        while t < T :
+            t += dt
+            print 't = %1.2fs' % t
+            q_solv.solve()
+            q_.assign(q)
+            dumpn += 1
+            P02_dat.append(eta.at(P02))
+            P06_dat.append(eta.at(P06))
+
+            if dumpn == ndump:
+                dumpn -= ndump
+                q_file.write(u, eta, time = t)
 
 # End timing and print:
 toc1 = clock()
@@ -211,15 +217,14 @@ else :
 # Plot pressure gauge time series:
 plt.rc('text', usetex = True)
 plt.rc('font', family = 'serif')
-plt.plot(np.linspace(0, T, len(P02_dat)), P02_dat)
+plt.plot(np.linspace(0, 60, len(P02_dat)), P02_dat, label = 'P02')
 plt.gcf().subplots_adjust(bottom = 0.15)
-plt.legend(bbox_to_anchor = (1.14, 1.14))
-plt.plot(np.linspace(0, T, len(P06_dat)), P06_dat)
+plt.plot(np.linspace(0, 60, len(P06_dat)), P06_dat, label = 'P06')
 plt.gcf().subplots_adjust(bottom = 0.15)
-plt.legend(bbox_to_anchor = (1.14, 1.14))
-plt.xlabel(r'Time elapsed (s)')
+plt.legend()
+plt.xlabel(r'Time elapsed (mins)')
 plt.ylabel(r'Free surface (m)')
-plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries.png')
+plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries_{y}.png'.format(y = remesh))
 
 print 'Forward problem solved.... now for the adjoint problem.'
 

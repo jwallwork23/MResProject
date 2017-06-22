@@ -152,9 +152,12 @@ for key in dict :
 
     # Plot pressure gauge time series:
     plt.rc('text', usetex = True)
-    plt.rc('font', family = 'serif')
+    font = {'family': 'serif',
+            'size': 18}
+    plt.rc('font', **font)
     plt.plot(np.linspace(0, 60, len(gauge_dat)), gauge_dat, label = dict[key])
     plt.gcf().subplots_adjust(bottom = 0.15)
+    plt.ylim([-5, 5])
     plt.legend()
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')

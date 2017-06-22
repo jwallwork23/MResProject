@@ -1,6 +1,8 @@
 from firedrake import *
 
+import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import rc
 from time import clock
 
 from utils import *
@@ -13,17 +15,6 @@ meshd = Meshd(mesh)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
 N2 = N1                                                                 # Maximum number of nodes
 print 'Initial number of nodes : ', N1
-
-# Set pressure gauge locations:
-P02x, P02y = lonlat2tangentxy(142.5, 38.5, 143, 37)
-P06x, P06y = lonlat2tangentxy(142.6, 38.7, 143, 37)
-P02 = [P02x, P02y]
-P06 = [P06x, P06y]
-print 'Coordinates of P02: (%1.1f, %1.1f)' % (P02x, P02y)
-print 'Coordinates of P06: (%1.1f, %1.1f)' % (P06x, P06y)
-
-print 'Initial value at P02: %1.4fm' % eta_.at(P02)
-print 'Initial value at P06: %1.4fm' % eta_.at(P06)
 
 # Choose linear or nonlinear equations:
 # mode = raw_input('Linear or nonlinear equations? (l/n): ') or 'l'             # TODO: reintroduce nonlinear option
@@ -62,6 +53,14 @@ dt = 0.8 * hmin / np.sqrt(g * max(b.dat.data))          # Timestep length (s), u
 Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
+# Set pressure gauge locations and arrays:
+P02x, P02y = lonlat2tangentxy(142.5, 38.5, 143, 37)
+P06x, P06y = lonlat2tangentxy(142.6, 38.7, 143, 37)
+P02 = [P02x, P02y]
+P06 = [P06x, P06y]
+P02_dat = np.zeros((int(T / (dt * ndump) + rm)))
+P06_dat = np.zeros((int(T / (dt * ndump) + rm)))
+
 # Set up functions of the weak problem:
 q = Function(Vq)
 q.assign(q_)
@@ -94,16 +93,18 @@ u, eta = q.split()
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
-# Initialise counters and files:
+# Initialise counters, files and arrays:
 t = 0.
 mn = 0
 dumpn = 0
 q_file = File('plots/adapt_plots/tohoku_adapt.pvd')
 m_file = File('plots/adapt_plots/tohoku_adapt_metric.pvd')
 q_file.write(u, eta, time = t)
+P02_dat[0] = eta.at(P02)
+P06_dat[0] = eta.at(P06)
 tic1 = clock()
 
-while t < T - 0.5 * dt:
+while t < T - 0.5 * dt :
 
     mn += 1
     cnt = 0
@@ -180,7 +181,7 @@ while t < T - 0.5 * dt:
     eta.rename('Free surface displacement')
 
     # Enter the inner timeloop:
-    while cnt < rm :
+    while (cnt < rm) and (t < T - 0.5 * dt) :
         t += dt
         cnt += 1
         q_solv.solve()
@@ -190,6 +191,10 @@ while t < T - 0.5 * dt:
 
             dumpn -= ndump
             q_file.write(u, eta, time = t)
+
+            if t < T :
+                P02_dat[(mn - 1) * rm + cnt + 1] = eta.at(P02)
+                P06_dat[(mn - 1) * rm + cnt + 1] = eta.at(P06)
 
             if remesh == 'y' :
                 m_file.write(M, time = t)
@@ -202,6 +207,19 @@ if remesh == 'y' :
     print 'Elapsed time for adaptive tank solver: %1.2fs' % (toc1 - tic1)
 else :
     print 'Elapsed time for non-adaptive tank solver: %1.2fs' % (toc1 - tic1)
+
+# Plot pressure gauge time series:
+plt.rc('text', usetex = True)
+plt.rc('font', family = 'serif')
+plt.plot(np.linspace(0, T, len(P02_dat)), P02_dat)
+plt.gcf().subplots_adjust(bottom = 0.15)
+plt.legend(bbox_to_anchor = (1.14, 1.14))
+plt.plot(np.linspace(0, T, len(P06_dat)), P06_dat)
+plt.gcf().subplots_adjust(bottom = 0.15)
+plt.legend(bbox_to_anchor = (1.14, 1.14))
+plt.xlabel(r'Time elapsed (s)')
+plt.ylabel(r'Free surface (m)')
+plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries.png')
 
 print 'Forward problem solved.... now for the adjoint problem.'
 

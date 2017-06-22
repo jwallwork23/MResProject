@@ -43,7 +43,7 @@ for i in f :
         print '*********** Sensor %d ***********' % i
 
         for j in range(N) :
-        
+
             tic1 = clock()
 
             # Compute Hessian and metric:

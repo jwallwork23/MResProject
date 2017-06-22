@@ -3,6 +3,7 @@ from firedrake import *
 import numpy as np
 import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
+from math import radians
 
 from utils import *
 
@@ -51,4 +52,72 @@ v_.interpolate(Expression(0))
 eta_.assign(eta0)
 b.assign(conditional(lt(30, b), b, 30))
 
+# Simulation duration:
+T = float(raw_input('Simulation duration in hours (default 2)?: ') or 2.) * 3600.
+# Courant number adjusted timestepping parameters:
+ndump = 1
+g = 9.81                                                # Gravitational acceleration (m s^{-2})
+dt = 0.8 * 500 / np.sqrt(g * max(b.dat.data))           # Timestep length (s), using wavespeed sqrt(gh)
+Dt = Constant(dt)
+print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
+# Determine Coriolis coefficient:
+Om = 7.291e-5
+f = 2 * Om * sin(radians(37))
+print 'Using Coriolis number: %1.4f' % f
+
+# Set up functions of the weak problem:
+q = Function(Vq)
+q.assign(q_)
+w, z, ze = TestFunctions(Vq)
+u, v, eta = split(q)
+u_, v_, eta_ = split(q_)
+
+# For timestepping we consider the implicit midpoint rule and so must create new 'mid-step' functions:
+uh = 0.5 * (u + u_)
+vh = 0.5 * (v + v_)
+etah = 0.5 * (eta + eta_)
+
+# Specify solver parameters:
+params = {'mat_type': 'matfree',
+          'snes_type': 'ksponly',
+          'pc_type': 'python',
+          'pc_python_type': 'firedrake.AssembledPC',
+          'assembled_pc_type': 'lu',
+          'snes_lag_preconditioner': -1,
+          'snes_lag_preconditioner_persists': True,}
+
+# Set up the variational problem:
+L = (ze * (eta - eta_) - Dt * b * (uh * ze.dx(0) + vh * ze.dx(1)) +
+     (u - u_) * w + Dt * g * etah.dx(0) * w - f * vh * w +
+     (v - v_) * z + Dt * g * etah.dx(1) * z + f * uh * z) * dx
+q_prob = NonlinearVariationalProblem(L, q)
+q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
+
+# 'Split' functions in order to access their data and then relabel:
+u_, v_, eta_ = q_.split()
+u, v, eta = q.split()
+u.rename('Fluid x-velocity')
+v.rename('Fluid y-velocity')
+eta.rename('Free surface displacement')
+
+# Initialise counters and files:
+t = 0.
+dumpn = 0
+q_file = File('plots/tsunami_outputs/Tohoku_Coriolis.pvd')
+q_file.write(u, v, eta, time = t)
+tic1 = clock()
+
+while t < T - 0.5 * dt :
+
+    t += dt
+    q_solv.solve()
+    q_.assign(q)
+    dumpn += 1
+    if dumpn == ndump :
+        dumpn -= ndump
+        q_file.write(u, v, eta, time = t)
+
+# End timing and print:
+toc1 = clock()
+print 'Elapsed time: %1.2fs' % (toc1 - tic1)

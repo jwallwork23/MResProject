@@ -7,8 +7,7 @@ from utils import *
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
-if (res != 'f') & (res != 'm') & (res != 'c') :
-    raise ValueError('Please try again, choosing f, m or c.')
+if res not in ('f', 'm', 'c') : raise ValueError('Please try again, choosing f, m or c.')
 mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
 meshd = Meshd(mesh)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes

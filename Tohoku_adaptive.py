@@ -39,11 +39,12 @@ if remesh == 'y' :
         raise ValueError('Please try again, choosing s, f or b.')
 else :
     hmin = 500
+    rm = 0
     if remesh != 'n':
         raise ValueError('Please try again, choosing y or n.')
 
 # Courant number adjusted timestepping parameters:
-ndump = 1
+ndump = 15
 g = 9.81                                                # Gravitational acceleration (m s^{-2})
 dt = 0.8 * hmin / np.sqrt(g * max(b.dat.data))          # Timestep length (s), using wavespeed sqrt(gh)
 Dt = Constant(dt)

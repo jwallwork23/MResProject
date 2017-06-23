@@ -17,6 +17,15 @@ def lonlat2tangentxy(lon, lat, lon0, lat0):
     y = Rphi * (1 - cos(radians(lon-lon0))) * sin(radians(lat0)) + Re * sin(radians(lat-lat0))
     return x, y
 
+def lonlat2tangent_pair(lon, lat, lon0, lat0):
+    '''A function which projects longitude-latitude coordinates onto a tangent plane at (lon0, lat0) in Cartesian coordinates
+    (x,y), with units being metres.'''
+    Re = earth_radius(lat)
+    Rphi = Re * cos(radians(lat))
+    x = Rphi * sin(radians(lon-lon0))
+    y = Rphi * (1 - cos(radians(lon-lon0))) * sin(radians(lat0)) + Re * sin(radians(lat-lat0))
+    return [x, y]
+
 def vectorlonlat2tangentxy(lon, lat, lon0, lat0):
     '''A function which projects vectors containing longitude-latitude coordinates onto a tangent plane at (lon0, lat0) in
     Cartesian coordinates (x,y), with units being metres.'''

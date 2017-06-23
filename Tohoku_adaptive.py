@@ -51,31 +51,23 @@ dt = 0.8 * hmin / np.sqrt(g * max(b.dat.data))          # Timestep length (s), u
 Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
-# Set pressure gauge locations and arrays:
+# Gauge locations:
+gloc = {'P02' : lonlat2tangent_pair(142.5, 38.5, 143, 37),
+        'P06': lonlat2tangent_pair(142.6, 38.7, 143, 37),
+        '801': lonlat2tangent_pair(141.7, 38.2, 143, 37),
+        '802': lonlat2tangent_pair(142.1, 39.3, 143, 37),
+        '803': lonlat2tangent_pair(141.8, 38.9, 143, 37),
+        '804': lonlat2tangent_pair(142.2, 39.7, 143, 37),
+        '806': lonlat2tangent_pair(141.2, 37.0, 143, 37)}
+
+# Set gauge arrays:
 gtype = raw_input('Pressure or tide gauge? (p/t): ') or 'p'
 if gtype == 'p' :
     gauge = raw_input('Gauge P02 or P06?: ') or 'P02'
-    if gauge == 'P02' :
-        gx, gy = lonlat2tangentxy(142.5, 38.5, 143, 37)
-    elif gauge == 'P06' :
-        gx, gy = lonlat2tangentxy(142.6, 38.7, 143, 37)
-    else : raise ValueError('Gauge not recognised. Please choose P02 or P06.')
+    gcoord = gloc[gauge]
 elif gtype == 't' :
     gauge = raw_input('Gauge 801, 802, 803, 804 or 806?: ') or '801'
-    if gauge == '801' :
-        gx, gy = lonlat2tangentxy(141.7, 38.2, 143, 37)
-    elif gauge == '802' :
-        gx, gy = lonlat2tangentxy(142.1, 39.3, 143, 37)
-    elif gauge == '803' :
-        gx, gy = lonlat2tangentxy(141.8, 38.9, 143, 37)
-    elif gauge == '804' :
-        gx, gy = lonlat2tangentxy(142.2, 39.7, 143, 37)
-    elif gauge == '806':
-        gx, gy = lonlat2tangentxy(141.2, 37.0, 143, 37)
-    else:
-        raise ValueError('Gauge not recognised. Please choose 801, 802, 803, 804 or 806.')
-else : raise ValueError('Gauge type not recognised. Please choose p or t.')
-gcoord = [gx, gy]
+    gcoord = gloc[gauge]
 
 # Set up functions of the weak problem:
 q = Function(Vq)
@@ -117,7 +109,8 @@ q_file = File('plots/adapt_plots/tohoku_adapt.pvd')
 m_file = File('plots/adapt_plots/tohoku_adapt_metric.pvd')
 q_file.write(u, eta, time = t)
 gauge_dat = [eta.at(gcoord)]
-log_gauge_dat = [eta.at(gcoord)]
+maxi = max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']), eta.at(gloc['804']), eta.at(gloc['806']), 1)
+damage_measure = [math.log(maxi)]
 tic1 = clock()
 
 while t < T - 0.5 * dt :
@@ -207,7 +200,9 @@ while t < T - 0.5 * dt :
 
             if t < T :
                 gauge_dat.append(eta.at(gcoord))
-                log_gauge_dat.append(math.log(eta.at(gcoord), 2))
+                maxi = max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']), eta.at(gloc['804']),
+                           eta.at(gloc['806']), 1)
+                damage_measure.append(math.log(maxi))
 
             if dumpn == ndump :
                 dumpn -= ndump
@@ -221,7 +216,9 @@ while t < T - 0.5 * dt :
             q_.assign(q)
             dumpn += 1
             gauge_dat.append(eta.at(gcoord))
-            log_gauge_dat.append(math.log(eta.at(gcoord), 2))
+            maxi = max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']), eta.at(gloc['804']),
+                       eta.at(gloc['806']), 1)
+            damage_measure.append(math.log(maxi))
 
             if dumpn == ndump :
                 dumpn -= ndump
@@ -239,20 +236,37 @@ plt.rc('text', usetex = True)
 plt.rc('font', family = 'serif')
 plt.plot(np.linspace(0, 60, len(gauge_dat)), gauge_dat)
 plt.gcf().subplots_adjust(bottom = 0.15)
+plt.ylim([-5, 5])
 # plt.legend()
 plt.xlabel(r'Time elapsed (mins)')
 plt.ylabel(r'Free surface (m)')
 plt.savefig('plots/tsunami_outputs/screenshots/adaptive_gauge_timeseries_{y}.png'.format(y = gauge))
 
-# Plot gauge time series:
+# Plot damage measures time series:
+plt.clf()
 plt.rc('text', usetex = True)
 plt.rc('font', family = 'serif')
-plt.plot(np.linspace(0, 60, len(log_gauge_dat)), log_gauge_dat)
+plt.plot(np.linspace(0, 60, len(damage_measure)), damage_measure)
 plt.gcf().subplots_adjust(bottom = 0.15)
-# plt.legend()
+plt.axis([0, 60, -1.5, 3.5])
+plt.axhline(-1, linestyle = '--', color = 'blue')
+plt.axhline(0, linestyle = '--', color = 'green')
+plt.axhline(1, linestyle = '--', color = 'yellow')
+plt.axhline(2, linestyle = '--', color = 'orange')
+plt.axhline(3, linestyle = '--', color = 'red')
+plt.annotate('Severe damage', xy = (0.7 * T, 3), xytext = (0.72 * T, 3.2),
+             arrowprops = dict(facecolor = 'red', shrink = 0.05))
+plt.annotate('Some inland damage', xy = (0.7 * T, 2), xytext = (0.72 * T, 2.2),
+             arrowprops = dict(facecolor = 'orange', shrink = 0.05))
+plt.annotate('Shore damage', xy = (0.7 * T, 1), xytext = (0.72 * T, 1.2),
+             arrowprops = dict(facecolor = 'yellow', shrink = 0.05))
+plt.annotate('Very little damage', xy = (0.7 * T, 0), xytext = (0.72 * T, 0.2),
+             arrowprops = dict(facecolor = 'green', shrink = 0.05))
+plt.annotate('No damage', xy = (0.7 * T, -1), xytext = (0.72 * T, -0.8),
+             arrowprops = dict(facecolor = 'blue', shrink = 0.05))
 plt.xlabel(r'Time elapsed (mins)')
-plt.ylabel(r'Free surface (m)')
-plt.savefig('plots/tsunami_outputs/screenshots/adaptive_log_gauge_timeseries_{y}.png'.format(y = gauge))
+plt.ylabel(r'Maximal log free surface')
+plt.savefig('plots/tsunami_outputs/screenshots/damage_measure_timeseries.png')
 
 print 'Forward problem solved.... now for the adjoint problem.'
 

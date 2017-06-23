@@ -109,7 +109,7 @@ q_file = File('plots/adapt_plots/tohoku_adapt.pvd')
 m_file = File('plots/adapt_plots/tohoku_adapt_metric.pvd')
 q_file.write(u, eta, time = t)
 gauge_dat = [eta.at(gcoord)]
-maxi = max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']), eta.at(gloc['804']), eta.at(gloc['806']), 1)
+maxi = max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']), eta.at(gloc['804']), eta.at(gloc['806']), 0.5)
 damage_measure = [math.log(maxi)]
 tic1 = clock()
 
@@ -201,7 +201,7 @@ while t < T - 0.5 * dt :
             if t < T :
                 gauge_dat.append(eta.at(gcoord))
                 maxi = max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']), eta.at(gloc['804']),
-                           eta.at(gloc['806']), 1)
+                           eta.at(gloc['806']), 0.5)
                 damage_measure.append(math.log(maxi))
 
             if dumpn == ndump :
@@ -217,7 +217,7 @@ while t < T - 0.5 * dt :
             dumpn += 1
             gauge_dat.append(eta.at(gcoord))
             maxi = max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']), eta.at(gloc['804']),
-                       eta.at(gloc['806']), 1)
+                       eta.at(gloc['806']), 0.5)
             damage_measure.append(math.log(maxi))
 
             if dumpn == ndump :
@@ -254,50 +254,40 @@ plt.axhline(0, linestyle = '--', color = 'green')
 plt.axhline(1, linestyle = '--', color = 'yellow')
 plt.axhline(2, linestyle = '--', color = 'orange')
 plt.axhline(3, linestyle = '--', color = 'red')
-plt.annotate('Severe damage', xy = (0.7 * T, 3), xytext = (0.72 * T, 3.2),
-             arrowprops = dict(facecolor = 'red', shrink = 0.05))
-plt.annotate('Some inland damage', xy = (0.7 * T, 2), xytext = (0.72 * T, 2.2),
-             arrowprops = dict(facecolor = 'orange', shrink = 0.05))
-plt.annotate('Shore damage', xy = (0.7 * T, 1), xytext = (0.72 * T, 1.2),
-             arrowprops = dict(facecolor = 'yellow', shrink = 0.05))
-plt.annotate('Very little damage', xy = (0.7 * T, 0), xytext = (0.72 * T, 0.2),
-             arrowprops = dict(facecolor = 'green', shrink = 0.05))
-plt.annotate('No damage', xy = (0.7 * T, -1), xytext = (0.72 * T, -0.8),
-             arrowprops = dict(facecolor = 'blue', shrink = 0.05))
 plt.xlabel(r'Time elapsed (mins)')
 plt.ylabel(r'Maximal log free surface')
 plt.savefig('plots/tsunami_outputs/screenshots/damage_measure_timeseries.png')
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
-# if remesh == 'y':
-#
-#     # Reset mesh and setup:
-#     mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
-#
-# # Set up functions of weak problem:
-# lam = Function(Vq)
-# lam.assign(lam_)
-# w, xi = TestFunctions(Vq)
-# lu, le = split(lam)
-# lu_, le_ = split(lam_)
-# luh = 0.5 * (lu + lu_)
-# leh = 0.5 * (le + le_)
-#
-# # Set up the variational problem:
-# L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
-# lam_prob = NonlinearVariationalProblem(L2, lam)
-# lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
-#
-# # 'Split' functions to access their data and relabel:
-# lu_, le_ = lam_.split()
-# lu, le = lam.split()
-# lu.rename('Adjoint fluid velocity')
-# le.rename('Adjoint free surface displacement')
-#
-# # Initialise counters and files:
-# cnt = 0
-# mn = 0
-# lam_file = File('plots/adapt_plots/tohoku_adjoint.pvd')
-# m_file2 = File('plots/adapt_plots/tohoku_adjoint_metric.pvd')
-# lam_file.write(lu, le, time = 0)
+if remesh == 'y':
+
+    # Reset mesh and setup:
+    mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
+
+# Set up functions of weak problem:
+lam = Function(Vq)
+lam.assign(lam_)
+w, xi = TestFunctions(Vq)
+lu, le = split(lam)
+lu_, le_ = split(lam_)
+luh = 0.5 * (lu + lu_)
+leh = 0.5 * (le + le_)
+
+# Set up the variational problem:
+L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+lam_prob = NonlinearVariationalProblem(L2, lam)
+lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
+
+# 'Split' functions to access their data and relabel:
+lu_, le_ = lam_.split()
+lu, le = lam.split()
+lu.rename('Adjoint fluid velocity')
+le.rename('Adjoint free surface displacement')
+
+# Initialise counters and files:
+cnt = 0
+mn = 0
+lam_file = File('plots/adapt_plots/tohoku_adjoint.pvd')
+m_file2 = File('plots/adapt_plots/tohoku_adjoint_metric.pvd')
+lam_file.write(lu, le, time = 0)

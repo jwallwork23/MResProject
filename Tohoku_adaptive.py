@@ -144,7 +144,7 @@ while t < T - 0.5 * dt :
                 M = M2
 
         # Adapt mesh and set up new function spaces:
-        M.rename('Metric field')
+        M.rename('Forward metric field')
         mesh_ = mesh
         meshd_ = Meshd(mesh_)
         tic2 = clock()
@@ -227,9 +227,9 @@ while t < T - 0.5 * dt :
 # End timing and print:
 toc1 = clock()
 if remesh == 'y' :
-    print 'Elapsed time for adaptive tank solver: %1.2fs' % (toc1 - tic1)
+    print 'Elapsed time for adaptive forward solver: %1.2fs' % (toc1 - tic1)
 else :
-    print 'Elapsed time for non-adaptive tank solver: %1.2fs' % (toc1 - tic1)
+    print 'Elapsed time for non-adaptive forward solver: %1.2fs' % (toc1 - tic1)
 
 # Plot gauge time series:
 plt.rc('text', usetex = True)
@@ -291,3 +291,110 @@ mn = 0
 lam_file = File('plots/adapt_plots/tohoku_adjoint.pvd')
 m_file2 = File('plots/adapt_plots/tohoku_adjoint_metric.pvd')
 lam_file.write(lu, le, time = 0)
+tic3 = clock()
+
+while t > 0.5 * dt :
+
+    mn += 1
+    cnt = 0
+
+    if remesh == 'y' :
+
+        V = TensorFunctionSpace(mesh, 'CG', 1)
+
+        if mtype != 'f' :
+            # Establish velocity speed for adaption:
+            lspd = Function(FunctionSpace(mesh, 'CG', 1))
+            lspd.interpolate(sqrt(dot(lu, lu)))
+
+            # Compute Hessian and metric:
+            H = construct_hessian(mesh, V, lspd)
+            M = compute_steady_metric(mesh, V, H, lspd, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
+
+        if mtype != 's' :
+
+            # Compute Hessian and metric:
+            H = construct_hessian(mesh, V, le)
+            M2 = compute_steady_metric(mesh, V, H, le, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
+
+            if mtype == 'b' :
+                M = metric_intersection(mesh, V, M, M2)
+
+            else :
+                M = M2
+
+        # Adapt mesh and set up new function spaces:
+        M.rename('Adjoint metric field')
+        mesh_ = mesh
+        meshd_ = Meshd(mesh_)
+        tic4 = clock()
+        mesh = adapt(mesh, M)
+        meshd = Meshd(mesh)
+        lam_, lam, lu_, lu, le_, le, Vq = update_SW(meshd_, meshd, lu_, lu, le_, le)
+        b = update_variable(meshd_, meshd, b)
+        toc4 = clock()
+
+        # Data analysis:
+        n = len(mesh.coordinates.dat.data)
+        if n < N1 :
+            N1 = n
+        elif n > N2 :
+            N2 = n
+
+        # Print to screen:
+        print ''
+        print '************ Adaption step %d **************' % mn
+        print 'Time = %1.2fs' % t
+        print 'Number of nodes after adaption step %d: ' % mn, n
+        print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
+        print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc4 - tic4)
+        print ''
+
+    # Set up functions of weak problem:
+    w, xi = TestFunctions(Vq)
+    lu, le = split(lam)
+    lu_, le_ = split(lam_)
+    luh = 0.5 * (lu + lu_)
+    leh = 0.5 * (le + le_)
+
+    # Set up the variational problem
+    L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+    lam_prob = NonlinearVariationalProblem(L2, lam)
+    lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
+
+    # 'Split' functions to access their data and relabel:
+    lu_, le_ = lam_.split()
+    lu, le = lam.split()
+    lu.rename('Adjoint fluid velocity')
+    le.rename('Adjoint free surface displacement')
+
+    # Enter the inner timeloop:
+    if remesh == 'y':
+        while cnt < rm :
+            t -= dt
+            cnt += 1
+            lam_solv.solve()
+            lam_.assign(lam)
+            dumpn -= 1
+
+            if dumpn == 0 :
+                dumpn += ndump
+                lam_file.write(lu, le, time = T - t)
+    else :
+        while t > 0 :
+            t -= dt
+            print 't = %1.2fs' % t
+            lam_solv.solve()
+            lam_.assign(lam)
+            dumpn -= 1
+
+            if dumpn == 0 :
+                dumpn += ndump
+                lam_file.write(lu, le, time = T - t)
+
+# End timing and print:
+toc3 = clock()
+if remesh == 'y' :
+    print 'Elapsed time for adaptive adjoint solver: %1.2fs' % (toc3 - tic3)
+else :
+    print 'Elapsed time for non-adaptive adjoint solver: %1.2fs' % (toc3 - tic3)

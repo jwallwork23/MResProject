@@ -152,7 +152,7 @@ def Tohoku_domain(res = 'c') :
     u_.interpolate(Expression([0, 0]))
     lm_.interpolate(Expression([0, 0]))
     eta_.assign(eta0)
-    le_.interpolate(Expression('(x[0] > -160e3) & (x[0] < -130e3) & (x[1] > 10e3) & (x[1] < 100e3) ? 1 : 0'))
+    le_.interpolate(Expression('(x[0] > -160e3) & (x[0] < -130e3) & (x[1] > 10e3) & (x[1] < 100e3) ? 20 : 0'))
     b.assign(conditional(lt(30, b), b, 30))
 
     # Plot initial surface and bathymetry profiles:

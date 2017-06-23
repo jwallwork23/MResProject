@@ -56,18 +56,12 @@ if bathy == 'f' :
 else :
     b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))  # Shelf break bathymetry
 
-# # Establish a function to hold the maximum free surface:
-# maxi = Function(meshd.V)
-
 # Courant number adjusted timestepping parameters:
 ndump = 1
 g = 9.81                                    # Gravitational acceleration (m s^{-2})
 dt = 0.8 * hmin / np.sqrt(g * 0.1)          # Timestep length (s), using wavespeed sqrt(gh)
 Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
-
-# # Create a vector to store maximal free surface values:
-# m = np.zeros((int(T / dt) + 1))
 
 # Construct a function to store our two variables at time n:
 q_ = Function(Vq)
@@ -76,6 +70,13 @@ u_, eta_ = q_.split()
 # Interpolate initial conditions:
 u_.interpolate(Expression([0, 0]))
 eta_.interpolate(1e-3 * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
+
+# Establish exact solution function:
+sol = Function(Ve, name = 'Exact free surface')
+sol.interpolate(1e-3 * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
+k = 1.
+l = 1.
+kap = sqrt(pow(k, 2) + pow(l, 2))
 
 # Set up functions of forward weak problem:
 q = Function(Vq)
@@ -115,8 +116,10 @@ mn = 0
 cnt = 0
 i = 0
 q_file = File('plots/adapt_plots/gaussian_test.pvd')
+ex_file = File('plots/adapt_plots/gaussian_exact.pvd')
 m_file = File('plots/adapt_plots/advection_test_metric.pvd')
 q_file.write(u, eta, time = t)
+ex_file.write(sol, time = t)
 tic1 = clock()
 
 # Enter timeloop:
@@ -161,7 +164,6 @@ while t < T - 0.5 * dt :
         meshd = Meshd(mesh)
         q_, q, u_, u, eta_, eta, Vq = update_SW(meshd_, meshd, u_, u, eta_, eta)
         b = update_variable(meshd_, meshd, b)
-        # maxi = Function(meshd.V)
         toc2 = clock()
 
         # Data analysis:
@@ -209,13 +211,13 @@ while t < T - 0.5 * dt :
 
         q_solv.solve()
         q_.assign(q)
-        # maxi.interpolate(Expression('(x[0] >= 0.2) & (x[0] <= 0.4) & (x[1] >= 1.5) & (x[1] <= 1.8) ? eta : 0'))
-        # m[cnt] = max(maxi.dat.data)
 
         if dumpn == ndump :
 
             dumpn -= ndump
             q_file.write(u, eta, time = t)
+            sol.interpolate(1e-3 * cos( - kap * t * sqrt(g * 0.1)) * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
+            ex_file.write(sol, time = t)        # TODO: ^^ Implement properly. Why doesn't it work??
 
             if remesh == 'y' :
                     m_file.write(M, time = t)

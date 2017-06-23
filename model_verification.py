@@ -68,10 +68,10 @@ else :
     raise ValueError('Gauge not recognised. Please choose P02 or P06.')
 
 # Set parameters:
-Om = 7.291e-5
-f = 2 * Om * sin(radians(37))
-nu = 1e-3    # Viscosity (kg s^{-1} m^{-1})
-Cb = 0.0025  # Bottom friction coefficient (dimensionless)
+Om = 7.291e-5                   # Rotation rate of Earth (rad s^{-1})
+f = 2 * Om * sin(radians(37))   # Coriolis parameter (dimensionless)
+nu = 1e-3                       # Viscosity (kg s^{-1} m^{-1})
+Cb = 0.0025                     # Bottom friction coefficient (dimensionless)
 
 # Specify solver parameters:
 params = {'mat_type': 'matfree',
@@ -82,6 +82,18 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner': -1,
           'snes_lag_preconditioner_persists': True,}
 
+# params = {'ksp_type': 'gmres',
+#           'ksp_rtol': '1e-8',
+#           'pc_type': 'fieldsplit',
+#           'pc_fieldsplit_type': 'schur',
+#           'pc_fieldsplit_schur_fact_type': 'full',
+#           'fieldsplit_0_ksp_type': 'cg',
+#           'fieldsplit_0_pc_type': 'ilu',
+#           'fieldsplit_1_ksp_type': 'cg',
+#           'fieldsplit_1_pc_type': 'hypre',
+#           'pc_fieldsplit_schur_precondition': 'selfp',}
+
+# Establish cases:
 dict = {0 : 'Linear, non-rotational',
         1 : 'Linear, rotational',
         2 : 'Nonlinear, nonrotational',

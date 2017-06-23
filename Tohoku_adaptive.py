@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rc
 from time import clock
+import math
 
 from utils import *
 
@@ -51,12 +52,30 @@ Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
 # Set pressure gauge locations and arrays:
-P02x, P02y = lonlat2tangentxy(142.5, 38.5, 143, 37)
-P06x, P06y = lonlat2tangentxy(142.6, 38.7, 143, 37)
-P02 = [P02x, P02y]
-P06 = [P06x, P06y]
-P02_dat = np.zeros((int(T / (dt * ndump) + rm)))
-P06_dat = np.zeros((int(T / (dt * ndump) + rm)))
+gtype = raw_input('Pressure or tide gauge? (p/t): ') or 'p'
+if gtype == 'p' :
+    gauge = raw_input('Gauge P02 or P06?: ') or 'P02'
+    if gauge == 'P02' :
+        gx, gy = lonlat2tangentxy(142.5, 38.5, 143, 37)
+    elif gauge == 'P06' :
+        gx, gy = lonlat2tangentxy(142.6, 38.7, 143, 37)
+    else : raise ValueError('Gauge not recognised. Please choose P02 or P06.')
+elif gtype == 't' :
+    gauge = raw_input('Gauge 801, 802, 803, 804 or 806?: ') or '801'
+    if gauge == '801' :
+        gx, gy = lonlat2tangentxy(141.7, 38.2, 143, 37)
+    elif gauge == '802' :
+        gx, gy = lonlat2tangentxy(142.1, 39.3, 143, 37)
+    elif gauge == '803' :
+        gx, gy = lonlat2tangentxy(141.8, 38.9, 143, 37)
+    elif gauge == '804' :
+        gx, gy = lonlat2tangentxy(142.2, 39.7, 143, 37)
+    elif gauge == '806':
+        gx, gy = lonlat2tangentxy(141.2, 37.0, 143, 37)
+    else:
+        raise ValueError('Gauge not recognised. Please choose 801, 802, 803, 804 or 806.')
+else : raise ValueError('Gauge type not recognised. Please choose p or t.')
+gcoord = [gx, gy]
 
 # Set up functions of the weak problem:
 q = Function(Vq)
@@ -97,8 +116,8 @@ dumpn = 0
 q_file = File('plots/adapt_plots/tohoku_adapt.pvd')
 m_file = File('plots/adapt_plots/tohoku_adapt_metric.pvd')
 q_file.write(u, eta, time = t)
-P02_dat = [eta.at(P02)]
-P06_dat = [eta.at(P06)]
+gauge_dat = [eta.at(gcoord)]
+log_gauge_dat = [eta.at(gcoord)]
 tic1 = clock()
 
 while t < T - 0.5 * dt :
@@ -187,8 +206,8 @@ while t < T - 0.5 * dt :
             dumpn += 1
 
             if t < T :
-                P02_dat.append(eta.at(P02))
-                P06_dat.append(eta.at(P06))
+                gauge_dat.append(eta.at(gcoord))
+                log_gauge_dat.append(math.log(eta.at(gcoord), 2))
 
             if dumpn == ndump :
                 dumpn -= ndump
@@ -201,10 +220,10 @@ while t < T - 0.5 * dt :
             q_solv.solve()
             q_.assign(q)
             dumpn += 1
-            P02_dat.append(eta.at(P02))
-            P06_dat.append(eta.at(P06))
+            gauge_dat.append(eta.at(gcoord))
+            log_gauge_dat.append(math.log(eta.at(gcoord), 2))
 
-            if dumpn == ndump:
+            if dumpn == ndump :
                 dumpn -= ndump
                 q_file.write(u, eta, time = t)
 
@@ -215,48 +234,56 @@ if remesh == 'y' :
 else :
     print 'Elapsed time for non-adaptive tank solver: %1.2fs' % (toc1 - tic1)
 
-# Plot pressure gauge time series:
+# Plot gauge time series:
 plt.rc('text', usetex = True)
 plt.rc('font', family = 'serif')
-plt.plot(np.linspace(0, 60, len(P02_dat)), P02_dat, label = 'P02')
+plt.plot(np.linspace(0, 60, len(gauge_dat)), gauge_dat)
 plt.gcf().subplots_adjust(bottom = 0.15)
-plt.plot(np.linspace(0, 60, len(P06_dat)), P06_dat, label = 'P06')
-plt.gcf().subplots_adjust(bottom = 0.15)
-plt.legend()
+# plt.legend()
 plt.xlabel(r'Time elapsed (mins)')
 plt.ylabel(r'Free surface (m)')
-plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries_{y}.png'.format(y = remesh))
+plt.savefig('plots/tsunami_outputs/screenshots/adaptive_gauge_timeseries_{y}.png'.format(y = gauge))
+
+# Plot gauge time series:
+plt.rc('text', usetex = True)
+plt.rc('font', family = 'serif')
+plt.plot(np.linspace(0, 60, len(log_gauge_dat)), log_gauge_dat)
+plt.gcf().subplots_adjust(bottom = 0.15)
+# plt.legend()
+plt.xlabel(r'Time elapsed (mins)')
+plt.ylabel(r'Free surface (m)')
+plt.savefig('plots/tsunami_outputs/screenshots/adaptive_log_gauge_timeseries_{y}.png'.format(y = gauge))
 
 print 'Forward problem solved.... now for the adjoint problem.'
 
-if remesh == 'y':
-
-    # Reset mesh and setup:
-    mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
-
-# Set up functions of weak problem:
-lam = Function(Vq)
-lam.assign(lam_)
-w, xi = TestFunctions(Vq)
-lu, le = split(lam)
-lu_, le_ = split(lam_)
-luh = 0.5 * (lu + lu_)
-leh = 0.5 * (le + le_)
-
-# Set up the variational problem:
-L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
-lam_prob = NonlinearVariationalProblem(L2, lam)
-lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
-
-# 'Split' functions to access their data and relabel:
-lu_, le_ = lam_.split()
-lu, le = lam.split()
-lu.rename('Adjoint fluid velocity')
-le.rename('Adjoint free surface displacement')
-
-# Initialise counters and files:
-cnt = 0
-mn = 0
-lam_file = File('plots/adapt_plots/tohoku_adjoint.pvd')
-m_file2 = File('plots/adapt_plots/tohoku_adjoint_metric.pvd')
-lam_file.write(lu, le, time = 0)
+# if remesh == 'y':
+#
+#     # Reset mesh and setup:
+#     mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
+#
+# # Set up functions of weak problem:
+# lam = Function(Vq)
+# lam.assign(lam_)
+# w, xi = TestFunctions(Vq)
+# lu, le = split(lam)
+# lu_, le_ = split(lam_)
+# luh = 0.5 * (lu + lu_)
+# leh = 0.5 * (le + le_)
+#
+# # Set up the variational problem:
+# L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+# lam_prob = NonlinearVariationalProblem(L2, lam)
+# lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
+#
+# # 'Split' functions to access their data and relabel:
+# lu_, le_ = lam_.split()
+# lu, le = lam.split()
+# lu.rename('Adjoint fluid velocity')
+# le.rename('Adjoint free surface displacement')
+#
+# # Initialise counters and files:
+# cnt = 0
+# mn = 0
+# lam_file = File('plots/adapt_plots/tohoku_adjoint.pvd')
+# m_file2 = File('plots/adapt_plots/tohoku_adjoint_metric.pvd')
+# lam_file.write(lu, le, time = 0)

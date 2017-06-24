@@ -45,7 +45,7 @@ else :
         raise ValueError('Please try again, choosing y or n.')
 
 # Define function spaces:
-Vu = VectorFunctionSpace(mesh, 'CG', 2)
+Vu = VectorFunctionSpace(mesh, 'CG', 1)                                     # TODO: Could we use Taylor-Hood?
 Ve = FunctionSpace(mesh, 'CG', 1)
 Vq = MixedFunctionSpace((Vu, Ve))                                           # Mixed FE problem
 

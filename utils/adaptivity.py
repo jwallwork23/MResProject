@@ -256,7 +256,7 @@ def update_SW(meshd1, meshd2, u_, u, eta_, eta) :
     mesh2 = meshd2.mesh
 
     # Establish function spaces on the new mesh:
-    Vu = VectorFunctionSpace(mesh2, 'CG', 1)        # TODO: use Taylor-Hood
+    Vu = VectorFunctionSpace(mesh2, 'CG', 2)        # TODO: use Taylor-Hood
     Ve = FunctionSpace(mesh2, 'CG', 1)
     Vq = MixedFunctionSpace((Vu, Ve))
 

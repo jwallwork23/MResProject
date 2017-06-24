@@ -8,12 +8,12 @@ def domain_1d(n):
     
     # Define domain and mesh:
     lx = 4e5
-    nx = int(lx * n)    # 400 km ocean domain, uniform grid spacing
+    nx = int(lx * n)                                                        # 400 km ocean domain, uniform grid spacing
     mesh = IntervalMesh(nx, lx)
 
     # Define function spaces:
-    Vmu = FunctionSpace(mesh, 'CG', 2)                                      # \ Use Taylor-Hood elements
-    Ve = FunctionSpace(mesh, 'CG', 1)                                       # /
+    Vmu = FunctionSpace(mesh, 'CG', 1)                                      # TODO: Could we use Taylor-Hood?
+    Ve = FunctionSpace(mesh, 'CG', 1)                                       #
     Vq = MixedFunctionSpace((Vmu, Ve))                                      # We have a mixed FE problem
 
     # Construct functions to store forward and adjoint variables:
@@ -24,15 +24,15 @@ def domain_1d(n):
 
     # Interpolate initial conditions:
     mu_.interpolate(Expression(0.))
-    eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) ? 0.4*sin(pi*(x[0]-1e5)/5e4) : 0.0'))
+    eta_.interpolate(Expression('(x[0] >= 100e3) & (x[0] <= 150e3) ? 0.4 * sin(pi * (x[0] - 1e5) / 50e3) : 0.0'))
 
     # Interpolate final-time conditions:
     lm_.interpolate(Expression(0.))
-    le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) ? 0.4 : 0.0'))
+    le_.interpolate(Expression('(x[0] >= 10e3) & (x[0] <= 25e3) ? 0.4 : 0.0'))
 
     # Interpolate bathymetry:
     b = Function(Ve, name = 'Bathymetry')
-    b.interpolate(Expression('x[0] <= 50000.0 ? 200.0 : 4000.0'))
+    b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))
 
     return mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b
 
@@ -54,8 +54,8 @@ def tank_domain(n, bath = 'n', waves = 'n', test2d = 'n', bcval = None) :
     x = SpatialCoordinate(mesh)
 
     # Define function spaces:
-    Vu = VectorFunctionSpace(mesh, 'CG', 2)                                 # \ Taylor-Hood elements
-    Ve = FunctionSpace(mesh, 'CG', 1)                                       # /
+    Vu = VectorFunctionSpace(mesh, 'CG', 1)                                 # TODO: Could we use Taylor-Hood?
+    Ve = FunctionSpace(mesh, 'CG', 1)                                       #
     Vq = MixedFunctionSpace((Vu, Ve))                                       # Mixed FE problem
 
     # Construct a function to store our two variables at time n:
@@ -87,7 +87,7 @@ def tank_domain(n, bath = 'n', waves = 'n', test2d = 'n', bcval = None) :
         BCs = [bc1, bc2]
     elif test2d == 'n' :
         eta_.interpolate(-0.01 * cos(0.5 * pi * x[0]))
-    else:   # NOTE: higher magnitude wave used due to geometric spreading
+    else :                                              # NOTE: higher magnitude wave used due to geometric spreading
         eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? \
                                     4 * sin(pi*(x[0]-1e5) * 2e-5) * sin(pi*(x[1]-1.8e5) * 2.5e-5) : 0.'))
         le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? '
@@ -111,8 +111,8 @@ def Tohoku_domain(res = 'c') :
         mesh_converter('resources/meshes/LonLatTohokuCoarse.msh', 143., 37.)
     mesh = Mesh('resources/meshes/CartesianTohoku.msh')
     mesh_coords = mesh.coordinates.dat.data
-    Vu = VectorFunctionSpace(mesh, 'CG', 2)                                 # \ Use Taylor-Hood elements
-    Ve = FunctionSpace(mesh, 'CG', 1)                                       # /
+    Vu = VectorFunctionSpace(mesh, 'CG', 1)                                 # TODO: Could we use Taylor-Hood?
+    Ve = FunctionSpace(mesh, 'CG', 1)                                       #
     Vq = MixedFunctionSpace((Vu, Ve))                                       # Mixed FE problem
 
     # Construct functions to store forward and adjoint variables, along with bathymetry:

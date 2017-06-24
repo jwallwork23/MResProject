@@ -1,33 +1,9 @@
 from firedrake import *
 import numpy as np
 
+from adaptivity import *
+
 INF = float("inf")
-
-
-class Meshd :
-    """A structure holding the objects related to a mesh."""
-
-    def __init__(self, mesh, reorderPlex = True, computeAltMin = True) :
-
-        self.mesh = mesh
-
-        self.V = FunctionSpace(self.mesh, 'CG', 1)
-
-        self.altMin = Function(self.V)
-
-        entity_dofs = np.zeros(self.mesh._topological_dimension + 1, dtype = np.int32)
-        entity_dofs[0] = self.mesh.geometric_dimension()
-        self.section = self.mesh._plex.createSection([1], entity_dofs, perm = self.mesh.topology._plex_renumbering)
-
-        if reorderPlex :
-            with self.mesh.coordinates.dat.vec_ro as coords:
-                self.mesh.topology._plex.setCoordinatesLocal(coords)
-
-        if computeAltMin :
-            if self.mesh._topological_dimension == 2 :
-                self.altMin.interpolate(2 * CellVolume(self.mesh) / MaxCellEdgeLength(self.mesh))
-            else :
-                print '#### 3D implementation not yet considered.'
 
 def barCoord(crdM, crdTri, i):
     """A function which computes the barycentric coordinate of M in triangle Tri = P0, P1, P2 with respect to the ith
@@ -43,6 +19,8 @@ def barCoord(crdM, crdTri, i):
     res = res1 / res2
 
     return res
+
+
 
 def interp(u, meshd, unew, meshdnew) :
     """A function which interpolates a function u onto a new mesh. Only slightly modified version of Nicolas Barral's
@@ -221,3 +199,40 @@ def interp(u, meshd, unew, meshdnew) :
                 val = alpha * val[0] + (1 - alpha) * val[1]
 
             unew.dat.data[offnew] = val
+
+
+
+def update_SW(meshd1, meshd2, u_, u, eta_, eta) :
+    """A function which updates shallow water solution fields and bathymetry from one mesh to another."""
+
+    # Get mesh:
+    mesh2 = meshd2.mesh
+
+    # Establish function spaces on the new mesh:
+    Vu = VectorFunctionSpace(mesh2, 'CG', 2)        # TODO: use Taylor-Hood
+    Ve = FunctionSpace(mesh2, 'CG', 1)
+    Vq = MixedFunctionSpace((Vu, Ve))
+
+    # Establish functions in the new spaces:
+    q_2 = Function(Vq)
+    u_2, eta_2 = q_2.split()
+    q2 = Function(Vq)
+    u2, eta2 = q2.split()
+
+    # Interpolate functions across from the previous mesh:
+    interp(u_, meshd1, u_2, meshd2)
+    interp(u, meshd1, u2, meshd2)
+    interp(eta_, meshd1, eta_2, meshd2)
+    interp(eta, meshd1, eta2, meshd2)
+
+    return q_2, q2, u_2, u2, eta_2, eta2, Vq
+
+
+
+def update_variable(meshd1, meshd2, phi) :
+    """Interpolate a variable from one mesh onto another."""
+
+    phi2 = Function(meshd2.V)
+    interp(phi, meshd1, phi2, meshd2)
+
+    return phi2

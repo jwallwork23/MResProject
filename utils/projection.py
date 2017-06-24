@@ -1,11 +1,14 @@
 import numpy as np
 from math import radians, sin, cos
 
+
 def earth_radius(lat) :
     """A function which calculates the radius of the Earth for a given latitude."""
     K = 1. / 298.257  # Earth flatness constant
     a = 6378136.3   # Semi-major axis of the Earth (m)
     return (1 - K * (sin(radians(lat)) ** 2)) * a
+
+
 
 def lonlat2tangentxy(lon, lat, lon0, lat0):
     """A function which projects longitude-latitude coordinates onto a tangent plane at (lon0, lat0) in Cartesian coordinates
@@ -16,11 +19,15 @@ def lonlat2tangentxy(lon, lat, lon0, lat0):
     y = Rphi * (1 - cos(radians(lon - lon0))) * sin(radians(lat0)) + Re * sin(radians(lat - lat0))
     return x, y
 
+
+
 def lonlat2tangent_pair(lon, lat, lon0, lat0) :
     """A function which projects longitude-latitude coordinates onto a tangent plane at (lon0, lat0) in Cartesian coordinates
     (x,y), with units being metres."""
     x, y = lonlat2tangentxy(lon, lat, lon0, lat0)
     return [x, y]
+
+
 
 def vectorlonlat2tangentxy(lon, lat, lon0, lat0) :
     """A function which projects vectors containing longitude-latitude coordinates onto a tangent plane at (lon0, lat0) in
@@ -31,6 +38,8 @@ def vectorlonlat2tangentxy(lon, lat, lon0, lat0) :
     for i in range(len(x)) :
         x[i], y[i] = lonlat2tangentxy(lon[i], lat[i], lon0, lat0)
     return x, y
+
+
 
 def mesh_converter(meshfile, lon0, lat0):
     """A function which reads in a .msh file in longitude-latitude coordinates and outputs a tangent-plane projection in
@@ -63,9 +72,3 @@ def mesh_converter(meshfile, lon0, lat0):
         mesh2.write(line)
     mesh1.close()
     mesh2.close()
-
-def wrapper(func, *args, **kwargs) :
-    """A wrapper function to enable timing of functions with arguments"""
-    def wrapped() :
-        return func(*args, **kwargs)
-    return wrapped

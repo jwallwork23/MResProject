@@ -5,6 +5,7 @@ import numpy as np
 from matplotlib import rc
 from time import clock
 import math
+import sys
 
 from utils import *
 
@@ -43,6 +44,8 @@ else :
     rm = 0
     if remesh != 'n':
         raise ValueError('Please try again, choosing y or n.')
+
+fo = raw_input('Forward only? (y/n): ') or 'n'
 
 # Courant number adjusted timestepping parameters:
 ndump = 15
@@ -242,6 +245,8 @@ plt.xlabel(r'Time elapsed (mins)')
 plt.ylabel(r'Free surface (m)')
 plt.savefig('plots/tsunami_outputs/screenshots/adaptive_gauge_timeseries_{y}.png'.format(y = gauge))
 
+gauge_timeseries(gauge, gauge_dat)
+
 # Plot damage measures time series:
 plt.clf()
 plt.rc('text', usetex = True)
@@ -257,6 +262,9 @@ plt.axhline(3, linestyle = '--', color = 'red')
 plt.xlabel(r'Time elapsed (mins)')
 plt.ylabel(r'Maximal log free surface')
 plt.savefig('plots/tsunami_outputs/screenshots/damage_measure_timeseries.png')
+
+if fo == 'y' :
+    sys.exit(1)
 
 print 'Forward problem solved.... now for the adjoint problem.'
 

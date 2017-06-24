@@ -8,19 +8,19 @@ from time import clock
 from utils import domain_1d
 
 # Specify problem parameters:
-dt = float(raw_input('Specify timestep (default 1): ') or 1)
+dt = float(raw_input('Specify timestep (default 1): ') or 1.)
 Dt = Constant(dt)
 n = float(raw_input('Specify no. of cells per km (default 1): ') or 1.) * 1e-3
 T = float(raw_input('Specify duration in s (default 4200): ') or 4200.)
-tol = float(raw_input( 'Specify significance tolerance (default 0.1): ') or 0.1)
+tol = float(raw_input( 'Specify significance tolerance (default 0.05): ') or 0.05)
 vid = raw_input('Show video output? (y/n, default n): ') or 'n'
 if vid not in ('y', 'n') :
     raise ValueError('Please try again, choosing y or n.')
-ndump = 120                                                                      # Timesteps per data dump
+ndump = 60                                                                      # Timesteps per data dump
 g = 9.81                                                                        # Gravitational acceleration (m s^{-2})
 
 # Check CFL criterion is satisfied for this discretisation:
-assert(dt < 1. / (n * np.sqrt(g * 4000.)))                                      # Maximal wavespeed sqrt(gh)
+assert(dt < 1. / (n * np.sqrt(g * 4000.)))                                      # Maximal wavespeed sqrt(gb)
 
 # Begin timing:
 tic1 = clock()

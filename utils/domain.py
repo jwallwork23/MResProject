@@ -12,8 +12,8 @@ def domain_1d(n):
     mesh = IntervalMesh(nx, lx)
 
     # Define function spaces:
-    Vmu = FunctionSpace(mesh, 'CG', 1)                                      # TODO: Could we use Taylor-Hood?
-    Ve = FunctionSpace(mesh, 'CG', 1)                                       #
+    Vmu = FunctionSpace(mesh, 'CG', 2)                                      # \ Use Taylor-Hood?
+    Ve = FunctionSpace(mesh, 'CG', 1)                                       # /
     Vq = MixedFunctionSpace((Vmu, Ve))                                      # We have a mixed FE problem
 
     # Construct functions to store forward and adjoint variables:

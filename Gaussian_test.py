@@ -45,7 +45,7 @@ else :
         raise ValueError('Please try again, choosing y or n.')
 
 # Define function spaces:
-Vu = VectorFunctionSpace(mesh, 'CG', 1)                                     # TODO: consider Taylor-Hood elements
+Vu = VectorFunctionSpace(mesh, 'CG', 2)
 Ve = FunctionSpace(mesh, 'CG', 1)
 Vq = MixedFunctionSpace((Vu, Ve))                                           # Mixed FE problem
 
@@ -179,7 +179,6 @@ while t < T - 0.5 * dt :
         print 'Time = %1.2fs' % t
         print 'Number of nodes after adaption step %d: ' % mn, n
         print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
- #       print 'Max. free surface in important region: %1.2f' % m[cnt]
         print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
         print ''
 
@@ -230,13 +229,3 @@ if remesh == 'y' :
     print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
 else :
     print 'Elapsed time for non-adaptive solver: %1.2fs' % (toc1 - tic1)
-
-
-# # Plot damage measures:
-# plt.rc('text', usetex = True)
-# plt.rc('font', family = 'serif')
-# plt.plot(np.linspace(0, T, T / dt + 1), m, color = 'blue')
-# plt.xlabel(r'Time (s)')
-# plt.ylabel(r'Maximal free surface (m)')
-# plt.title(r'Damage measures')
-# plt.savefig('plots/screenshots/2Ddamage_measures.png')

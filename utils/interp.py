@@ -200,6 +200,35 @@ def interp(u, meshd, unew, meshdnew) :
 
             unew.dat.data[offnew] = val
 
+def transfer_solution(meshdnew, *fields, **kwargs):
+    """
+    Transfers a solution field from the old mesh to the new mesh (courtesy of Nicolas Barral).
+    :arg fields: tuple of functions defined on the old mesh that one wants to transfer
+    """
+    meshnew = meshdnew.mesh             # TODO: test this works and include interp hack in place of .at
+
+    # method = kwargs.get('method')  # only way I can see to make it work for now. With python 3 I can put it back in the parameters
+    fields_new = ()
+    for f in fields :
+        V_new = FunctionSpace(meshnew, f.function_space().ufl_element())
+        f_new = Function(V_new)
+
+        if f.ufl_element().family() == 'Lagrange' and f.ufl_element().degree() == 1 :
+            f_new.dat.data[:] = f.at(meshnew.coordinates.dat.data)
+
+        elif f.ufl_element().family() == 'Lagrange' :
+            degree = f.ufl_element().degree()
+            C = VectorFunctionSpace(meshnew, 'CG', degree)
+            interp_coordinates = Function(C)
+            interp_coordinates.interpolate(meshnew.coordinates)
+            f_new.dat.data[:] = f.at(interp_coordinates.dat.data)
+
+        else :
+            raise NotImplementedError("Can only interpolate CG fields")
+
+        fields_new += (f_new,)
+    return fields_new
+
 
 
 def update_SW(meshd1, meshd2, u_, u, eta_, eta) :
@@ -209,7 +238,7 @@ def update_SW(meshd1, meshd2, u_, u, eta_, eta) :
     mesh2 = meshd2.mesh
 
     # Establish function spaces on the new mesh:
-    Vu = VectorFunctionSpace(mesh2, 'CG', 2)        # TODO: use Taylor-Hood
+    Vu = VectorFunctionSpace(mesh2, 'CG', 1)        # TODO: use Taylor-Hood, incorporating transfer_solution above
     Ve = FunctionSpace(mesh2, 'CG', 1)
     Vq = MixedFunctionSpace((Vu, Ve))
 

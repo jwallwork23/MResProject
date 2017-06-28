@@ -27,7 +27,7 @@ def domain_1d(n):
 
     # Interpolate initial conditions:
     mu_.interpolate(Expression(0.))
-    eta_.interpolate(Expression('(x[0] >= 100e3) & (x[0] <= 150e3) ? 0.4 * sin(pi * (x[0] - 1e5) / 50e3) : 0.0'))
+    eta_.interpolate(Expression('(x[0] >= 100e3) & (x[0] <= 150e3) ? 0.4 * sin(pi * (x[0] - 100e3) / 50e3) : 0.0'))
 
     # Interpolate final-time conditions:
     lm_.interpolate(Expression(0.))
@@ -94,8 +94,7 @@ def tank_domain(n, bath = 'n', waves = 'n', test2d = 'n', bcval = None) :
     else :                                              # NOTE: higher magnitude wave used due to geometric spreading
         eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? \
                                     4 * sin(pi*(x[0]-1e5) * 2e-5) * sin(pi*(x[1]-1.8e5) * 2.5e-5) : 0.'))
-        le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? '
-                                   '4 : 0.'))
+        le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 1. : 0.'))
 
     return mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, BCs
 

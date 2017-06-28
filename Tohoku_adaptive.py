@@ -18,11 +18,6 @@ N1 = len(mesh.coordinates.dat.data)                                     # Minimu
 N2 = N1                                                                 # Maximum number of nodes
 print 'Initial number of nodes : ', N1
 
-# Choose linear or nonlinear equations:
-# mode = raw_input('Linear or nonlinear equations? (l/n): ') or 'l'             # TODO: reintroduce nonlinear option
-# if (mode != 'l') & (mode != 'n'):
-#     raise ValueError('Please try again, choosing l or n.')
-
 # Simulation duration:
 T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600.
 
@@ -282,8 +277,12 @@ lu_, le_ = split(lam_)
 luh = 0.5 * (lu + lu_)
 leh = 0.5 * (le + le_)
 
-# Set up the variational problem:
-L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+f = Function(Ve, name = 'Forcing term')
+f.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 1. : 0.'))
+
+# Set up the variational problem:                                   TODO: Check this forcing term below works
+L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + f * xi
+      + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
 lam_prob = NonlinearVariationalProblem(L2, lam)
 lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters = params)
 
@@ -340,6 +339,7 @@ while t > 0.5 * dt :
         meshd = Meshd(mesh)
         lam_, lam, lu_, lu, le_, le, Vq = update_SW(meshd_, meshd, lu_, lu, le_, le)
         b = update_variable(meshd_, meshd, b)
+        f = update_variable(meshd_, meshd, f)
         toc4 = clock()
 
         # Data analysis:

@@ -18,21 +18,20 @@ def gauge_timeseries(gauge, dat) :
 def plot_gauges(gauge) :
     """A function for plotting timeseries data on a single axis."""
 
-    curves = {1 : coarse, 2 : fine, 3 : simple, 4 : adjoint}
+    setup = {1 : coarse, 2 : medium, 3 : fine, 4 : simple, 5 : adjoint}
     plt.rc('text', usetex = True)
     plt.rc('font', family = 'serif')
 
-    for key in curves :
+    for key in setup :
 
         val = []
-        infile = open('timeseries/{y1}_{y2}.txt'.format(y1 = gauge, y2 = curves[key]), r)
+        infile = open('timeseries/{y1}_{y2}.txt'.format(y1 = gauge, y2 = setup[key]), r)
 
         for line in infile :
             val.append(float(line))
-
         infile.close()
 
-        # Plot gauge time series:
+        # Plot time series for this setup:
         plt.plot(np.linspace(0, 60, len(val)), val)
 
     plt.gcf().subplots_adjust(bottom = 0.15)

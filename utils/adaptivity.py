@@ -83,6 +83,8 @@ def construct_hessian(mesh, V, sol) :
 
     return H
 
+# TODO: implement integration by parts AND ALSO double L2 projection
+
 # def construct_hessian2(meshd, V, sol) :
 #     """A function which computes the Hessian of a scalar solution field w.r.t. the current mesh."""
 #
@@ -96,17 +98,27 @@ def construct_hessian(mesh, V, sol) :
 #     bc = DirichletBC(V, 0, on_boundary)
 #     b_nodes = bc.nodes
 #
+#     params = {'snes_rtol' : 1e8,
+#               'ksp_rtol' : 1e-5,
+#               'ksp_gmres_restart' : 20,
+#               'pc_type' : 'sor',
+#               'snes_monitor' : False,
+#               'snes_view' : False,
+#               'ksp_monitor_true_residual' : False,
+#               'snes_converged_reason' : False,
+#               'ksp_converged_reason' : False, }
+#
 #     H = Function(V)                             # Hessian-to-be
+#     sigma = TestFunction(V)
 #
 #     for v in range(vStart, vEnd) and not b_nodes :
-#
-#         # [Compute ML]
 #
 #         for i in range(2) :
 #
 #             for j in range(i) :
 #
-#                 # [Compute Hij]
+#                 # Compute Hij
+#                 # Something like H * test * dx = 0.5 * ( sol.dx(i) + sol.dx(j)) * test * ds - 0.5 * (sol.dx(i) * test.dx(j) + sol.dx(j) * test.dx(i)) * dx
 #
 #         # [Put H21 = H12]
 #

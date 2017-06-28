@@ -5,10 +5,13 @@ from time import clock
 from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd
 
 # Specify problem parameters:
-choices = int(raw_input('Choose sensor (1/2/3/4 or hit enter to try all): ')) or 0
+choices = int(raw_input('Choose sensor (1/2/3/4 or 0 to try all): ')) or 0
 hmin = float(raw_input('Minimum element size (default 0.0001)?: ') or 0.0001)
 ani = float(raw_input('Maximum aspect ratio (default 100.)?: ') or 100.)
 N = int(raw_input('Number of adaptions (default 4)?: ') or 4)
+ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+if ntype not in ('lp', 'manual') :
+    raise ValueError('Please try again, choosing lp or manual.')
 
 # Define uniform mesh, with a metric function space:
 mesh1 = SquareMesh(200, 200, 2, 2)
@@ -48,7 +51,7 @@ for i in f :
 
             # Compute Hessian and metric:
             H = construct_hessian(mesh, V, f[i])
-            M = compute_steady_metric(mesh, V, H, f[i], h_min = hmin, a = ani)
+            M = compute_steady_metric(mesh, V, H, f[i], h_min = hmin, a = ani, normalise = ntype)
 
             # Adapt mesh and set up new function spaces:
             mesh_ = mesh

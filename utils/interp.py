@@ -24,7 +24,7 @@ def barCoord(crdM, crdTri, i):
 # Can call .at(..., tolerance=1e-6)
 
 
-def interp(u, meshd, unew, meshdnew) :
+def interp(u, meshd, unew, meshdnew):
     """A function which interpolates a function u onto a new mesh. Only slightly modified version of Nicolas Barral's
     function ``interpol``, from the Python script ``interpol.py``."""
 
@@ -43,26 +43,26 @@ def interp(u, meshd, unew, meshdnew) :
     notInDomain = []
 
     # Establish which vertices fall outside the domain:
-    for v in range(vStart, vEnd) :
+    for v in range(vStart, vEnd):
 
         offnew = meshdnew.section.getOffset(v) / dim
         newCrd = meshnew.coordinates.dat.data[offnew]
 
         # Attempt to interpolate:
-        try :
+        try:
             val = u.at(newCrd)
-        except PointNotInDomainError :
+        except PointNotInDomainError:
             print '####  New vertex not in domain: %f %f' % (newCrd[0], newCrd[1])
 
             # Loop here
 
             val = 0.
             notInDomain.append([v, INF, -1])   # (Vertex, distance, edge) tuple... TODO: store newCrd here instead of v
-        finally :
+        finally:
             unew.dat.data[offnew] = val
     
     # If there are points which fall outside the domain,
-    if len(notInDomain) > 0 :
+    if len(notInDomain) > 0:
         print '####  Warning: number of points not in domain: %d / %d' % \
               (len(notInDomain), meshnew.topology.num_vertices())
 
@@ -71,19 +71,19 @@ def interp(u, meshd, unew, meshdnew) :
         vStart, vEnd = plex.getDepthStratum(0)                          # Vertices of old plex
 
         # Loop over edges:
-        for f in range(fStart, fEnd) :
+        for f in range(fStart, fEnd):
 
-            if plex.getLabelValue('boundary_ids', f) == -1 : continue
+            if plex.getLabelValue('boundary_ids', f) == -1: continue
             closure = plex.getTransitiveClosure(f)[0]                   # Get endpoints of edge
             crdE = []                                                   # Coordinates of the two vertices of the edge
 
             # Loop over closure of edge:
-            for cl in closure :
-                if vStart <= cl and cl < vEnd :                         # Check they are really vertices
+            for cl in closure:
+                if vStart <= cl and cl < vEnd:                         # Check they are really vertices
                     off = meshd.section.getOffset(cl) / 2
                     crdE.append(mesh.coordinates.dat.data[off])
 
-            if len(crdE) != 2 :
+            if len(crdE) != 2:
                 print '## ERROR  number of points in crdE: %d' % len(crdE)
                 exit(16)
 
@@ -91,7 +91,7 @@ def interp(u, meshd, unew, meshdnew) :
             nrm = sqrt(vn[0] * vn[0] + vn[1] * vn[1])                   # Norm of normal vector
             vn = [vn[0] / nrm, vn[1] / nrm]                             # Normalised normal vector
 
-            for nid in notInDomain :
+            for nid in notInDomain:
 
                 v = nid[0]                                              # Vertex not in domain
                 offnew = meshdnew.section.getOffset(v) / 2              # Corresponding section
@@ -100,7 +100,7 @@ def interp(u, meshd, unew, meshdnew) :
                           vn[1] * (crdE[0][1] - crdP[1]))               # = | crdE[0] - crdP | | cos(angle) |
 
                 # Control if the vertex is between the two edge vertices (a big assumption corners are preserved):
-                if dst < nid[1] :
+                if dst < nid[1]:
                     # (crdP - crdE[0]) . (crdE[1] - crdE[0]) :
                     sca1 = (crdP[0] - crdE[0][0]) * (crdE[1][0] - crdE[0][0]) + \
                            (crdP[1] - crdE[0][1]) * (crdE[1][1] - crdE[0][1])
@@ -108,32 +108,32 @@ def interp(u, meshd, unew, meshdnew) :
                     sca2 = (crdP[0] - crdE[1][0]) * (crdE[0][0] - crdE[1][0]) + \
                            (crdP[1] - crdE[1][1]) * (crdE[0][1] - crdE[1][1])
 
-                    if sca1 >= 0 and sca2 > 0 :
+                    if sca1 >= 0 and sca2 > 0:
                         nid[1] = dst                                    # Specify (finite) distance
                         nid[2] = f                                      # Replace -1 by edge
 
         # Having looped over edges, loop over points not in domain (with edited notInDomain tuples):
-        for nid in notInDomain :
+        for nid in notInDomain:
 
             v = nid[0]                                          # Vertex not in domain
             offnew = meshdnew.section.getOffset(v) / 2          # Corresponding section
             crdP = meshnew.coordinates.dat.data[offnew]         # Coordinates of vertex not in domain
 
-            if nid[1] > 0.01 :                                  # If distance is sufficiently large,
+            if nid[1] > 0.01:                                   # If distance is sufficiently large,
 
                 cStart, cEnd = plex.getHeightStratum(0)         # Triangles / cells
                 barCrd = [0, 0, 0]                              # Setup barycentric coordinates
                 inCell = 0                                      # 0 when v is outside of cell, 1 when it is inside
 
                 # Loop over cells:
-                for c in range(cStart, cEnd) :
+                for c in range(cStart, cEnd):
                     closure = plex.getTransitiveClosure(c)[0]   # Closure of triangle
                     crdC = []                                   # Coordinates of the three vertices of the triangle
                     val = []                                    # u values at vertices of the triangle
 
                     # Loop over entities of the triangle closure and collect u values:
-                    for cl in closure :
-                        if vStart <= cl and cl < vEnd :
+                    for cl in closure:
+                        if vStart <= cl and cl < vEnd:
                             off = meshd.section.getOffset(cl) / 2
                             crdC.append(mesh.coordinates.dat.data[off])
                             val.append(u.dat.data[off])
@@ -154,17 +154,17 @@ def interp(u, meshd, unew, meshdnew) :
                         inCell = 1
                         break
 
-                if not inCell :
+                if not inCell:
                     print 'ERROR  vertex too far from the boundary but no enclosing cell found. Crd: %f %f' \
                           % (crdP[0], crdP[1])
                     exit(16)
 
-            else :                                              # The case where a vertex is very close to the edge
+            else:                                               # The case where a vertex is very close to the edge
 
                 f = nid[2]                                      # Edge (which replaces -1)
 
                 # Loop over edges:
-                if f < fStart or f > fEnd :
+                if f < fStart or f > fEnd:
                     print '## ERROR   f: %d,   fStart: %d,  fEnd: %d' % (f, fStart, fEnd)
                     exit(14)
 
@@ -173,13 +173,13 @@ def interp(u, meshd, unew, meshdnew) :
                 val = []                                        # u values at the vertices of the edge
 
                 # Loop over entities in the edge closure and collect u values:
-                for cl in closure :
-                    if vStart <= cl and cl < vEnd :
+                for cl in closure:
+                    if vStart <= cl and cl < vEnd:
                         off = meshd.section.getOffset(cl) / 2
                         crdE.append(mesh.coordinates.dat.data[off])
                         val.append(u.dat.data[off])
 
-                if len(crdE) != 2 :
+                if len(crdE) != 2:
                     print '## ERROR  number of points in crdE: %d' % len(crdE)
                     exit(16)
 
@@ -198,52 +198,22 @@ def interp(u, meshd, unew, meshdnew) :
 
                 # print 'alpha = ', alpha
 
-                if alpha > 1 :                              # Barycentric coord on segment
+                if alpha > 1:                               # Barycentric coord on segment
                     print '## ERROR alpha = %1.4f' % alpha
                     exit(23)
                 val = alpha * val[0] + (1 - alpha) * val[1]
 
             unew.dat.data[offnew] = val
 
-# def transfer_solution(meshdnew, *fields, **kwargs):
-#     """
-#     Transfers a solution field from the old mesh to the new mesh (courtesy of Nicolas Barral).
-#     :arg fields: tuple of functions defined on the old mesh that one wants to transfer
-#     """
-#     meshnew = meshdnew.mesh             # TODO: test this works and include interp hack in place of .at
-#
-#     # method = kwargs.get('method')  # only way I can see to make it work for now. With python 3 I can put it back in the parameters
-#     fields_new = ()
-#     for f in fields :
-#         V_new = FunctionSpace(meshnew, f.function_space().ufl_element())
-#         f_new = Function(V_new)
-#
-#         if f.ufl_element().family() == 'Lagrange' and f.ufl_element().degree() == 1 :
-#             f_new.dat.data[:] = f.at(meshnew.coordinates.dat.data)
-#
-#         elif f.ufl_element().family() == 'Lagrange' :
-#             degree = f.ufl_element().degree()
-#             C = VectorFunctionSpace(meshnew, 'CG', degree)
-#             interp_coordinates = Function(C)
-#             interp_coordinates.interpolate(meshnew.coordinates)
-#             f_new.dat.data[:] = f.at(interp_coordinates.dat.data)
-#
-#         else :
-#             raise NotImplementedError('Can only interpolate CG fields')
-#
-#         fields_new += (f_new,)
-#     return fields_new
 
-
-
-def update_SW(meshd1, meshd2, u_, u, eta_, eta) :
+def update_SW(adaptor, u_, u, eta_, eta):
     """A function which updates shallow water solution fields and bathymetry from one mesh to another."""
 
     # Get mesh:
-    mesh2 = meshd2.mesh
+    mesh2 = adaptor.adapted_mesh
 
     # Establish function spaces on the new mesh:
-    Vu = VectorFunctionSpace(mesh2, 'CG', 1)        # TODO: use Taylor-Hood, incorporating transfer_solution above
+    Vu = VectorFunctionSpace(mesh2, 'CG', 2)
     Ve = FunctionSpace(mesh2, 'CG', 1)
     Vq = MixedFunctionSpace((Vu, Ve))
 
@@ -254,16 +224,13 @@ def update_SW(meshd1, meshd2, u_, u, eta_, eta) :
     u2, eta2 = q2.split()
 
     # Interpolate functions across from the previous mesh:
-    interp(u_, meshd1, u_2, meshd2)
-    interp(u, meshd1, u2, meshd2)
-    interp(eta_, meshd1, eta_2, meshd2)
-    interp(eta, meshd1, eta2, meshd2)
+    u_2, u2, eta_2, eta2 = adaptor.transfer_solution(u_, u, eta_, eta)
 
     return q_2, q2, u_2, u2, eta_2, eta2, Vq
 
 
 
-def update_variable(meshd1, meshd2, phi) :
+def update_variable(meshd1, meshd2, phi):
     """Interpolate a variable from one mesh onto another."""
 
     phi2 = Function(meshd2.V)

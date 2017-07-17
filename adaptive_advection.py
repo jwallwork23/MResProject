@@ -26,10 +26,14 @@ if remesh == 'y' :
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
     if ntype not in ('lp', 'manual') :
         raise ValueError('Please try again, choosing lp or manual.')
+    mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
+    if mat_out not in ('y', 'n'):
+        raise ValueError('Please try again, choosing y or n.')
 else :
     hmin = 0.0625
     nodes = 0
     ntype = None
+    mat_out == 'n'
 
 # Courant number adjusted timestepping parameters:
 ndump = 1
@@ -53,8 +57,10 @@ t = 0.
 mn = 0
 dumpn = 0
 phi_file = File('plots/adapt_plots/advection_test.pvd')
-m_file = File('plots/adapt_plots/advection_test_metric.pvd')
 phi_file.write(phi, time = t)
+if mat_out == 'y' :
+    m_file = File('plots/adapt_plots/advection_test_metric.pvd')
+    h_file = File('plots/adapt_plots/advection_test_hessian.pvd')
 tic1 = clock()
 
 # Enter timeloop:
@@ -70,17 +76,23 @@ while t < T - 0.5 * dt :
         V = TensorFunctionSpace(mesh, 'CG', 1)
         H = construct_hessian(mesh, V, phi)
         M = compute_steady_metric(mesh, V, H, phi, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
-        M.rename('Metric field')
+        if mat_out == 'y':
+            H.rename('Hessian')
+            h_file.write(H, time = t)
+            M.rename('Metric field')
+            m_file.write(M, time=t)
 
         # Adapt mesh and set up new function spaces:
         mesh_ = mesh
         meshd_ = Meshd(mesh_)
         tic2 = clock()
-        mesh = adapt(mesh, M)
+        adaptor = AnisotropicAdaptation(mesh, M)
+        mesh = adaptor.adapted_mesh
         meshd = Meshd(mesh)
-        phi_ = update_variable(meshd_, meshd, phi_)
-        phi = update_variable(meshd_, meshd, phi)
-        W = meshd.V
+        # phi_ = update_variable(meshd_, meshd, phi_)
+        # phi = update_variable(meshd_, meshd, phi)
+        phi_, phi = adaptor.transfer_solution(phi_, phi)
+        # W = meshd.V
         toc2 = clock()
         phi.rename('Concentration')
 
@@ -117,9 +129,6 @@ while t < T - 0.5 * dt :
 
             dumpn -= ndump
             phi_file.write(phi, time = t)
-
-            if remesh == 'y' :
-                m_file.write(M, time = t)
 
 # End timing and print:
 toc1 = clock()

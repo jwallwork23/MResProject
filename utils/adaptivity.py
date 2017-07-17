@@ -5,59 +5,10 @@ from scipy import linalg as sla
 
 from interp import *
 
-def adapt(mesh, metric) :
-    """A function which generates a new mesh, provided with a previous mesh and an adaptivity metric. Courtesy of 
-    Nicolas Barral."""
-
-    # Establish topological and geometric dimensions:
-    dim = mesh._topological_dimension
-    entity_dofs = np.zeros(dim + 1, dtype = np.int32)
-    entity_dofs[0] = mesh.geometric_dimension()
-
-    # Generate list of dimensions and offsets vertices and faces (for visualisation, use .view):
-    coordSection = mesh._plex.createSection([1], entity_dofs, perm = mesh.topology._plex_renumbering)
-
-    # Get the DMPlex object encapsulating the mesh topology and determine the vertices of plex to consider:
-    plex = mesh._plex
-    vStart, vEnd = plex.getDepthStratum(0)
-    nbrVer = vEnd - vStart
-
-    # Establish DM coordinates (a DM is an abstract PETSc object that manages an abstract grid object and its
-    # interactions with the algebraic solvers):
-    dmCoords = mesh.topology._plex.getCoordinateDM()
-    dmCoords.setDefaultSection(coordSection)    
-##    dmCoords.setDefaultSection(mesh.coordinates.function_space()._dm.getDefaultSection())
-
-#### TEMPORARY (?) HACK to sort the metric in the right order (waiting for Matt Knepley fix in plexadapt)
-
-    # Establish a new metric as a numpy array ('C' denoting column style):
-    met = np.ndarray(shape = metric.dat.data.shape, dtype = metric.dat.data.dtype, order = 'C')
-
-    # Loop over vertices of the mesh (?):
-    for iVer in range(nbrVer) :
-
-        # Establish offsets of vertices (?):
-        off = coordSection.getOffset(iVer + vStart) / dim
-##        print "DEBUG  iVer: %d  off: %d   nbrVer: %d" %(iVer, off, nbrVer)
-
-        # Transfer offsets into new metric:
-        met[iVer] = metric.dat.data[off]
-
-    # Overwrite metric with new metric (could use metric.dat.data.data = met.data):
-    for iVer in range(nbrVer) :
-        metric.dat.data[iVer] = met[iVer]
-
-    # Construct new mesh from metric:
-    with mesh.coordinates.dat.vec_ro as coords :
-        mesh.topology._plex.setCoordinatesLocal(coords)
-    with metric.dat.vec_ro as vec :
-        newplex = dmplex.petscAdap(mesh.topology._plex, vec)
-    newmesh = Mesh(newplex)
-
-    return newmesh
-
-def construct_hessian(mesh, V, sol) :
-    """A function which computes the hessian of a scalar solution field with respect to the current mesh."""
+def construct_hessian(mesh, V, sol):
+    """
+    A function which computes the hessian of a scalar solution field with respect to the current mesh.
+    """
 
     # Construct functions:
     H = Function(V)                             # Hessian-to-be
@@ -67,7 +18,7 @@ def construct_hessian(mesh, V, sol) :
     # Establish and solve a variational problem:
     Lh = (
             (inner(sigma, H) + inner(div(sigma), grad(sol)) ) * dx -
-            (sigma[0,1] * nhat[1] * sol.dx(0) + sigma[1,0] * nhat[0] * sol.dx(1)) * ds
+            ((sigma[0,0] + sigma[0,1]) * nhat[1] * sol.dx(0) + (sigma[1,0] + sigma[1,1]) * nhat[0] * sol.dx(1)) * ds
         )
     H_prob = NonlinearVariationalProblem(Lh, H)
     H_solv = NonlinearVariationalSolver(H_prob, solver_parameters = {'snes_rtol' : 1e8,
@@ -86,7 +37,9 @@ def construct_hessian(mesh, V, sol) :
 # TODO: implement integration by parts AND ALSO double L2 projection
 
 # def construct_hessian2(meshd, V, sol) :
-#     """A function which computes the Hessian of a scalar solution field w.r.t. the current mesh."""
+#      """
+#      A function which computes the Hessian of a scalar solution field w.r.t. the current mesh.
+#      """
 #
 #     mesh = meshd.mesh
 #     dim = mesh._topological_dimension
@@ -148,12 +101,14 @@ def construct_hessian(mesh, V, sol) :
 #     return H
 
 def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100., normalise = 'lp', p = 2, N = 1000.,
-                          ieps = 1000.) :
-    """A function which computes the steady metric for re-meshing, provided with the current mesh, hessian and 
-    free surface. Here h_min and h_max denote the respective minimum and maximum tolerated side-lengths, while a 
-    denotes the maximum tolerated aspect ratio. Further,  N denotes the target number of nodes and ieps denotes the
-    inverse of the target error for the two respective normalisation approaches. This code is based on Nicolas Barral's 
-    function ``computeSteadyMetric``, from ``adapt.py``."""
+                          ieps = 1000.):
+    """
+    A function which computes the steady metric for re-meshing, provided with the current mesh, hessian and free 
+    surface. Here h_min and h_max denote the respective minimum and maximum tolerated side-lengths, while a denotes the 
+    maximum tolerated aspect ratio. Further,  N denotes the target number of nodes and ieps denotes the inverse of the 
+    target error for the two respective normalisation approaches. This code is based on Nicolas Barral's function 
+    ``computeSteadyMetric``, from ``adapt.py``.
+    """
 
     # Set parameter values:
     ia = 1. / (a ** 2)
@@ -163,9 +118,9 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
     # Establish metric object:
     M = Function(V)
 
-    if normalise == 'manual' :
+    if normalise == 'manual':
     
-        for i in range(mesh.topology.num_vertices()) :
+        for i in range(mesh.topology.num_vertices()):
 
             # Specify minimum tolerated value for the solution field:
             sol_min = 0.001
@@ -191,12 +146,12 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             M.dat.data[i][1,0] = M.dat.data[i][0,1]
             M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
 
-    elif normalise == 'lp' :
+    elif normalise == 'lp':
 
         # Establish determinant object:
         detH = Function(FunctionSpace(mesh, 'CG', 1))
 
-        for i in range(mesh.topology.num_vertices()) :
+        for i in range(mesh.topology.num_vertices()):
 
             # Generate local Hessian:
             H_loc = H.dat.data[i]
@@ -222,7 +177,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
         detH_integral = assemble(detH * dx)
         M *= N / detH_integral                                                  # Scale by the target number of vertices
 
-        for i in range(mesh.topology.num_vertices()) :
+        for i in range(mesh.topology.num_vertices()):
 
             # Find eigenpairs of metric and truncate eigenvalues:
             lam, v = la.eig(M.dat.data[i])
@@ -245,9 +200,11 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
     return M
 
 class Meshd :
-    """A structure holding the objects related to a mesh."""
+    """
+    A structure holding the objects related to a mesh, courtesy of Nicolas Barral.
+    """
 
-    def __init__(self, mesh, reorderPlex = True, computeAltMin = True) :
+    def __init__(self, mesh, reorderPlex = True, computeAltMin = True):
 
         self.mesh = mesh
 
@@ -264,18 +221,20 @@ class Meshd :
                 self.mesh.topology._plex.setCoordinatesLocal(coords)
 
         if computeAltMin :
-            if self.mesh._topological_dimension == 2 :
+            if self.mesh._topological_dimension == 2:
                 self.altMin.interpolate(2 * CellVolume(self.mesh) / MaxCellEdgeLength(self.mesh))
             else :
                 print '#### 3D implementation not yet considered.'
 
-def metric_intersection(mesh, V, M1, M2) :
-    """A function which computes the metric with respect to two different fields."""
+def metric_intersection(mesh, V, M1, M2):
+    """
+    A function which computes the metric with respect to two different fields.
+    """
 
     # Establish metric intersection object:
     M12 = Function(V)
 
-    for i in range(mesh.topology.num_vertices()) :
+    for i in range(mesh.topology.num_vertices()):
 
         M = M1.dat.data[i]
         iM = la.inv(M)

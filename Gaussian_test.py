@@ -43,12 +43,13 @@ else :
     nodes = 0
     ntype = None
     mtype = None
+    mat_out == 'n'
     if remesh != 'n' :
         raise ValueError('Please try again, choosing y or n.')
 
 # Define function spaces:
-Vu = VectorFunctionSpace(mesh, 'CG', 1)                                     # TODO: Could we use Taylor-Hood?
-Ve = FunctionSpace(mesh, 'CG', 1)
+Vu = VectorFunctionSpace(mesh, 'CG', 2)                                     # \ Taylor-Hood
+Ve = FunctionSpace(mesh, 'CG', 1)                                           # /
 Vq = MixedFunctionSpace((Vu, Ve))                                           # Mixed FE problem
 
 # Establish bathymetry function:
@@ -118,11 +119,12 @@ mn = 0
 cnt = 0
 i = 0
 q_file = File('plots/adapt_plots/gaussian_test.pvd')
-#ex_file = File('plots/adapt_plots/gaussian_exact.pvd')
-m_file = File('plots/adapt_plots/gaussian_test_metric.pvd')
-h_file = File('plots/adapt_plots/gaussian_test_hessian.pvd')
 q_file.write(u, eta, time = t)
+#ex_file = File('plots/adapt_plots/gaussian_exact.pvd')     TODO: Plot exact soln
 #ex_file.write(sol, time = t)
+if mat_out == 'y' :
+    m_file = File('plots/adapt_plots/gaussian_test_metric.pvd')
+    h_file = File('plots/adapt_plots/gaussian_test_hessian.pvd')
 tic1 = clock()
 
 # Enter timeloop:
@@ -144,8 +146,9 @@ while t < T - 0.5 * dt :
 
             # Compute Hessian and metric:
             H = construct_hessian(mesh, V, spd)
-            H.rename('Hessian')             #
-            h_file.write(H, time = t)       # For debugging purposes
+            if mat_out == 'y' :
+                H.rename('Hessian')
+                h_file.write(H, time = t)
             M = compute_steady_metric(mesh, V, H, spd, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
 
         if mtype != 's' :
@@ -153,9 +156,9 @@ while t < T - 0.5 * dt :
             # Compute Hessian and metric:
             H = construct_hessian(mesh, V, eta)
 
-            if mtype != 'b' :
-                H.rename('Hessian')             #
-                h_file.write(H, time = t)       # For debugging purposes
+            if (mtype != 'b') & (mat_out == 'y') :
+                H.rename('Hessian')
+                h_file.write(H, time = t)
 
             M2 = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
 
@@ -170,10 +173,11 @@ while t < T - 0.5 * dt :
         mesh_ = mesh
         meshd_ = Meshd(mesh_)
         tic2 = clock()
-        mesh = adapt(mesh, M)
+        adaptor = AnisotropicAdaptation(mesh, M)
+        mesh = adaptor.adapted_mesh
         meshd = Meshd(mesh)
-        q_, q, u_, u, eta_, eta, Vq = update_SW(meshd_, meshd, u_, u, eta_, eta)
-        b = update_variable(meshd_, meshd, b)
+        q_, q, u_, u, eta_, eta, Vq = update_SW(adaptor, u_, u, eta_, eta)
+        b = adaptor.transfer_solution(b)
         toc2 = clock()
 
         # Data analysis:
@@ -228,7 +232,7 @@ while t < T - 0.5 * dt :
             # sol.interpolate(1e-3 * cos( - kap * t * sqrt(g * 0.1)) * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
             # ex_file.write(sol, time = t)        # TODO: ^^ Implement properly. Why doesn't it work??
 
-            if remesh == 'y' :
+            if mat_out == 'y' :
                     m_file.write(M, time = t)
             else :
                 print 't = %1.2fs' % t

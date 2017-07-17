@@ -27,8 +27,7 @@ if remesh == 'y' :
     if ntype not in ('lp', 'manual') :
         raise ValueError('Please try again, choosing lp or manual.')
 else :
-    hmin = 0
-    rm = int(T / dt)
+    hmin = 0.0625
     nodes = 0
     ntype = None
 
@@ -37,6 +36,9 @@ ndump = 1
 T = 2.5                                                                         # Simulation end time (s)
 dt = 0.8 * hmin         # Timestep length (s)
 Dt = Constant(dt)
+
+if remesh == 'n' :
+    rm = int(T / dt)
 
 # Create function space and set initial conditions:
 W = meshd.V

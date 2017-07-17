@@ -21,6 +21,8 @@ def barCoord(crdM, crdTri, i):
     return res
 
 
+# Can call .at(..., tolerance=1e-6)
+
 
 def interp(u, meshd, unew, meshdnew) :
     """A function which interpolates a function u onto a new mesh. Only slightly modified version of Nicolas Barral's
@@ -51,6 +53,9 @@ def interp(u, meshd, unew, meshdnew) :
             val = u.at(newCrd)
         except PointNotInDomainError :
             print '####  New vertex not in domain: %f %f' % (newCrd[0], newCrd[1])
+
+            # Loop here
+
             val = 0.
             notInDomain.append([v, INF, -1])   # (Vertex, distance, edge) tuple... TODO: store newCrd here instead of v
         finally :
@@ -193,41 +198,41 @@ def interp(u, meshd, unew, meshdnew) :
 
                 # print 'alpha = ', alpha
 
-                if alpha > 1 :
+                if alpha > 1 :                              # Barycentric coord on segment
                     print '## ERROR alpha = %1.4f' % alpha
                     exit(23)
                 val = alpha * val[0] + (1 - alpha) * val[1]
 
             unew.dat.data[offnew] = val
 
-def transfer_solution(meshdnew, *fields, **kwargs):
-    """
-    Transfers a solution field from the old mesh to the new mesh (courtesy of Nicolas Barral).
-    :arg fields: tuple of functions defined on the old mesh that one wants to transfer
-    """
-    meshnew = meshdnew.mesh             # TODO: test this works and include interp hack in place of .at
-
-    # method = kwargs.get('method')  # only way I can see to make it work for now. With python 3 I can put it back in the parameters
-    fields_new = ()
-    for f in fields :
-        V_new = FunctionSpace(meshnew, f.function_space().ufl_element())
-        f_new = Function(V_new)
-
-        if f.ufl_element().family() == 'Lagrange' and f.ufl_element().degree() == 1 :
-            f_new.dat.data[:] = f.at(meshnew.coordinates.dat.data)
-
-        elif f.ufl_element().family() == 'Lagrange' :
-            degree = f.ufl_element().degree()
-            C = VectorFunctionSpace(meshnew, 'CG', degree)
-            interp_coordinates = Function(C)
-            interp_coordinates.interpolate(meshnew.coordinates)
-            f_new.dat.data[:] = f.at(interp_coordinates.dat.data)
-
-        else :
-            raise NotImplementedError("Can only interpolate CG fields")
-
-        fields_new += (f_new,)
-    return fields_new
+# def transfer_solution(meshdnew, *fields, **kwargs):
+#     """
+#     Transfers a solution field from the old mesh to the new mesh (courtesy of Nicolas Barral).
+#     :arg fields: tuple of functions defined on the old mesh that one wants to transfer
+#     """
+#     meshnew = meshdnew.mesh             # TODO: test this works and include interp hack in place of .at
+#
+#     # method = kwargs.get('method')  # only way I can see to make it work for now. With python 3 I can put it back in the parameters
+#     fields_new = ()
+#     for f in fields :
+#         V_new = FunctionSpace(meshnew, f.function_space().ufl_element())
+#         f_new = Function(V_new)
+#
+#         if f.ufl_element().family() == 'Lagrange' and f.ufl_element().degree() == 1 :
+#             f_new.dat.data[:] = f.at(meshnew.coordinates.dat.data)
+#
+#         elif f.ufl_element().family() == 'Lagrange' :
+#             degree = f.ufl_element().degree()
+#             C = VectorFunctionSpace(meshnew, 'CG', degree)
+#             interp_coordinates = Function(C)
+#             interp_coordinates.interpolate(meshnew.coordinates)
+#             f_new.dat.data[:] = f.at(interp_coordinates.dat.data)
+#
+#         else :
+#             raise NotImplementedError('Can only interpolate CG fields')
+#
+#         fields_new += (f_new,)
+#     return fields_new
 
 
 

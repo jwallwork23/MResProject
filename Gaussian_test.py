@@ -1,10 +1,9 @@
 from firedrake import *
 
 import numpy as np
-import matplotlib.pyplot as plt
 from time import clock
 
-from utils import *
+from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, update_variable, update_SW
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
@@ -35,8 +34,11 @@ if remesh == 'y' :
     mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
     if mtype not in ('s', 'f', 'b'):
         raise ValueError('Please try again, choosing s, f or b.')
+    mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
+    if mat_out not in ('y', 'n') :
+        raise ValueError('Please try again, choosing y or n.')
 else :
-    hmin = 0.005
+    hmin = 0.0625
     rm = int(T)
     nodes = 0
     ntype = None
@@ -116,10 +118,11 @@ mn = 0
 cnt = 0
 i = 0
 q_file = File('plots/adapt_plots/gaussian_test.pvd')
-ex_file = File('plots/adapt_plots/gaussian_exact.pvd')
-m_file = File('plots/adapt_plots/advection_test_metric.pvd')
+#ex_file = File('plots/adapt_plots/gaussian_exact.pvd')
+m_file = File('plots/adapt_plots/gaussian_test_metric.pvd')
+h_file = File('plots/adapt_plots/gaussian_test_hessian.pvd')
 q_file.write(u, eta, time = t)
-ex_file.write(sol, time = t)
+#ex_file.write(sol, time = t)
 tic1 = clock()
 
 # Enter timeloop:
@@ -141,12 +144,19 @@ while t < T - 0.5 * dt :
 
             # Compute Hessian and metric:
             H = construct_hessian(mesh, V, spd)
+            H.rename('Hessian')             #
+            h_file.write(H, time = t)       # For debugging purposes
             M = compute_steady_metric(mesh, V, H, spd, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
 
         if mtype != 's' :
 
             # Compute Hessian and metric:
             H = construct_hessian(mesh, V, eta)
+
+            if mtype != 'b' :
+                H.rename('Hessian')             #
+                h_file.write(H, time = t)       # For debugging purposes
+
             M2 = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
 
             if mtype == 'b' :
@@ -215,8 +225,8 @@ while t < T - 0.5 * dt :
 
             dumpn -= ndump
             q_file.write(u, eta, time = t)
-            sol.interpolate(1e-3 * cos( - kap * t * sqrt(g * 0.1)) * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
-            ex_file.write(sol, time = t)        # TODO: ^^ Implement properly. Why doesn't it work??
+            # sol.interpolate(1e-3 * cos( - kap * t * sqrt(g * 0.1)) * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
+            # ex_file.write(sol, time = t)        # TODO: ^^ Implement properly. Why doesn't it work??
 
             if remesh == 'y' :
                     m_file.write(M, time = t)

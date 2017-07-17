@@ -64,7 +64,7 @@ def construct_hessian(mesh, V, sol) :
     sigma = TestFunction(V)
     nhat = FacetNormal(mesh)                    # Normal vector
 
-    # Establish and solve a variational problem associated with the Monge-Ampere equation:
+    # Establish and solve a variational problem:
     Lh = (
             (inner(sigma, H) + inner(div(sigma), grad(sol)) ) * dx -
             (sigma[0,1] * nhat[1] * sol.dx(0) + sigma[1,0] * nhat[0] * sol.dx(1)) * ds

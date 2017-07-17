@@ -35,6 +35,11 @@ elif res == 4 :
     mesh = Mesh('resources/meshes/TohokuCoarse.msh')
 elif res == 5 :
     mesh = Mesh('resources/meshes/TohokuXCoarse.msh')
+
+# For debugging purposes
+elif res == 99 :
+    mesh = Mesh('resources/meshes/unused/500,2500,15000,3.msh')
+
 else : raise ValueError('Please try again, choosing an integer in the range 1-5.')
 mesh_coords = mesh.coordinates.dat.data
 Vu = VectorFunctionSpace(mesh, 'CG', 2)                                 # \ Use Taylor-Hood

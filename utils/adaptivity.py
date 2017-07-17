@@ -7,7 +7,8 @@ from interp import *
 
 def construct_hessian(mesh, V, sol):
     """
-    A function which computes the hessian of a scalar solution field with respect to the current mesh.
+    A function which computes the hessian of a scalar solution field with respect to the current mesh. This code is
+    based on that provided in the Monge-Ampere tutorial provided on the Firedrake website.
     """
 
     # Construct functions:
@@ -16,10 +17,9 @@ def construct_hessian(mesh, V, sol):
     nhat = FacetNormal(mesh)                    # Normal vector
 
     # Establish and solve a variational problem:
-    Lh = (
-            (inner(sigma, H) + inner(div(sigma), grad(sol)) ) * dx -
-            ((sigma[0,0] + sigma[0,1]) * nhat[1] * sol.dx(0) + (sigma[1,0] + sigma[1,1]) * nhat[0] * sol.dx(1)) * ds
-        )
+    Lh = (inner(sigma, H) + inner(div(sigma), grad(sol)) ) * dx
+    Lh -= (sigma[0,1] * nhat[1] * sol.dx(0) + sigma[1,0] * nhat[0] * sol.dx(1)) * ds
+    Lh -= (sigma[0,0] * nhat[1] * sol.dx(0) + sigma[1,1] * nhat[0] * sol.dx(1)) * ds        # Term not in tutorial
     H_prob = NonlinearVariationalProblem(Lh, H)
     H_solv = NonlinearVariationalSolver(H_prob, solver_parameters = {'snes_rtol' : 1e8,
                                                                      'ksp_rtol' : 1e-5,
@@ -34,7 +34,7 @@ def construct_hessian(mesh, V, sol):
 
     return H
 
-# TODO: implement integration by parts AND ALSO double L2 projection
+# TODO: implement also a double L2 projection
 
 # def construct_hessian2(meshd, V, sol) :
 #      """

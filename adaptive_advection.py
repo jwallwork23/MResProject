@@ -29,6 +29,9 @@ if remesh == 'y' :
     mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
     if mat_out not in ('y', 'n'):
         raise ValueError('Please try again, choosing y or n.')
+    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ')
+    if hess_meth not in ('parts', 'dL2'):
+        raise ValueError('Please try again, choosing parts or dL2.')
 else :
     hmin = 0.0625
     nodes = 0
@@ -64,21 +67,21 @@ if mat_out == 'y' :
 tic1 = clock()
 
 # Enter timeloop:
-while t < T - 0.5 * dt :
+while t < T - 0.5 * dt:
 
     # Update counters:
     mn += 1
     cnt = 0
 
-    if remesh == 'y' :
+    if remesh == 'y':
 
         # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)
-        H = construct_hessian(mesh, V, phi)
-        M = compute_steady_metric(mesh, V, H, phi, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
+        H = construct_hessian(mesh, V, phi, method=hess_meth)
+        M = compute_steady_metric(mesh, V, H, phi, h_min=hmin, h_max=hmax, N=nodes, normalise=ntype)
         if mat_out == 'y':
             H.rename('Hessian')
-            h_file.write(H, time = t)
+            h_file.write(H, time=t)
             M.rename('Metric field')
             m_file.write(M, time=t)
 

@@ -5,7 +5,7 @@ from scipy import linalg as sla
 
 from interp import *
 
-def construct_hessian(mesh, V, sol):
+def construct_hessian(mesh, V, sol, method='parts'):
     """
     A function which computes the hessian of a scalar solution field with respect to the current mesh. This code is
     based on that provided in the Monge-Ampere tutorial provided on the Firedrake website.
@@ -15,21 +15,36 @@ def construct_hessian(mesh, V, sol):
     H = Function(V)                             # Hessian-to-be
     sigma = TestFunction(V)
     nhat = FacetNormal(mesh)                    # Normal vector
+    params = {'snes_rtol' : 1e8,
+              'ksp_rtol' : 1e-5,
+              'ksp_gmres_restart' : 20,
+              'pc_type' : 'sor',
+              'snes_monitor' : False,
+              'snes_view' : False,
+              'ksp_monitor_true_residual' : False,
+              'snes_converged_reason' : False,
+              'ksp_converged_reason' : False, }
 
-    # Establish and solve a variational problem:
-    Lh = (inner(sigma, H) + inner(div(sigma), grad(sol)) ) * dx
-    Lh -= (sigma[0,1] * nhat[1] * sol.dx(0) + sigma[1,0] * nhat[0] * sol.dx(1)) * ds
-    Lh -= (sigma[0,0] * nhat[1] * sol.dx(0) + sigma[1,1] * nhat[0] * sol.dx(1)) * ds        # Term not in tutorial
+    if method == 'parts':
+        # Hessian reconstruction using integration by parts:
+        Lh = (inner(sigma, H) + inner(div(sigma), grad(sol)) ) * dx
+        Lh -= (sigma[0,1] * nhat[1] * sol.dx(0) + sigma[1,0] * nhat[0] * sol.dx(1)) * ds
+        Lh -= (sigma[0,0] * nhat[1] * sol.dx(0) + sigma[1,1] * nhat[0] * sol.dx(1)) * ds        # Term not in tutorial
+    elif method == 'dL2':
+        # Hessian reconstruction using a double L2 projection:
+        W = VectorFunctionSpace(mesh, 'CG', 1)
+        phi = Function(W)
+        psi = TestFunction(W)
+        Lg = (inner(phi, psi) - inner(psi, grad(sol))) * dx
+        g_prob = NonlinearVariationalProblem(Lg, phi)
+        g_solv = NonlinearVariationalSolver(g_prob, solver_parameters=params)
+        g_solv.solve()
+        Lh = (inner(sigma, H) + inner(div(sigma), phi)) * dx
+        Lh -= (sigma[0, 1] * nhat[1] * phi[0] + sigma[1, 0] * nhat[0] * phi[1]) * ds
+        Lh -= (sigma[0, 0] * nhat[1] * phi[0] + sigma[1, 1] * nhat[0] * phi[1]) * ds
+
     H_prob = NonlinearVariationalProblem(Lh, H)
-    H_solv = NonlinearVariationalSolver(H_prob, solver_parameters = {'snes_rtol' : 1e8,
-                                                                     'ksp_rtol' : 1e-5,
-                                                                     'ksp_gmres_restart' : 20,
-                                                                     'pc_type' : 'sor',
-                                                                     'snes_monitor' : False,
-                                                                     'snes_view' : False,
-                                                                     'ksp_monitor_true_residual' : False,
-                                                                     'snes_converged_reason' : False,
-                                                                     'ksp_converged_reason' : False, })
+    H_solv = NonlinearVariationalSolver(H_prob, solver_parameters = params)
     H_solv.solve()
 
     return H

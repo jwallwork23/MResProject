@@ -3,7 +3,7 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import adapt, construct_hessian, compute_steady_metric, interp, update_SW
+from utils import construct_hessian, compute_steady_metric, interp, Meshd, relab
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
@@ -43,74 +43,45 @@ else :
     nodes = 0
     ntype = None
     mtype = None
-    mat_out == 'n'
+    mat_out = 'n'
     if remesh != 'n' :
         raise ValueError('Please try again, choosing y or n.')
 
-# Define function spaces:
-Vu = VectorFunctionSpace(mesh, 'CG', 2)                                     # \ Taylor-Hood
-Ve = FunctionSpace(mesh, 'CG', 1)                                           # /
-Vq = MixedFunctionSpace((Vu, Ve))                                           # Mixed FE problem
+# Courant number adjusted timestepping parameters:
+ndump = 1
+g = 9.81  # Gravitational acceleration (m s^{-2})
+dt = 0.8 * hmin / np.sqrt(g * 0.1)  # Timestep length (s), using wavespeed sqrt(gh)
+Dt = Constant(dt)
+print 'Using Courant number adjusted timestep dt = %1.4f' % dt
+
+# Define mixed Taylor-Hood function space:
+W = MixedFunctionSpace((VectorFunctionSpace(mesh, 'CG', 2), FunctionSpace(mesh, 'CG', 1)))                                           # Mixed FE problem
 
 # Establish bathymetry function:
-b = Function(Ve, name = 'Bathymetry')
+b = Function(W.sub(1), name = 'Bathymetry')
 if bathy == 'f' :
     b.assign(0.1)  # (Constant) tank water depth (m)
 else :
     b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))  # Shelf break bathymetry
 
-# Courant number adjusted timestepping parameters:
-ndump = 1
-g = 9.81                                    # Gravitational acceleration (m s^{-2})
-dt = 0.8 * hmin / np.sqrt(g * 0.1)          # Timestep length (s), using wavespeed sqrt(gh)
-Dt = Constant(dt)
-print 'Using Courant number adjusted timestep dt = %1.4f' % dt
-
-# Construct a function to store our two variables at time n:
-q_ = Function(Vq)
-u_, eta_ = q_.split()
+# Construct functions to store our variables at the previous timestep:
+u_ = Function(W.sub(0), name='Fluid velocity')
+eta_ = Function(W.sub(1), name='Free surface displacement')
 
 # Interpolate initial conditions:
 u_.interpolate(Expression([0, 0]))
 eta_.interpolate(1e-3 * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
 
-# Establish exact solution function:
-sol = Function(Ve, name = 'Exact free surface')
-sol.interpolate(1e-3 * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
-k = 1.
-l = 1.
-kap = sqrt(pow(k, 2) + pow(l, 2))
+# # Establish exact solution function:
+# sol = Function(Ve, name = 'Exact free surface')
+# sol.interpolate(1e-3 * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
+# k = 1.
+# l = 1.
+# kap = sqrt(pow(k, 2) + pow(l, 2))
 
 # Set up functions of forward weak problem:
-q = Function(Vq)
-q.assign(q_)
-v, ze = TestFunctions(Vq)
-u, eta = split(q)
-u_, eta_ = split(q_)
-
-# For timestepping we consider the implicit midpoint rule and so must create new 'mid-step' functions:
-uh = 0.5 * (u + u_)
-etah = 0.5 * (eta + eta_)
-
-# Specify solver parameters:
-params = {'mat_type': 'matfree',
-          'snes_type': 'ksponly',
-          'pc_type': 'python',
-          'pc_python_type': 'firedrake.AssembledPC',
-          'assembled_pc_type': 'lu',
-          'snes_lag_preconditioner': -1,
-          'snes_lag_preconditioner_persists': True,}
-
-# Set up the variational problem:
-L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) + inner(u - u_, v) + Dt * g *(inner(grad(etah), v))) * dx
-q_prob = NonlinearVariationalProblem(L, q)
-q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
-
-# 'Split' functions to access their data and relabel:
-u_, eta_ = q_.split()
-u, eta = q.split()
-u.rename('Fluid velocity')
-eta.rename('Free surface displacement')
+u, eta = TrialFunctions(W)
+v, ze = TestFunctions(W)
 
 # Initialise time, counters and files:
 t = 0.
@@ -119,7 +90,7 @@ mn = 0
 cnt = 0
 i = 0
 q_file = File('plots/adapt_plots/gaussian_test.pvd')
-q_file.write(u, eta, time = t)
+q_file.write(u_, eta_, time = t)
 #ex_file = File('plots/adapt_plots/gaussian_exact.pvd')     TODO: Plot exact soln
 #ex_file.write(sol, time = t)
 if mat_out == 'y' :
@@ -169,15 +140,26 @@ while t < T - 0.5 * dt :
                 M = M2
 
         # Adapt mesh and interpolate functions:
-        M.rename('Metric field')
-        mesh_ = mesh
-        meshd_ = Meshd(mesh_)
         tic2 = clock()
         adaptor = AnisotropicAdaptation(mesh, M)
         mesh = adaptor.adapted_mesh
         meshd = Meshd(mesh)
-        q_, q, u_, u, eta_, eta, Vq = update_SW(adaptor, u_, u, eta_, eta)
-        b = adaptor.transfer_solution(b)
+
+        u_2, u2, eta_2, eta2, b2 = relab(u_, u, eta_, eta, b)
+
+        # Re-define mixed Taylor-Hood function space:
+        W = MixedFunctionSpace((VectorFunctionSpace(mesh, 'CG', 2), FunctionSpace(mesh, 'CG', 1)))
+
+        # TODO: needs changing
+        q_ = Function(Vq)
+        u_, eta_ = q_.split()
+        q = Function(Vq)
+        u, eta = q.split()
+
+        # Interpolate functions across from the previous mesh:
+        u_, u, eta_, eta, b = interp(adaptor, u_2, u2, eta_2, eta2, b2)
+
+
         toc2 = clock()
 
         # Data analysis:
@@ -196,25 +178,6 @@ while t < T - 0.5 * dt :
         print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
         print ''
 
-    # Set up functions of weak problem:
-    v, ze = TestFunctions(Vq)
-    u, eta = split(q)
-    u_, eta_ = split(q_)
-    uh = 0.5 * (u + u_)
-    etah = 0.5 * (eta + eta_)
-
-    # Set up the variational problem:
-    L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) +
-         inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
-    q_prob = NonlinearVariationalProblem(L, q)
-    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
-
-    # 'Split' functions to access their data and relabel:
-    u_, eta_ = q_.split()
-    u, eta = q.split()
-    u.rename('Fluid velocity')
-    eta.rename('Free surface displacement')
-
     # Enter inner timeloop:
     while cnt < rm :
 
@@ -222,8 +185,25 @@ while t < T - 0.5 * dt :
         cnt += 1
         dumpn += 1
 
-        q_solv.solve()
-        q_.assign(q)
+        # Set up the forms of the variational problem:
+        a = (ze * eta - 0.5 * Dt * inner(b * u, grad(ze)) + inner(u, v) + 0.5 * Dt * g * (inner(grad(eta), v))) * dx
+        L = (ze * eta_ + 0.5 * Dt * inner(b * u_, grad(ze)) - inner(u_, v) - 0.5 * Dt * g * (inner(grad(eta_), v))) * dx
+        q = Function(W)
+
+        # Solve the problem:
+        solve(a == L, q, solver_parameters={'mat_type': 'matfree',
+                                            'snes_type': 'ksponly',
+                                            'pc_type': 'python',
+                                            'pc_python_type': 'firedrake.AssembledPC',
+                                            'assembled_pc_type': 'lu',
+                                            'snes_lag_preconditioner': -1,
+                                            'snes_lag_preconditioner_persists': True,})
+        u, eta = q.split()
+        u.rename('Fluid velocity')
+        eta.rename('Free surface displacement')
+
+        u_.assign(u)
+        eta_.assign(eta)
 
         if dumpn == ndump :
 
@@ -233,7 +213,8 @@ while t < T - 0.5 * dt :
             # ex_file.write(sol, time = t)        # TODO: ^^ Implement properly. Why doesn't it work??
 
             if mat_out == 'y' :
-                    m_file.write(M, time = t)
+                M.rename('Metric field')
+                m_file.write(M, time = t)
             else :
                 print 't = %1.2fs' % t
 

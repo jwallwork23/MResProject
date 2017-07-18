@@ -36,8 +36,7 @@ def interp(adaptor, *fields, **kwargs):
 
     :arg fields: tuple of functions defined on the old mesh that one wants to transfer
     """
-    # method = kwargs.get('method')  # only way I can see to make it work for now. With python 3 I can put it back
-    # in the parameters
+
     fields_new = ()
     for f in fields:
         V_new = functionspace.FunctionSpace(adaptor.adapted_mesh, f.function_space().ufl_element())
@@ -102,25 +101,5 @@ def interp(adaptor, *fields, **kwargs):
         fields_new += (f_new,)
     return fields_new
 
-
-def update_SW(adaptor, u_, u, eta_, eta):
-    """A function which updates shallow water solution fields and bathymetry from one mesh to another."""
-
-    # Get mesh:
-    mesh2 = adaptor.adapted_mesh
-
-    # Establish function spaces on the new mesh:
-    Vu = VectorFunctionSpace(mesh2, 'CG', 2)
-    Ve = FunctionSpace(mesh2, 'CG', 1)
-    Vq = MixedFunctionSpace((Vu, Ve))
-
-    # Establish functions in the new spaces:
-    q_2 = Function(Vq)
-    u_2, eta_2 = q_2.split()
-    q2 = Function(Vq)
-    u2, eta2 = q2.split()
-
-    # Interpolate functions across from the previous mesh:
-    u_2, u2, eta_2, eta2 = interp(adaptor, u_, u, eta_, eta)
-
-    return q_2, q2, u_2, u2, eta_2, eta2, Vq
+def relab(*fields):
+    return fields

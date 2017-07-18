@@ -1,13 +1,13 @@
 from firedrake import *
-
 from adaptivity import *
+
 
 class Meshd:
     """
     A structure holding the objects related to a mesh, courtesy of Nicolas Barral.
     """
 
-    def __init__(self, mesh, reorderPlex = True, computeAltMin = True):
+    def __init__(self, mesh, reorderPlex=True, computeAltMin=True):
 
         self.mesh = mesh
 
@@ -80,8 +80,7 @@ def interp(adaptor, *fields, **kwargs):
 
         eps = 1e-6  # For playing with epsilons
         while len(notInDomain) > 0:
-            print '#### Number of points not in domain: %d / %d' % \
-                  (len(notInDomain), mesh.topology.num_vertices())
+            print '#### Number of points not in domain: %d / %d' % (len(notInDomain), mesh.topology.num_vertices())
             eps *= 10
             print '#### Trying epsilon = ', eps
             for v in notInDomain:

@@ -5,6 +5,7 @@ from scipy import linalg as sla
 
 from interp import *
 
+
 def construct_hessian(mesh, V, sol, method='parts'):
     """
     A function which computes the hessian of a scalar solution field with respect to the current mesh. This code is
@@ -15,15 +16,15 @@ def construct_hessian(mesh, V, sol, method='parts'):
     H = Function(V)                             # Hessian-to-be
     sigma = TestFunction(V)
     nhat = FacetNormal(mesh)                    # Normal vector
-    params = {'snes_rtol' : 1e8,
-              'ksp_rtol' : 1e-5,
-              'ksp_gmres_restart' : 20,
-              'pc_type' : 'sor',
-              'snes_monitor' : False,
-              'snes_view' : False,
-              'ksp_monitor_true_residual' : False,
-              'snes_converged_reason' : False,
-              'ksp_converged_reason' : False, }
+    params = {'snes_rtol': 1e8,
+              'ksp_rtol': 1e-5,
+              'ksp_gmres_restart': 20,
+              'pc_type': 'sor',
+              'snes_monitor': False,
+              'snes_view': False,
+              'ksp_monitor_true_residual': False,
+              'snes_converged_reason': False,
+              'ksp_converged_reason': False, }
 
     if method == 'parts':
         # Hessian reconstruction using integration by parts:
@@ -49,8 +50,8 @@ def construct_hessian(mesh, V, sol, method='parts'):
 
     return H
 
-def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100., normalise = 'lp', p = 2, N = 1000.,
-                          ieps = 1000.):
+
+def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., normalise='lp', p=2, N=1000., ieps=1000.):
     """
     A function which computes the steady metric for re-meshing, provided with the current mesh, hessian and free 
     surface. Here h_min and h_max denote the respective minimum and maximum tolerated side-lengths, while a denotes the 
@@ -90,10 +91,10 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             lam2 = max(lam2, ia * lam_max)
 
             # Reconstruct edited Hessian:
-            M.dat.data[i][0,0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]
-            M.dat.data[i][0,1] = lam1 * v1[0] * v1[1] + lam2 * v2[0] * v2[1]
-            M.dat.data[i][1,0] = M.dat.data[i][0,1]
-            M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
+            M.dat.data[i][0, 0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]
+            M.dat.data[i][0, 1] = lam1 * v1[0] * v1[1] + lam2 * v2[0] * v2[1]
+            M.dat.data[i][1, 0] = M.dat.data[i][0, 1]
+            M.dat.data[i][1, 1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
 
     elif normalise == 'lp':
 
@@ -116,10 +117,10 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             det = lam1 * lam2
 
             # Reconstruct edited Hessian and rescale:
-            M.dat.data[i][0,0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]
-            M.dat.data[i][0,1] = lam1 * v1[0] * v1[1] + lam2 * v2[0] * v2[1]
-            M.dat.data[i][1,0] = M.dat.data[i][0,1]
-            M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
+            M.dat.data[i][0, 0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]
+            M.dat.data[i][0, 1] = lam1 * v1[0] * v1[1] + lam2 * v2[0] * v2[1]
+            M.dat.data[i][1, 0] = M.dat.data[i][0, 1]
+            M.dat.data[i][1, 1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
             M.dat.data[i] *= pow(det, -1. / (2 * p + 2))
             detH.dat.data[i] = pow(det, p / (2. * p + 2))
 
@@ -138,26 +139,23 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             lam2 = max(lam2, ia * lam_max)
 
             # Reconstruct edited Hessian:
-            M.dat.data[i][0,0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]
-            M.dat.data[i][0,1] = lam1 * v1[0] * v1[1] + lam2 * v2[0] * v2[1]
-            M.dat.data[i][1,0] = M.dat.data[i][0,1]
-            M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
+            M.dat.data[i][0, 0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]
+            M.dat.data[i][0, 1] = lam1 * v1[0] * v1[1] + lam2 * v2[0] * v2[1]
+            M.dat.data[i][1, 0] = M.dat.data[i][0, 1]
+            M.dat.data[i][1, 1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
 
     else:
         raise ValueError('Normalisation selection not recognised, choose `manual` or `lp`.')
 
     return M
 
+
 def metric_intersection(mesh, V, M1, M2):
     """
     A function which computes the metric with respect to two different fields.
     """
-
-    # Establish metric intersection object:
     M12 = Function(V)
-
     for i in range(mesh.topology.num_vertices()):
-
         M = M1.dat.data[i]
         iM = la.inv(M)
         Mbar = np.transpose(sla.sqrtm(iM)) * M2.dat.data[i] * sla.sqrtm(iM)

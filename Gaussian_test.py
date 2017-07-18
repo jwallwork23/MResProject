@@ -9,7 +9,6 @@ from utils import construct_hessian, compute_steady_metric, interp, update_SW
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
 lx = 4                                                                  # Extent in x-direction (m)
 mesh = SquareMesh(lx * n, lx * n, lx, lx)
-meshd = Meshd(mesh)
 x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
 N2 = N1                                                                 # Maximum number of nodes

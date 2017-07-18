@@ -3,14 +3,13 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import construct_hessian, compute_steady_metric, interp, Meshd
+from utils import construct_hessian, compute_steady_metric, interp
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
 lx = 4                                                                  # Extent in x-direction (m)
 ly = 1                                                                  # Extent in y-direction (m)
 mesh = RectangleMesh(lx * n, ly * n, lx, ly)
-meshd = Meshd(mesh)
 x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
 N2 = N1                                                                 # Maximum number of nodes
@@ -48,7 +47,7 @@ if remesh == 'n':
     rm = int(T / dt)
 
 # Create function space and set initial conditions:
-W = meshd.V
+W = FunctionSpace(mesh, 'CG', 1)
 phi_ = Function(W)
 phi_.interpolate(1e-3 * exp(- (pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
 phi = Function(W, name='Concentration')
@@ -90,10 +89,9 @@ while t < T - 0.5 * dt:
         adaptor = AnisotropicAdaptation(mesh, M)
         mesh = adaptor.adapted_mesh
         phi_, phi = interp(adaptor, phi_, phi)
-        meshd = Meshd(mesh)
 
         # Re-define function space and rename dependent variable:
-        W = meshd.V
+        W = FunctionSpace(mesh, 'CG', 1)
         phi.rename('Concentration')
         toc2 = clock()
 

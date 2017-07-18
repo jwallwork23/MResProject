@@ -6,7 +6,7 @@ from scipy import linalg as sla
 from interp import *
 
 
-def construct_hessian(mesh, V, sol, method='parts'):
+def construct_hessian(mesh, V, sol, method='parts', treat_boundaries='off'):
     """
     A function which computes the hessian of a scalar solution field with respect to the current mesh. This code is
     based on that provided in the Monge-Ampere tutorial provided on the Firedrake website.
@@ -48,7 +48,37 @@ def construct_hessian(mesh, V, sol, method='parts'):
     H_solv = NonlinearVariationalSolver(H_prob, solver_parameters=params)
     H_solv.solve()
 
-    # TODO: Make a finite difference approximation at boundaries?
+    if treat_boundaries == 'off':
+        assert (mesh._topological_dimension) == 2                                   # 3D not yet considered
+        plex = mesh._plex
+        vStart, vEnd = plex.getDepthStratum(0)                                      # Vertices
+
+        # [Get b_nodes and i_nodes]
+
+        # noIntNbrs = []
+
+        # [Create some functions int_nbrs and bdy_nbrs]
+
+        # for v in b_nodes:
+
+        #     if len(int_nbrs(v)) == 0:
+        #         noIntNbrs.append(v)
+        #     else :
+        #         num = np.zeros((2, 2))
+        #         den = 0
+        #         for w in int_nbrs(v) :
+        #             [Calculate num += H.dat.data[w] * Mass(w) and den += Mass(w)]
+        #         H.dat.data[v] = num/den
+
+        # if len(noIntNbrs) > 0 :
+        #     for v in noIntNbrs :
+        #         num = np.zeros((2, 2))
+        #         den = 0
+        #         for w in bdy_nbrs(v) :
+        #             [Calculate num += H.dat.data[w] * Mass(w) and den += Mass(w)]
+        #         H.dat.data[v] = num/den
+
+    # TODO: Complete finite difference approximation at boundaries
 
     return H
 

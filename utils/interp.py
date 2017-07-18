@@ -39,16 +39,16 @@ def interp(adaptor, *fields, **kwargs):
 
     fields_new = ()
     for f in fields:
-        V_new = functionspace.FunctionSpace(adaptor.adapted_mesh, f.function_space().ufl_element())
-        f_new = function.Function(V_new)
+        V_new = FunctionSpace(adaptor.adapted_mesh, f.function_space().ufl_element())
+        f_new = Function(V_new)
         notInDomain = []
 
         if f.ufl_element().family() == 'Lagrange' and f.ufl_element().degree() == 1:
             coords = adaptor.adapted_mesh.coordinates.dat.data
         elif f.ufl_element().family() == 'Lagrange':
             degree = f.ufl_element().degree()
-            C = functionspace.VectorFunctionSpace(adaptor.adapted_mesh, 'CG', degree)
-            interp_coordinates = function.Function(C)
+            C = VectorFunctionSpace(adaptor.adapted_mesh, 'CG', degree)
+            interp_coordinates = Function(C)
             interp_coordinates.interpolate(adaptor.adapted_mesh.coordinates)
             coords = interp_coordinates.dat.data
         else:
@@ -63,8 +63,8 @@ def interp(adaptor, *fields, **kwargs):
             dim = mesh._topological_dimension
             assert (dim == 2)                           # 3D implementation not yet considered
             meshd = Meshd(mesh)
-            plexnew = mesh._plex
-            vStart, vEnd = plexnew.getDepthStratum(0)   # Vertices of new plex
+            plex = mesh._plex
+            vStart, vEnd = plex.getDepthStratum(0)   # Vertices of new plex
 
             # Establish which vertices fall outside the domain:
             for v in range(vStart, vEnd):

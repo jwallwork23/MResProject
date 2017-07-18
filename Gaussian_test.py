@@ -36,6 +36,9 @@ if remesh == 'y':
     mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
     if mat_out not in ('y', 'n'):
         raise ValueError('Please try again, choosing y or n.')
+    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'parts'
+    if hess_meth not in ('parts', 'dL2'):
+        raise ValueError('Please try again, choosing parts or dL2.')
 else:
     hmin = 0.0625
     rm = int(T)
@@ -83,10 +86,8 @@ u, eta = q.split()
 
 # Initialise time, counters and files:
 t = 0.
-dumpn = 0
 mn = 0
-cnt = 0
-i = 0
+dumpn = 0
 q_file = File('plots/adapt_plots/gaussian_test.pvd')
 # ex_file = File('plots/adapt_plots/gaussian_exact.pvd')     TODO: Plot exact soln
 # ex_file.write(sol, time = t)
@@ -104,19 +105,18 @@ while t < T - 0.5 * dt:
 
     if remesh == 'y':
 
+        # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)
-
         if mtype != 'f':
             spd = Function(FunctionSpace(mesh, 'CG', 1))    # Fluid speed
             spd.interpolate(sqrt(dot(u, u)))
-            H = construct_hessian(mesh, V, spd)
+            H = construct_hessian(mesh, V, spd, method=hess_meth)
             if mat_out == 'y':
                 H.rename('Hessian')
                 h_file.write(H, time=t)
             M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, N=nodes, normalise=ntype)
-
         if mtype != 's':
-            H = construct_hessian(mesh, V, eta)
+            H = construct_hessian(mesh, V, eta, method=hess_meth)
             if (mtype != 'b') & (mat_out == 'y'):
                 H.rename('Hessian')
                 h_file.write(H, time=t)
@@ -125,6 +125,9 @@ while t < T - 0.5 * dt:
                 M = metric_intersection(mesh, V, M, M2)
             else:
                 M = M2
+        if mat_out == 'y':
+            M.rename('Metric field')
+            m_file.write(M, time=t)
 
         # Adapt mesh and interpolate functions:
         tic2 = clock()
@@ -195,11 +198,7 @@ while t < T - 0.5 * dt:
             q_file.write(u, eta, time=t)
             # sol.interpolate(1e-3 * cos( - kap * t * sqrt(g * 0.1)) * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
             # ex_file.write(sol, time = t)        # TODO: ^^ Implement properly. Why doesn't it work??
-
-            if mat_out == 'y':
-                M.rename('Metric field')
-                m_file.write(M, time=t)
-            else:
+            if remesh == 'n':
                 print 't = %1.2fs' % t
 
 # End timing and print:

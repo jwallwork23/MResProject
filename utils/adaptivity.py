@@ -48,7 +48,7 @@ def construct_hessian(mesh, V, sol, method='parts', treat_boundaries='off'):
     H_solv = NonlinearVariationalSolver(H_prob, solver_parameters=params)
     H_solv.solve()
 
-    if treat_boundaries == 'off':
+    if treat_boundaries == 'on':
         assert (mesh._topological_dimension) == 2                                   # 3D not yet considered
         plex = mesh._plex
         vStart, vEnd = plex.getDepthStratum(0)                                      # Vertices

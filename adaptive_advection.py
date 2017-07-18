@@ -45,7 +45,7 @@ ndump = 1
 T = 2.5                                                                         # Simulation end time (s)
 dt = 0.8 * hmin         # Timestep length (s)
 Dt = Constant(dt)
-
+print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 if remesh == 'n':
     rm = int(T / dt)
 
@@ -55,7 +55,6 @@ phi_ = Function(W)
 phi_.interpolate(1e-3 * exp(- (pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
 phi = Function(W, name='Concentration')
 phi.assign(phi_)
-psi = TestFunction(W)
 
 # Initialise counters and files:
 t = 0.
@@ -87,13 +86,11 @@ while t < T - 0.5 * dt:
             M.rename('Metric field')
             m_file.write(M, time=t)
 
-        # Adapt mesh and relabel functions and spaces:
+        # Adapt mesh and interpolate functions:
         tic2 = clock()
         adaptor = AnisotropicAdaptation(mesh, M)
         mesh = adaptor.adapted_mesh
         phi_, phi = interp(adaptor, phi_, phi)
-
-        # Re-define function space and rename dependent variable:
         W = FunctionSpace(mesh, 'CG', 1)
         phi.rename('Concentration')
         toc2 = clock()
@@ -121,16 +118,22 @@ while t < T - 0.5 * dt:
 
     # Enter inner timeloop:
     while cnt < rm:
+
+        # Increment counters:
         t += dt
         cnt += 1
+        dumpn += 1
+
+        # Solve the problem and update:
         solve(F == 0, phi, solver_parameters={'pc_type': 'ilu',
                                               'ksp_max_it': 1500})
         phi_.assign(phi)
-        dumpn += 1
-        if dumpn == ndump:
 
+        if dumpn == ndump:
             dumpn -= ndump
             phi_file.write(phi, time=t)
+            if remesh == 'n':
+                print 't = %1.2fs' % t
 
 # End timing and print:
 toc1 = clock()

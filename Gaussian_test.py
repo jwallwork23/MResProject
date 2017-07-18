@@ -54,8 +54,10 @@ dt = 0.8 * hmin / np.sqrt(g * 0.1)  # Timestep length (s), using wavespeed sqrt(
 Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
-# Define mixed Taylor-Hood function space:
-W = MixedFunctionSpace((VectorFunctionSpace(mesh, 'CG', 2), FunctionSpace(mesh, 'CG', 1)))                                           # Mixed FE problem
+# Define mixed Taylor-Hood function space and a function defined thereupon:
+W = MixedFunctionSpace((VectorFunctionSpace(mesh, 'CG', 2), FunctionSpace(mesh, 'CG', 1)))
+q_ = Function(W)
+u_, eta_ = q_.split()
 
 # Establish bathymetry function:
 b = Function(W.sub(1), name = 'Bathymetry')
@@ -64,13 +66,13 @@ if bathy == 'f' :
 else :
     b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))  # Shelf break bathymetry
 
-# Construct functions to store our variables at the previous timestep:
-u_ = Function(W.sub(0), name='Fluid velocity')
-eta_ = Function(W.sub(1), name='Free surface displacement')
-
 # Interpolate initial conditions:
 u_.interpolate(Expression([0, 0]))
 eta_.interpolate(1e-3 * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
+
+# Set up dependent variables of problem:
+q = Function(W)
+q.assign(q_)
 
 # # Establish exact solution function:
 # sol = Function(Ve, name = 'Exact free surface')
@@ -79,10 +81,6 @@ eta_.interpolate(1e-3 * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
 # l = 1.
 # kap = sqrt(pow(k, 2) + pow(l, 2))
 
-# Set up functions of forward weak problem:
-u, eta = TrialFunctions(W)
-v, ze = TestFunctions(W)
-
 # Initialise time, counters and files:
 t = 0.
 dumpn = 0
@@ -90,7 +88,6 @@ mn = 0
 cnt = 0
 i = 0
 q_file = File('plots/adapt_plots/gaussian_test.pvd')
-q_file.write(u_, eta_, time = t)
 #ex_file = File('plots/adapt_plots/gaussian_exact.pvd')     TODO: Plot exact soln
 #ex_file.write(sol, time = t)
 if mat_out == 'y' :
@@ -178,32 +175,43 @@ while t < T - 0.5 * dt :
         print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
         print ''
 
+    # Establish test functions and midpoint averages:
+    v, ze = TestFunctions(W)
+    u, eta = split(q)
+    u_, eta_ = split(q_)
+    uh = 0.5 * (u + u_)
+    etah = 0.5 * (eta + eta_)
+
+    # Set up the variational problem:
+    L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) + inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
+    q_prob = NonlinearVariationalProblem(L, q)
+    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters={'mat_type': 'matfree',
+                                                                   'snes_type': 'ksponly',
+                                                                   'pc_type': 'python',
+                                                                   'pc_python_type': 'firedrake.AssembledPC',
+                                                                   'assembled_pc_type': 'lu',
+                                                                   'snes_lag_preconditioner': -1,
+                                                                   'snes_lag_preconditioner_persists': True,})
+    # Split to access data:
+    u, eta = q.split()
+    u_, eta_ = q_.split()
+    u.rename('Fluid velocity')
+    eta.rename('Free surface displacement')
+
+    if t < 0.5 * dt:
+        q_file.write(u, eta, time=0)
+
     # Enter inner timeloop:
     while cnt < rm :
 
+        # Increment counters:
         t += dt
         cnt += 1
         dumpn += 1
 
-        # Set up the forms of the variational problem:
-        a = (ze * eta - 0.5 * Dt * inner(b * u, grad(ze)) + inner(u, v) + 0.5 * Dt * g * (inner(grad(eta), v))) * dx
-        L = (ze * eta_ + 0.5 * Dt * inner(b * u_, grad(ze)) - inner(u_, v) - 0.5 * Dt * g * (inner(grad(eta_), v))) * dx
-        q = Function(W)
-
-        # Solve the problem:
-        solve(a == L, q, solver_parameters={'mat_type': 'matfree',
-                                            'snes_type': 'ksponly',
-                                            'pc_type': 'python',
-                                            'pc_python_type': 'firedrake.AssembledPC',
-                                            'assembled_pc_type': 'lu',
-                                            'snes_lag_preconditioner': -1,
-                                            'snes_lag_preconditioner_persists': True,})
-        u, eta = q.split()
-        u.rename('Fluid velocity')
-        eta.rename('Free surface displacement')
-
-        u_.assign(u)
-        eta_.assign(eta)
+        # Solve the problem and update:
+        q_solv.solve()
+        q_.assign(q)
 
         if dumpn == ndump :
 

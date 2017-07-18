@@ -48,6 +48,8 @@ def construct_hessian(mesh, V, sol, method='parts'):
     H_solv = NonlinearVariationalSolver(H_prob, solver_parameters=params)
     H_solv.solve()
 
+    # TODO: Make a finite difference approximation at boundaries?
+
     return H
 
 
@@ -69,11 +71,9 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
     M = Function(V)
 
     if normalise == 'manual':
-    
         for i in range(mesh.topology.num_vertices()):
 
-            # Specify minimum tolerated value for the solution field:
-            sol_min = 0.001
+            sol_min = 0.001     # Minimum tolerated value for the solution field
         
             # Generate local Hessian:
             H_loc = H.dat.data[i] * ieps / (max(np.sqrt(assemble(sol * sol * dx)), sol_min))  # To avoid round-off error
@@ -97,10 +97,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
             M.dat.data[i][1, 1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
 
     elif normalise == 'lp':
-
-        # Establish determinant object:
         detH = Function(FunctionSpace(mesh, 'CG', 1))
-
         for i in range(mesh.topology.num_vertices()):
 
             # Generate local Hessian:
@@ -126,7 +123,6 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
 
         detH_integral = assemble(detH * dx)
         M *= N / detH_integral                                                  # Scale by the target number of vertices
-
         for i in range(mesh.topology.num_vertices()):
 
             # Find eigenpairs of metric and truncate eigenvalues:

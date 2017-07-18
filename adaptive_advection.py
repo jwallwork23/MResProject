@@ -15,6 +15,9 @@ N1 = len(mesh.coordinates.dat.data)                                     # Minimu
 N2 = N1                                                                 # Maximum number of nodes
 print 'Initial number of nodes : ', N1
 
+# Specify diffusion:
+nu = float(raw_input('Diffusion parameter (default 1e-3)?: ') or 1e-3)
+
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y':
@@ -114,7 +117,7 @@ while t < T - 0.5 * dt:
     # Set up variational problem, using implicit midpoint timestepping:
     psi = TestFunction(W)
     phih = 0.5 * (phi + phi_)
-    F = ((phi - phi_) * psi - Dt * phih * psi.dx(0)) * dx
+    F = ((phi - phi_) * psi - Dt * phih * psi.dx(0) + Dt * nu * inner(grad(phih), grad(psi))) * dx
 
     # Enter inner timeloop:
     while cnt < rm:

@@ -44,76 +44,10 @@ def construct_hessian(mesh, V, sol, method='parts'):
         Lh -= (sigma[0, 0] * nhat[1] * phi[0] + sigma[1, 1] * nhat[0] * phi[1]) * ds
 
     H_prob = NonlinearVariationalProblem(Lh, H)
-    H_solv = NonlinearVariationalSolver(H_prob, solver_parameters = params)
+    H_solv = NonlinearVariationalSolver(H_prob, solver_parameters=params)
     H_solv.solve()
 
     return H
-
-# TODO: implement also a double L2 projection
-
-# def construct_hessian2(meshd, V, sol) :
-#      """
-#      A function which computes the Hessian of a scalar solution field w.r.t. the current mesh.
-#      """
-#
-#     mesh = meshd.mesh
-#     dim = mesh._topological_dimension
-#     assert (dim == 2)                           # 3D implementation not yet considered
-#
-#     # Get the DMPlex object encapsulating the mesh topology and determine the vertices of plex to consider:
-#     plex = mesh._plex
-#     vStart, vEnd = plex.getDepthStratum(0)      # Vertices of new plex
-#     bc = DirichletBC(V, 0, on_boundary)
-#     b_nodes = bc.nodes
-#
-#     params = {'snes_rtol' : 1e8,
-#               'ksp_rtol' : 1e-5,
-#               'ksp_gmres_restart' : 20,
-#               'pc_type' : 'sor',
-#               'snes_monitor' : False,
-#               'snes_view' : False,
-#               'ksp_monitor_true_residual' : False,
-#               'snes_converged_reason' : False,
-#               'ksp_converged_reason' : False, }
-#
-#     H = Function(V)                             # Hessian-to-be
-#     sigma = TestFunction(V)
-#
-#     for v in range(vStart, vEnd) and not b_nodes :
-#
-#         for i in range(2) :
-#
-#             for j in range(i) :
-#
-#                 # Compute Hij
-#                 # Something like H * test * dx = 0.5 * ( sol.dx(i) + sol.dx(j)) * test * ds - 0.5 * (sol.dx(i) * test.dx(j) + sol.dx(j) * test.dx(i)) * dx
-#
-#         # [Put H21 = H12]
-#
-#     noIntNbrs = []
-#
-#     # [Create some functions int_nbrs and bdy_nbrs]
-#
-#     for v in b_nodes:
-#
-#         if len(int_nbrs(v)) == 0:
-#             noIntNbrs.append(v)
-#         else :
-#             Nn = np.zeros((2, 2))
-#             Dn = np.zeros((2, 2))
-#             for w in int_nbrs(v) :
-#                 # [Calculate Nn += H*Mnk and Dn += Mnk]
-#         # [Set H = Nn/Dn]
-#
-#     if len(noIntNbrs) > 0 :
-#         for v in noIntNbrs :
-#             Nn = np.zeros((2, 2))
-#             Dn = np.zeros((2, 2))
-#             for w in bdy_nbrs(v) :
-#                 # [Calculate Nn += H*Mnk and Dn += Mnk]
-#         # [Set H = Nn/Dn]
-#
-#     return H
 
 def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100., normalise = 'lp', p = 2, N = 1000.,
                           ieps = 1000.):
@@ -209,37 +143,10 @@ def compute_steady_metric(mesh, V, H, sol, h_min = 0.005, h_max = 0.1, a = 100.,
             M.dat.data[i][1,0] = M.dat.data[i][0,1]
             M.dat.data[i][1,1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
 
-    else :
+    else:
         raise ValueError('Normalisation selection not recognised, choose `manual` or `lp`.')
 
     return M
-
-class Meshd :
-    """
-    A structure holding the objects related to a mesh, courtesy of Nicolas Barral.
-    """
-
-    def __init__(self, mesh, reorderPlex = True, computeAltMin = True):
-
-        self.mesh = mesh
-
-        self.V = FunctionSpace(self.mesh, 'CG', 1)
-
-        self.altMin = Function(self.V)
-
-        entity_dofs = np.zeros(self.mesh._topological_dimension + 1, dtype = np.int32)
-        entity_dofs[0] = self.mesh.geometric_dimension()
-        self.section = self.mesh._plex.createSection([1], entity_dofs, perm = self.mesh.topology._plex_renumbering)
-
-        if reorderPlex :
-            with self.mesh.coordinates.dat.vec_ro as coords:
-                self.mesh.topology._plex.setCoordinatesLocal(coords)
-
-        if computeAltMin :
-            if self.mesh._topological_dimension == 2:
-                self.altMin.interpolate(2 * CellVolume(self.mesh) / MaxCellEdgeLength(self.mesh))
-            else :
-                print '#### 3D implementation not yet considered.'
 
 def metric_intersection(mesh, V, M1, M2):
     """

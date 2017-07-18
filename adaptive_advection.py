@@ -3,7 +3,7 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, update_variable
+from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, my_transfer_solution, update_variable
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
@@ -24,15 +24,15 @@ if remesh == 'y' :
     rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-    if ntype not in ('lp', 'manual') :
+    if ntype not in ('lp', 'manual'):
         raise ValueError('Please try again, choosing lp or manual.')
     mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
     if mat_out not in ('y', 'n'):
         raise ValueError('Please try again, choosing y or n.')
-    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ')
+    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'parts'
     if hess_meth not in ('parts', 'dL2'):
         raise ValueError('Please try again, choosing parts or dL2.')
-else :
+else:
     hmin = 0.0625
     nodes = 0
     ntype = None
@@ -44,14 +44,14 @@ T = 2.5                                                                         
 dt = 0.8 * hmin         # Timestep length (s)
 Dt = Constant(dt)
 
-if remesh == 'n' :
+if remesh == 'n':
     rm = int(T / dt)
 
 # Create function space and set initial conditions:
 W = meshd.V
 phi_ = Function(W)
 phi_.interpolate(1e-3 * exp( - (pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
-phi = Function(W, name = 'Concentration')
+phi = Function(W, name='Concentration')
 phi.assign(phi_)
 psi = TestFunction(W)
 
@@ -60,8 +60,8 @@ t = 0.
 mn = 0
 dumpn = 0
 phi_file = File('plots/adapt_plots/advection_test.pvd')
-phi_file.write(phi, time = t)
-if mat_out == 'y' :
+phi_file.write(phi, time=t)
+if mat_out == 'y':
     m_file = File('plots/adapt_plots/advection_test_metric.pvd')
     h_file = File('plots/adapt_plots/advection_test_hessian.pvd')
 tic1 = clock()
@@ -94,16 +94,16 @@ while t < T - 0.5 * dt:
         meshd = Meshd(mesh)
         # phi_ = update_variable(meshd_, meshd, phi_)
         # phi = update_variable(meshd_, meshd, phi)
-        phi_, phi = adaptor.transfer_solution(phi_, phi)
+        phi_, phi = my_transfer_solution(adaptor, phi_, phi)
         # W = meshd.V
         toc2 = clock()
         phi.rename('Concentration')
 
         # Data analysis:
         n = len(mesh.coordinates.dat.data)
-        if n < N1 :
+        if n < N1:
             N1 = n
-        elif n > N2 :
+        elif n > N2:
             N2 = n
 
         # Print to screen:
@@ -121,21 +121,21 @@ while t < T - 0.5 * dt:
     F = ((phi - phi_) * psi - Dt * phih * psi.dx(0)) * dx
 
     # Enter inner timeloop:
-    while cnt < rm :
+    while cnt < rm:
         t += dt
         cnt += 1
-        solve(F == 0, phi, solver_parameters = {'pc_type' : 'ilu',
-                                                'ksp_max_it' : 1500,})
+        solve(F == 0, phi, solver_parameters={'pc_type' : 'ilu',
+                                              'ksp_max_it' : 1500,})
         phi_.assign(phi)
         dumpn += 1
-        if dumpn == ndump :
+        if dumpn == ndump:
 
             dumpn -= ndump
             phi_file.write(phi, time = t)
 
 # End timing and print:
 toc1 = clock()
-if remesh == 'y' :
+if remesh == 'y':
     print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
-else :
+else:
     print 'Elapsed time for non-adaptive solver: %1.2fs' % (toc1 - tic1)

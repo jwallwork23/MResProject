@@ -3,11 +3,11 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import construct_hessian, compute_steady_metric, interp, Meshd, relab
+from utils import construct_hessian, compute_steady_metric, interp, update_SW
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
-lx = 4                                                                  # Extent in x-direction (m)                                                                          # Extent in y-direction (m)
+lx = 4                                                                  # Extent in x-direction (m)
 mesh = SquareMesh(lx * n, lx * n, lx, lx)
 meshd = Meshd(mesh)
 x, y = SpatialCoordinate(mesh)
@@ -15,7 +15,7 @@ N1 = len(mesh.coordinates.dat.data)                                     # Minimu
 N2 = N1                                                                 # Maximum number of nodes
 print 'Initial number of nodes : ', N1
 bathy = raw_input('Flat bathymetry or shelf break (f/s)?: ') or 'f'
-if bathy not in ('f', 's') :
+if bathy not in ('f', 's'):
     raise ValueError('Please try again, choosing f or s.')
 
 # Simulation duration:
@@ -23,33 +23,33 @@ T = 2.5
 
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
-if remesh == 'y' :
+if remesh == 'y':
     hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
     hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
     rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-    if ntype not in ('lp', 'manual') :
+    if ntype not in ('lp', 'manual'):
         raise ValueError('Please try again, choosing lp or manual.')
     mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
     if mtype not in ('s', 'f', 'b'):
         raise ValueError('Please try again, choosing s, f or b.')
     mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
-    if mat_out not in ('y', 'n') :
+    if mat_out not in ('y', 'n'):
         raise ValueError('Please try again, choosing y or n.')
-else :
+else:
     hmin = 0.0625
     rm = int(T)
     nodes = 0
     ntype = None
     mtype = None
     mat_out = 'n'
-    if remesh != 'n' :
+    if remesh != 'n':
         raise ValueError('Please try again, choosing y or n.')
 
 # Courant number adjusted timestepping parameters:
 ndump = 1
-g = 9.81  # Gravitational acceleration (m s^{-2})
+g = 9.81                            # Gravitational acceleration (m s^{-2})
 dt = 0.8 * hmin / np.sqrt(g * 0.1)  # Timestep length (s), using wavespeed sqrt(gh)
 Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
@@ -60,19 +60,20 @@ q_ = Function(W)
 u_, eta_ = q_.split()
 
 # Establish bathymetry function:
-b = Function(W.sub(1), name = 'Bathymetry')
-if bathy == 'f' :
+b = Function(W.sub(1), name='Bathymetry')
+if bathy == 'f':
     b.assign(0.1)  # (Constant) tank water depth (m)
-else :
+else:
     b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))  # Shelf break bathymetry
 
 # Interpolate initial conditions:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(1e-3 * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
+eta_.interpolate(1e-3 * exp(- (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
 
 # Set up dependent variables of problem:
 q = Function(W)
 q.assign(q_)
+u, eta = q.split()
 
 # # Establish exact solution function:
 # sol = Function(Ve, name = 'Exact free surface')
@@ -88,82 +89,57 @@ mn = 0
 cnt = 0
 i = 0
 q_file = File('plots/adapt_plots/gaussian_test.pvd')
-#ex_file = File('plots/adapt_plots/gaussian_exact.pvd')     TODO: Plot exact soln
-#ex_file.write(sol, time = t)
-if mat_out == 'y' :
+# ex_file = File('plots/adapt_plots/gaussian_exact.pvd')     TODO: Plot exact soln
+# ex_file.write(sol, time = t)
+if mat_out == 'y':
     m_file = File('plots/adapt_plots/gaussian_test_metric.pvd')
     h_file = File('plots/adapt_plots/gaussian_test_hessian.pvd')
 tic1 = clock()
 
 # Enter timeloop:
-while t < T - 0.5 * dt :
+while t < T - 0.5 * dt:
 
     # Update counters:
     mn += 1
     cnt = 0
 
-    if remesh == 'y' :
+    if remesh == 'y':
 
         V = TensorFunctionSpace(mesh, 'CG', 1)
 
-        if mtype != 'f' :
-
-            # Establish fluid speed for adaption:
-            spd = Function(FunctionSpace(mesh, 'CG', 1))
+        if mtype != 'f':
+            spd = Function(FunctionSpace(mesh, 'CG', 1))    # Fluid speed
             spd.interpolate(sqrt(dot(u, u)))
-
-            # Compute Hessian and metric:
             H = construct_hessian(mesh, V, spd)
-            if mat_out == 'y' :
+            if mat_out == 'y':
                 H.rename('Hessian')
-                h_file.write(H, time = t)
-            M = compute_steady_metric(mesh, V, H, spd, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
+                h_file.write(H, time=t)
+            M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, N=nodes, normalise=ntype)
 
-        if mtype != 's' :
-
-            # Compute Hessian and metric:
+        if mtype != 's':
             H = construct_hessian(mesh, V, eta)
-
-            if (mtype != 'b') & (mat_out == 'y') :
+            if (mtype != 'b') & (mat_out == 'y'):
                 H.rename('Hessian')
-                h_file.write(H, time = t)
-
-            M2 = compute_steady_metric(mesh, V, H, eta, h_min = hmin, h_max = hmax, N = nodes, normalise = ntype)
-
-            if mtype == 'b' :
+                h_file.write(H, time=t)
+            M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, N=nodes, normalise=ntype)
+            if mtype == 'b':
                 M = metric_intersection(mesh, V, M, M2)
-
-            else :
+            else:
                 M = M2
 
         # Adapt mesh and interpolate functions:
         tic2 = clock()
         adaptor = AnisotropicAdaptation(mesh, M)
         mesh = adaptor.adapted_mesh
-        meshd = Meshd(mesh)
-
-        u_2, u2, eta_2, eta2, b2 = relab(u_, u, eta_, eta, b)
-
-        # Re-define mixed Taylor-Hood function space:
-        W = MixedFunctionSpace((VectorFunctionSpace(mesh, 'CG', 2), FunctionSpace(mesh, 'CG', 1)))
-
-        # TODO: needs changing
-        q_ = Function(Vq)
-        u_, eta_ = q_.split()
-        q = Function(Vq)
-        u, eta = q.split()
-
-        # Interpolate functions across from the previous mesh:
-        u_, u, eta_, eta, b = interp(adaptor, u_2, u2, eta_2, eta2, b2)
-
-
+        q_, q, u_, u, eta_, eta, W = update_SW(adaptor, u_, u, eta_, eta)
+        b = interp(adaptor, b)
         toc2 = clock()
 
         # Data analysis:
         n = len(mesh.coordinates.dat.data)
-        if n < N1 :
+        if n < N1:
             N1 = n
-        elif n > N2 :
+        elif n > N2:
             N2 = n
 
         # Print to screen:
@@ -174,6 +150,10 @@ while t < T - 0.5 * dt :
         print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
         print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
         print ''
+
+    # Label functions:
+    u.rename('Fluid velocity')
+    eta.rename('Free surface displacement')
 
     # Establish test functions and midpoint averages:
     v, ze = TestFunctions(W)
@@ -191,18 +171,16 @@ while t < T - 0.5 * dt :
                                                                    'pc_python_type': 'firedrake.AssembledPC',
                                                                    'assembled_pc_type': 'lu',
                                                                    'snes_lag_preconditioner': -1,
-                                                                   'snes_lag_preconditioner_persists': True,})
+                                                                   'snes_lag_preconditioner_persists': True})
     # Split to access data:
     u, eta = q.split()
     u_, eta_ = q_.split()
-    u.rename('Fluid velocity')
-    eta.rename('Free surface displacement')
 
     if t < 0.5 * dt:
         q_file.write(u, eta, time=0)
 
     # Enter inner timeloop:
-    while cnt < rm :
+    while cnt < rm:
 
         # Increment counters:
         t += dt
@@ -213,22 +191,21 @@ while t < T - 0.5 * dt :
         q_solv.solve()
         q_.assign(q)
 
-        if dumpn == ndump :
-
+        if dumpn == ndump:
             dumpn -= ndump
-            q_file.write(u, eta, time = t)
+            q_file.write(u, eta, time=t)
             # sol.interpolate(1e-3 * cos( - kap * t * sqrt(g * 0.1)) * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
             # ex_file.write(sol, time = t)        # TODO: ^^ Implement properly. Why doesn't it work??
 
-            if mat_out == 'y' :
+            if mat_out == 'y':
                 M.rename('Metric field')
-                m_file.write(M, time = t)
-            else :
+                m_file.write(M, time=t)
+            else:
                 print 't = %1.2fs' % t
 
 # End timing and print:
 toc1 = clock()
-if remesh == 'y' :
+if remesh == 'y':
     print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
-else :
+else:
     print 'Elapsed time for non-adaptive solver: %1.2fs' % (toc1 - tic1)

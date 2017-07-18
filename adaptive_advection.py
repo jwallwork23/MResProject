@@ -18,7 +18,7 @@ print 'Initial number of nodes : ', N1
 
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
-if remesh == 'y' :
+if remesh == 'y':
     hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
     hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
     rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
@@ -50,7 +50,7 @@ if remesh == 'n':
 # Create function space and set initial conditions:
 W = meshd.V
 phi_ = Function(W)
-phi_.interpolate(1e-3 * exp( - (pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
+phi_.interpolate(1e-3 * exp(- (pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
 phi = Function(W, name='Concentration')
 phi.assign(phi_)
 psi = TestFunction(W)
@@ -91,6 +91,8 @@ while t < T - 0.5 * dt:
         mesh = adaptor.adapted_mesh
         phi_, phi = interp(adaptor, phi_, phi)
         meshd = Meshd(mesh)
+
+        # Re-define function space and rename dependent variable:
         W = meshd.V
         phi.rename('Concentration')
         toc2 = clock()
@@ -120,14 +122,14 @@ while t < T - 0.5 * dt:
     while cnt < rm:
         t += dt
         cnt += 1
-        solve(F == 0, phi, solver_parameters={'pc_type' : 'ilu',
-                                              'ksp_max_it' : 1500,})
+        solve(F == 0, phi, solver_parameters={'pc_type': 'ilu',
+                                              'ksp_max_it': 1500})
         phi_.assign(phi)
         dumpn += 1
         if dumpn == ndump:
 
             dumpn -= ndump
-            phi_file.write(phi, time = t)
+            phi_file.write(phi, time=t)
 
 # End timing and print:
 toc1 = clock()

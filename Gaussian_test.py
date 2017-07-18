@@ -3,7 +3,7 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, update_variable, update_SW
+from utils import adapt, construct_hessian, compute_steady_metric, interp, update_SW
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh

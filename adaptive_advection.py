@@ -3,7 +3,7 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, my_transfer_solution, update_variable
+from utils import adapt, construct_hessian, compute_steady_metric, interp, Meshd, update_variable
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
@@ -85,19 +85,15 @@ while t < T - 0.5 * dt:
             M.rename('Metric field')
             m_file.write(M, time=t)
 
-        # Adapt mesh and set up new function spaces:
-        mesh_ = mesh
-        meshd_ = Meshd(mesh_)
+        # Adapt mesh and relabel functions and spaces:
         tic2 = clock()
         adaptor = AnisotropicAdaptation(mesh, M)
         mesh = adaptor.adapted_mesh
+        phi_, phi = interp(adaptor, phi_, phi)
         meshd = Meshd(mesh)
-        # phi_ = update_variable(meshd_, meshd, phi_)
-        # phi = update_variable(meshd_, meshd, phi)
-        phi_, phi = my_transfer_solution(adaptor, phi_, phi)
-        # W = meshd.V
-        toc2 = clock()
+        W = meshd.V
         phi.rename('Concentration')
+        toc2 = clock()
 
         # Data analysis:
         n = len(mesh.coordinates.dat.data)

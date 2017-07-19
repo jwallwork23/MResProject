@@ -125,9 +125,21 @@ while t < T - 0.5 * dt:
         cnt += 1
         dumpn += 1
 
-        # Solve the problem and update:
-        solve(F == 0, phi, solver_parameters={'pc_type': 'ilu',
-                                              'ksp_max_it': 1500})
+        # # Solve the problem and update:
+        # solve(F == 0, phi, solver_parameters={'pc_type': 'ilu',
+        #                                       'ksp_max_it': 1500})
+
+        phi_prob = NonlinearVariationalProblem(F, phi)
+        phi_solv = NonlinearVariationalSolver(phi_prob, solver_parameters={'mat_type': 'matfree',
+                                                                       'snes_type': 'ksponly',
+                                                                       'pc_type': 'python',
+                                                                       'pc_python_type': 'firedrake.AssembledPC',
+                                                                       'assembled_pc_type': 'lu',
+                                                                       'snes_lag_preconditioner': -1,
+                                                                       'snes_lag_preconditioner_persists': True})
+        phi_solv.solve()
+
+
         phi_.assign(phi)
 
         if dumpn == ndump:

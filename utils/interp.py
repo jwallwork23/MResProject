@@ -135,3 +135,80 @@ def update_SW2(adaptor, u_, u, v_, v, eta_, eta):
     unew, vnew, etanew = split(qnew)
 
     return q_new, qnew, u_new, unew, v_new, vnew, eta_new, etanew, W
+
+
+def interp_mixed(adaptor, u_, v_, eta_):
+    """
+    Transfers a solution field from the old mesh to the new mesh.
+
+    :arg fields: tuple of functions defined on the old mesh that one wants to transfer
+    """
+
+    W = FunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
+    q = Function(W)
+    u, v, eta = q.split()
+    notInDomain = []
+
+    P1coords = adaptor.adapted_mesh.coordinates.dat.data
+    C = VectorFunctionSpace(adaptor.adapted_mesh, 'CG', 2)
+    Function(C).interpolate(adaptor.adapted_mesh.coordinates)
+    P2coords = interp_coordinates.dat.data
+
+    try:
+        u.dat.data[:] = u_.at(P2coords)
+        v.dat.data[:] = v_.at(P2coords)
+        eta.dat.data[:] = eta_.at(P1coords)
+    except PointNotInDomainError:
+        print '#### Points not in domain! Time to play with epsilons'
+
+        mesh = adaptor.adapted_mesh
+        dim = mesh._topological_dimension
+        assert (dim == 2)                           # 3D implementation not yet considered
+        meshd = Meshd(mesh)
+        plex = mesh._plex
+        vStart, vEnd = plex.getDepthStratum(0)   # Vertices of new plex
+
+        # Establish which vertices fall outside the domain:
+        for ver in range(vStart, vEnd):
+            offnew = meshd.section.getOffset(ver) / dim
+            newCrd = mesh.coordinates.dat.data[offnew]
+            try:
+                valu = u_.at(newCrd)
+                valv = v_.at(newCrd)
+                vale = eta_.at(newCrd)
+            except PointNotInDomainError:
+                valu = 0.
+                valv = 0.
+                vale = 0.
+                notInDomain.append(ver)
+            finally:
+                u.dat.data[offnew] = valu
+                v.dat.data[offnew] = valv
+                eta.dat.data[offnew] = vale
+
+        eps = 1e-6  # For playing with epsilons
+        while len(notInDomain) > 0:
+            print '#### Number of points not in domain: %d / %d' % (len(notInDomain), mesh.topology.num_vertices())
+            eps *= 10
+            print '#### Trying epsilon = ', eps
+            for ver in notInDomain:
+                offnew = meshd.section.getOffset(ver) / dim
+                newCrd = mesh.coordinates.dat.data[offnew]
+                try:
+                    valu = u_.at(newCrd, tolerance=eps)
+                    valv = v_.at(newCrd, tolerance=eps)
+                    vale = eta_.at(newCrd, tolerance=eps)
+                except PointNotInDomainError:
+                    valu = 0.
+                    valv = 0.
+                    vale = 0.
+                finally:
+                    u.dat.data[offnew] = valu
+                    v.dat.data[offnew] = valv
+                    e.dat.data[offnew] = vale
+                    notInDomain.remove(ver)
+            if eps >= 100:
+                print '#### Playing with epsilons failed. Abort.'
+                exit(23)
+
+    return u, v, eta

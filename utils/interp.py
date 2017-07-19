@@ -38,40 +38,38 @@ def interp(adaptor, *fields, **kwargs):
     """
 
     fields_new = ()
-    mesh = adaptor.adapted_mesh
-    dim = mesh._topological_dimension
-    assert (dim == 2)                   # 3D implementation not yet considered
-
     for f in fields:
-        V_new = FunctionSpace(mesh, f.function_space().ufl_element())
+        V_new = FunctionSpace(adaptor.adapted_mesh, f.function_space().ufl_element())
         f_new = Function(V_new)
         notInDomain = []
 
         if f.ufl_element().family() == 'Lagrange' and f.ufl_element().degree() == 1:
-            mesh_int = mesh
+            coords = adaptor.adapted_mesh.coordinates.dat.data                      # Vertex/node coords
         elif f.ufl_element().family() == 'Lagrange':
             degree = f.ufl_element().degree()
-            C = VectorFunctionSpace(mesh, 'CG', degree)
+            C = VectorFunctionSpace(adaptor.adapted_mesh, 'CG', degree)
             interp_coordinates = Function(C)
-            interp_coordinates.interpolate(mesh.coordinates)
-            mesh_int = interp_coordinates.function_space().mesh()           # Mesh of interpolated nodes
+            interp_coordinates.interpolate(adaptor.adapted_mesh.coordinates)
+            coords = interp_coordinates.dat.data                                    # Node coords (NOT just vertices)
         else:
             raise NotImplementedError("Can only interpolate CG fields")
-        coords = mesh_int.coordinates.dat.data
 
         try:
             f_new.dat.data[:] = f.at(coords)
         except PointNotInDomainError:
             print '#### Points not in domain! Time to play with epsilons'
 
-            meshd = Meshd(mesh_int)
-            plex = mesh_int._plex
-            vStart, vEnd = plex.getDepthStratum(0)                  # Node list
+            mesh = adaptor.adapted_mesh
+            dim = mesh._topological_dimension
+            assert (dim == 2)                           # 3D implementation not yet considered
+            meshd = Meshd(mesh)
+            plex = mesh._plex
+            vStart, vEnd = plex.getDepthStratum(0)      # Vertices of new plex
 
             # Establish which vertices fall outside the domain:
             for v in range(vStart, vEnd):
-                off = meshd.section.getOffset(v) / dim              # Node number
-                newCrd = mesh_int.coordinates.dat.data[off]         # Coord thereof
+                off = meshd.section.getOffset(v) / dim       # Vertex number
+                newCrd = mesh.coordinates.dat.data[off]      # Coord thereof
                 try:
                     val = f.at(newCrd)
                 except PointNotInDomainError:
@@ -87,7 +85,7 @@ def interp(adaptor, *fields, **kwargs):
             print '#### Trying epsilon = ', eps
             for v in notInDomain:
                 off = meshd.section.getOffset(v) / dim
-                newCrd = mesh_int.coordinates.dat.data[off]
+                newCrd = mesh.coordinates.dat.data[off]
                 try:
                     val = f.at(newCrd, tolerance=eps)
                 except PointNotInDomainError:

@@ -117,3 +117,21 @@ def update_SW(adaptor, u_, u, eta_, eta):
     u_new, unew, eta_new, etanew = interp(adaptor, u_, u, eta_, eta)
 
     return q_new, qnew, u_new, unew, eta_new, etanew, W
+
+def update_SW2(adaptor, u_, u, v_, v, eta_, eta):
+    """A function which updates shallow water solution fields and bathymetry from one mesh to another."""
+
+    # Get mesh and establish a mixed function space thereupon:
+    mesh = adaptor.adapted_mesh
+    W = FunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
+
+    # Interpolate functions across from the previous mesh:
+    u_new, unew, v_new, vnew, eta_new, etanew = interp(adaptor, u_, u, v_, v, eta_, eta)
+
+    # Establish functions in the new spaces:
+    q_new = Function(W)
+    u_new, v_new, eta_new = split(q_new)
+    qnew = Function(W)
+    unew, vnew, etanew = split(qnew)
+
+    return q_new, qnew, u_new, unew, v_new, vnew, eta_new, etanew, W

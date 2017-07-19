@@ -36,9 +36,11 @@ if remesh == 'y':
         raise ValueError('Please try again, choosing parts or dL2.')
 else:
     hmin = 0.0625
+    hmax = 0.3
     nodes = 0
     ntype = None
-    mat_out == 'n'
+    hess_meth = None
+    mat_out = 'n'
 
 # Courant number adjusted timestepping parameters:
 ndump = 1
@@ -62,9 +64,8 @@ mn = 0
 dumpn = 0
 phi_file = File('plots/adapt_plots/advection_test.pvd')
 phi_file.write(phi, time=t)
-if mat_out == 'y':
-    m_file = File('plots/adapt_plots/advection_test_metric.pvd')
-    h_file = File('plots/adapt_plots/advection_test_hessian.pvd')
+m_file = File('plots/adapt_plots/advection_test_metric.pvd')
+h_file = File('plots/adapt_plots/advection_test_hessian.pvd')
 tic1 = clock()
 
 # Enter timeloop:

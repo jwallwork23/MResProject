@@ -25,7 +25,7 @@ remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
 if remesh == 'y':
     hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
     hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
-    rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
+    rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
     nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
     ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
     if ntype not in ('lp', 'manual'):
@@ -91,9 +91,8 @@ dumpn = 0
 q_file = File('plots/adapt_plots/gaussian_test.pvd')
 # ex_file = File('plots/adapt_plots/gaussian_exact.pvd')     TODO: Plot exact soln
 # ex_file.write(sol, time = t)
-if mat_out == 'y':
-    m_file = File('plots/adapt_plots/gaussian_test_metric.pvd')
-    h_file = File('plots/adapt_plots/gaussian_test_hessian.pvd')
+m_file = File('plots/adapt_plots/gaussian_test_metric.pvd')
+h_file = File('plots/adapt_plots/gaussian_test_hessian.pvd')
 tic1 = clock()
 
 # Enter timeloop:
@@ -108,7 +107,7 @@ while t < T - 0.5 * dt:
         # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)
         if mtype != 'f':
-            spd = Function(FunctionSpace(mesh, 'CG', 1))    # Fluid speed
+            spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
             spd.interpolate(sqrt(dot(u, u)))
             H = construct_hessian(mesh, V, spd, method=hess_meth)
             if mat_out == 'y':

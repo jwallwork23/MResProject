@@ -36,7 +36,7 @@ if remesh == 'y':
     mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
     if mat_out not in ('y', 'n'):
         raise ValueError('Please try again, choosing y or n.')
-    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'parts'
+    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
     if hess_meth not in ('parts', 'dL2'):
         raise ValueError('Please try again, choosing parts or dL2.')
 else:

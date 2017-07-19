@@ -15,6 +15,9 @@ N1 = len(mesh.coordinates.dat.data)                                     # Minimu
 N2 = N1                                                                 # Maximum number of nodes
 print 'Initial number of nodes : ', N1
 
+# Choose function space degree:
+p = int(raw_input('Polynomial degree? (default 1): ') or 1)
+
 # Specify diffusion:
 nu = float(raw_input('Diffusion parameter (default 1e-3)?: ') or 1e-3)
 
@@ -52,7 +55,7 @@ if remesh == 'n':
     rm = int(T / dt)
 
 # Create function space and set initial conditions:
-W = FunctionSpace(mesh, 'CG', 2)
+W = FunctionSpace(mesh, 'CG', p)
 phi_ = Function(W)
 phi_.interpolate(1e-3 * exp(- (pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
 phi = Function(W, name='Concentration')
@@ -92,7 +95,7 @@ while t < T - 0.5 * dt:
         adaptor = AnisotropicAdaptation(mesh, M)
         mesh = adaptor.adapted_mesh
         phi_, phi = interp(adaptor, phi_, phi)
-        W = FunctionSpace(mesh, 'CG', 2)
+        W = FunctionSpace(mesh, 'CG', p)
         phi.rename('Concentration')
         toc2 = clock()
 

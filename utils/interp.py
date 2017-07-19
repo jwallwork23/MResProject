@@ -36,6 +36,9 @@ def interp(adaptor, *fields, **kwargs):
 
     :arg fields: tuple of functions defined on the old mesh that one wants to transfer
     """
+    mesh = adaptor.adapted_mesh
+    dim = mesh._topological_dimension
+    assert (dim == 2)  # 3D implementation not yet considered
 
     fields_new = ()
     for f in fields:
@@ -54,64 +57,13 @@ def interp(adaptor, *fields, **kwargs):
         else:
             raise NotImplementedError("Can only interpolate CG fields")
 
-        # try:
-        #     f_new.dat.data[:] = f.at(coords)
-        # except PointNotInDomainError:
-        #     print '#### Points not in domain! Time to play with epsilons'
-        #
-        #     mesh = adaptor.adapted_mesh
-        #     dim = mesh._topological_dimension
-        #     assert (dim == 2)                           # 3D implementation not yet considered
-        #     meshd = Meshd(mesh)
-        #     plex = mesh._plex
-        #     vStart, vEnd = plex.getDepthStratum(0)      # Vertices of new plex
-        #
-        #     # Establish which vertices fall outside the domain:
-        #     for v in range(vStart, vEnd):
-        #         off = meshd.section.getOffset(v) / dim       # Vertex number
-        #         newCrd = mesh.coordinates.dat.data[off]      # Coord thereof
-        #         try:
-        #             val = f.at(newCrd)
-        #         except PointNotInDomainError:
-        #             val = 0.
-        #             notInDomain.append(v)
-        #         finally:
-        #             f_new.dat.data[off] = val
-        #
-        # eps = 1e-6  # For playing with epsilons
-        # while len(notInDomain) > 0:
-        #     print '#### Number of points not in domain: %d / %d' % (len(notInDomain), mesh.topology.num_vertices())
-        #     eps *= 10
-        #     print '#### Trying epsilon = ', eps
-        #     for v in notInDomain:
-        #         off = meshd.section.getOffset(v) / dim
-        #         newCrd = mesh.coordinates.dat.data[off]
-        #         try:
-        #             val = f.at(newCrd, tolerance=eps)
-        #         except PointNotInDomainError:
-        #             val = 0.
-        #         finally:
-        #             f_new.dat.data[off] = val
-        #             notInDomain.remove(v)
-        #     if eps >= 100:
-        #         print '#### Playing with epsilons failed. Abort.'
-        #         exit(23)
-
         try:
             f_new.dat.data[:] = f.at(coords)
         except PointNotInDomainError:
-            print '#### Points not in domain! Time to play with epsilons'
-
-            mesh = adaptor.adapted_mesh
-            dim = mesh._topological_dimension
-            assert (dim == 2)                           # 3D implementation not yet considered
-            meshd = Meshd(mesh)
-            plex = mesh._plex
-            v0, v1 = plex.getDepthStratum(0)      # Vertices of new plex
+            print '#### Points not in domain! Commence attempts by increasing tolerances'
 
             # Establish which vertices fall outside the domain:
             for x in range(len(coords)):
-
                 try:
                     val = f.at(coords[x])
                 except PointNotInDomainError:
@@ -119,14 +71,12 @@ def interp(adaptor, *fields, **kwargs):
                     notInDomain.append(x)
                 finally:
                     f_new.dat.data[x] = val
-
-        eps = 1e-6  # For playing with epsilons
+        eps = 1e-6                              # Tolerance to be increased
         while len(notInDomain) > 0:
-            print '#### Number of points not in domain: %d / %d' % (len(notInDomain), mesh.topology.num_vertices())
+            print '#### Number of points not in domain: %d / %d' % (len(notInDomain), len(coords))
             eps *= 10
-            print '#### Trying epsilon = ', eps
+            print '#### Trying tolerance = ', eps
             for x in notInDomain:
-
                 try:
                     val = f.at(coords[x], tolerance=eps)
                 except PointNotInDomainError:
@@ -134,7 +84,7 @@ def interp(adaptor, *fields, **kwargs):
                 finally:
                     f_new.dat.data[x] = val
                     notInDomain.remove(x)
-            if eps >= 100:
+            if eps >= 1e5:
                 print '#### Playing with epsilons failed. Abort.'
                 exit(23)
 
@@ -166,24 +116,28 @@ def update_SW2(adaptor, u_, u, v_, v, eta_, eta):
     mesh = adaptor.adapted_mesh
     W = FunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 
-    # Interpolate functions across from the previous mesh:
-    u_new, unew, v_new, vnew, eta_new, etanew = interp(adaptor, u_, u, v_, v, eta_, eta)
-
     # Establish functions in the new spaces:
     q_new = Function(W)
-    u_new, v_new, eta_new = split(q_new)
+    u_new, v_new, eta_new = q_new.split()
     qnew = Function(W)
-    unew, vnew, etanew = split(qnew)
+    unew, vnew, etanew = qnew.split()
+
+    # Interpolate functions across from the previous mesh:
+    u_new, unew, v_new, vnew, eta_new, etanew = interp(adaptor, u_, u, v_, v, eta_, eta)
 
     return q_new, qnew, u_new, unew, v_new, vnew, eta_new, etanew, W
 
 
 def interp_mixed(adaptor, u_, v_, eta_):
     """
-    Transfers a solution field from the old mesh to the new mesh.
+    Transfers a mixed shallow water solution triple from the old mesh to the new mesh.
 
     :arg fields: tuple of functions defined on the old mesh that one wants to transfer
     """
+
+    mesh = adaptor.adapted_mesh
+    dim = mesh._topological_dimension
+    assert (dim == 2)  # 3D implementation not yet considered
 
     W = FunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
     q = Function(W)
@@ -191,8 +145,8 @@ def interp_mixed(adaptor, u_, v_, eta_):
     notInDomain = []
 
     P1coords = adaptor.adapted_mesh.coordinates.dat.data
-    C = VectorFunctionSpace(adaptor.adapted_mesh, 'CG', 2)
-    Function(C).interpolate(adaptor.adapted_mesh.coordinates)
+    interp_coordinates = Function(VectorFunctionSpace(adaptor.adapted_mesh, 'CG', 2))
+    interp_coordinates.interpolate(adaptor.adapted_mesh.coordinates)
     P2coords = interp_coordinates.dat.data
 
     try:
@@ -200,57 +154,67 @@ def interp_mixed(adaptor, u_, v_, eta_):
         v.dat.data[:] = v_.at(P2coords)
         eta.dat.data[:] = eta_.at(P1coords)
     except PointNotInDomainError:
-        print '#### Points not in domain! Time to play with epsilons'
-
-        mesh = adaptor.adapted_mesh
-        mesh_ = P
-        dim = mesh._topological_dimension
-        assert (dim == 2)                           # 3D implementation not yet considered
-        meshd = Meshd(mesh)
-        plex = mesh._plex
-        vStart, vEnd = plex.getDepthStratum(0)   # Vertices of new plex
+        print '#### Points not in domain! Commence attempts by increasing tolerances'
 
         # Establish which vertices fall outside the domain:
-        for ver in range(vStart, vEnd):
-            offnew = meshd.section.getOffset(ver) / dim
-            newCrd = mesh.coordinates.dat.data[offnew]
+        for x in range(len(P2coords)):
             try:
-                valu = u_.at(newCrd)
-                valv = v_.at(newCrd)
-                vale = eta_.at(newCrd)
+                valu = u_.at(P2coords[x])
+                valv = v_.at(P2coords[x])
             except PointNotInDomainError:
                 valu = 0.
                 valv = 0.
-                vale = 0.
-                notInDomain.append(ver)
+                notInDomain.append(x)
             finally:
-                u.dat.data[offnew] = valu
-                v.dat.data[offnew] = valv
-                eta.dat.data[offnew] = vale
+                u.dat.data[x] = valu
+                v.dat.data[x] = valv
 
         eps = 1e-6  # For playing with epsilons
         while len(notInDomain) > 0:
-            print '#### Number of points not in domain: %d / %d' % (len(notInDomain), mesh.topology.num_vertices())
+            print '#### Number of points not in domain for velocity: %d / %d' % (len(notInDomain), len(P2coords))
             eps *= 10
             print '#### Trying epsilon = ', eps
-            for ver in notInDomain:
-                offnew = meshd.section.getOffset(ver) / dim
-                newCrd = mesh.coordinates.dat.data[offnew]
+            for x in notInDomain:
                 try:
-                    valu = u_.at(newCrd, tolerance=eps)
-                    valv = v_.at(newCrd, tolerance=eps)
-                    vale = eta_.at(newCrd, tolerance=eps)
+                    valu = u_.at(P2coords[x], tolerance=eps)
+                    valv = v_.at(P2coords[x], tolerance=eps)
                 except PointNotInDomainError:
                     valu = 0.
                     valv = 0.
-                    vale = 0.
                 finally:
-                    u.dat.data[offnew] = valu
-                    v.dat.data[offnew] = valv
-                    e.dat.data[offnew] = vale
-                    notInDomain.remove(ver)
-            if eps >= 100:
+                    u.dat.data[x] = valu
+                    v.dat.data[x] = valv
+                    notInDomain.remove(x)
+            if eps >= 1e5:
+                print '#### Playing with epsilons failed. Abort.'
+                exit(23)
+        assert (len(notInDomain) == 0)  # All nodes should have been brought back into the domain
+
+        # Establish which vertices fall outside the domain:
+        for x in range(len(P1coords)):
+            try:
+                val = eta_.at(P1coords[x])
+            except PointNotInDomainError:
+                val = 0.
+                notInDomain.append(x)
+            finally:
+                eta.dat.data[x] = val
+
+        eps = 1e-6  # For playing with epsilons
+        while len(notInDomain) > 0:
+            print '#### Number of points not in domain for free surface: %d / %d' % (len(notInDomain), len(P1coords))
+            eps *= 10
+            print '#### Trying epsilon = ', eps
+            for x in notInDomain:
+                try:
+                    val = eta_.at(P1coords[x], tolerance=eps)
+                except PointNotInDomainError:
+                    val = 0.
+                finally:
+                    eta.dat.data[x] = val
+                    notInDomain.remove(x)
+            if eps >= 1e5:
                 print '#### Playing with epsilons failed. Abort.'
                 exit(23)
 
-    return u, v, eta
+    return u, v, eta, q, W

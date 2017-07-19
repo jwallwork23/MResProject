@@ -3,7 +3,7 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils import construct_hessian, compute_steady_metric, interp, update_SW
+from utils import construct_hessian, compute_steady_metric, interp, interp_Taylor_Hood
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
@@ -57,7 +57,7 @@ Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
 # Define mixed Taylor-Hood function space and a function defined thereupon:
-W = MixedFunctionSpace((VectorFunctionSpace(mesh, 'CG', 2), FunctionSpace(mesh, 'CG', 1)))
+W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 q_ = Function(W)
 u_, eta_ = q_.split()
 
@@ -132,7 +132,8 @@ while t < T - 0.5 * dt:
         tic2 = clock()
         adaptor = AnisotropicAdaptation(mesh, M)
         mesh = adaptor.adapted_mesh
-        q_, q, u_, u, eta_, eta, W = update_SW(adaptor, u_, u, eta_, eta)
+        u_, eta_, q_, W = interp_Taylor_Hood(adaptor, u_, eta_)
+        u, eta, q, W = interp_Taylor_Hood(adaptor, u, eta)
         b = interp(adaptor, b)
         toc2 = clock()
 

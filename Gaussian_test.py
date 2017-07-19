@@ -86,9 +86,13 @@ u, eta = q.split()
 
 # Initialise time, counters and files:
 t = 0.
-mn = 0
+cnt = 0
 dumpn = 0
+mn = 0
+u.rename('Fluid velocity')
+eta.rename('Free surface displacement')
 q_file = File('plots/adapt_plots/gaussian_test.pvd')
+q_file.write(u, eta, time=0)
 # ex_file = File('plots/adapt_plots/gaussian_exact.pvd')     TODO: Plot exact soln
 # ex_file.write(sol, time = t)
 m_file = File('plots/adapt_plots/gaussian_test_metric.pvd')
@@ -98,13 +102,17 @@ tic1 = clock()
 # Enter timeloop:
 while t < T - 0.5 * dt:
 
-    # Update counters:
-    mn += 1
-    cnt = 0
+    # Increment counters:
+    cnt += 1
+    t += dt
+    dumpn += 1
 
-    if remesh == 'y':
+    if (remesh == 'y') & (cnt % rm == 0):
+
+        mn += 1
 
         # Compute Hessian and metric:
+        tic2 = clock()
         V = TensorFunctionSpace(mesh, 'CG', 1)
         if mtype != 'f':
             spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
@@ -127,14 +135,12 @@ while t < T - 0.5 * dt:
         if mat_out == 'y':
             M.rename('Metric field')
             m_file.write(M, time=t)
-
-        # Adapt mesh and interpolate functions:
-        tic2 = clock()
         adaptor = AnisotropicAdaptation(mesh, M)
         mesh = adaptor.adapted_mesh
-        u_, eta_, q_, W = interp_Taylor_Hood(adaptor, u_, eta_)
-        u, eta, q, W = interp_Taylor_Hood(adaptor, u, eta)
-        b = interp(adaptor, b)
+
+        # Interpolate functions onto new mesh:
+        u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(adaptor, u, u_, eta, eta_, b)
+
         toc2 = clock()
 
         # Data analysis:
@@ -152,10 +158,6 @@ while t < T - 0.5 * dt:
         print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
         print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
         print ''
-
-    # Label functions:
-    u.rename('Fluid velocity')
-    eta.rename('Free surface displacement')
 
     # Establish test functions and midpoint averages:
     v, ze = TestFunctions(W)
@@ -178,28 +180,21 @@ while t < T - 0.5 * dt:
     u, eta = q.split()
     u_, eta_ = q_.split()
 
-    if t < 0.5 * dt:
-        q_file.write(u, eta, time=0)
+    # Label functions:
+    u.rename('Fluid velocity')
+    eta.rename('Free surface displacement')
 
-    # Enter inner timeloop:
-    while cnt < rm:
+    # Solve the problem and update:
+    q_solv.solve()
+    q_.assign(q)
 
-        # Increment counters:
-        t += dt
-        cnt += 1
-        dumpn += 1
-
-        # Solve the problem and update:
-        q_solv.solve()
-        q_.assign(q)
-
-        if dumpn == ndump:
-            dumpn -= ndump
-            q_file.write(u, eta, time=t)
-            # sol.interpolate(1e-3 * cos( - kap * t * sqrt(g * 0.1)) * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
-            # ex_file.write(sol, time = t)        # TODO: ^^ Implement properly. Why doesn't it work??
-            if remesh == 'n':
-                print 't = %1.2fs' % t
+    if dumpn == ndump:
+        dumpn -= ndump
+        q_file.write(u, eta, time=t)
+        # sol.interpolate(1e-3 * cos( - kap * t * sqrt(g * 0.1)) * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
+        # ex_file.write(sol, time = t)        # TODO: ^^ Implement properly. Why doesn't it work??
+        if remesh == 'n':
+            print 't = %1.2fs' % t
 
 # End timing and print:
 toc1 = clock()

@@ -63,8 +63,9 @@ phi.assign(phi_)
 
 # Initialise counters and files:
 t = 0.
-mn = 0
+cnt = 0
 dumpn = 0
+mn = 0
 phi_file = File('plots/adapt_plots/advection_test.pvd')
 phi_file.write(phi, time=t)
 m_file = File('plots/adapt_plots/advection_test_metric.pvd')
@@ -75,10 +76,13 @@ tic1 = clock()
 while t < T - 0.5 * dt:
 
     # Update counters:
-    mn += 1
-    cnt = 0
+    cnt += 1
+    t += dt
+    dumpn += 1
 
-    if remesh == 'y':
+    if (remesh == 'y') & (cnt % rm == 0):
+
+        mn += 1
 
         # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)
@@ -120,36 +124,26 @@ while t < T - 0.5 * dt:
     phih = 0.5 * (phi + phi_)
     F = ((phi - phi_) * psi - Dt * phih * psi.dx(0) + Dt * nu * inner(grad(phih), grad(psi))) * dx
 
-    # Enter inner timeloop:
-    while cnt < rm:
+    # # Solve the problem and update:
+    # solve(F == 0, phi, solver_parameters={'pc_type': 'ilu',
+    #                                       'ksp_max_it': 1500})
 
-        # Increment counters:
-        t += dt
-        cnt += 1
-        dumpn += 1
+    phi_prob = NonlinearVariationalProblem(F, phi)
+    phi_solv = NonlinearVariationalSolver(phi_prob, solver_parameters={'mat_type': 'matfree',
+                                                                   'snes_type': 'ksponly',
+                                                                   'pc_type': 'python',
+                                                                   'pc_python_type': 'firedrake.AssembledPC',
+                                                                   'assembled_pc_type': 'lu',
+                                                                   'snes_lag_preconditioner': -1,
+                                                                   'snes_lag_preconditioner_persists': True})
+    phi_solv.solve()
+    phi_.assign(phi)
 
-        # # Solve the problem and update:
-        # solve(F == 0, phi, solver_parameters={'pc_type': 'ilu',
-        #                                       'ksp_max_it': 1500})
-
-        phi_prob = NonlinearVariationalProblem(F, phi)
-        phi_solv = NonlinearVariationalSolver(phi_prob, solver_parameters={'mat_type': 'matfree',
-                                                                       'snes_type': 'ksponly',
-                                                                       'pc_type': 'python',
-                                                                       'pc_python_type': 'firedrake.AssembledPC',
-                                                                       'assembled_pc_type': 'lu',
-                                                                       'snes_lag_preconditioner': -1,
-                                                                       'snes_lag_preconditioner_persists': True})
-        phi_solv.solve()
-
-
-        phi_.assign(phi)
-
-        if dumpn == ndump:
-            dumpn -= ndump
-            phi_file.write(phi, time=t)
-            if remesh == 'n':
-                print 't = %1.2fs' % t
+    if dumpn == ndump:
+        dumpn -= ndump
+        phi_file.write(phi, time=t)
+        if remesh == 'n':
+            print 't = %1.2fs' % t
 
 # End timing and print:
 toc1 = clock()

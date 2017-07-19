@@ -63,7 +63,7 @@ def interp(adaptor, *fields, **kwargs):
     return fields_new
 
 
-def interp_Taylor_Hood(adaptor, u_, eta_):
+def interp_Taylor_Hood(adaptor, u, u_, eta, eta_, b):
     """
     Transfers a mixed shallow water solution triple from the old mesh to the new mesh.
 
@@ -75,8 +75,11 @@ def interp_Taylor_Hood(adaptor, u_, eta_):
     assert (dim == 2)  # 3D implementation not yet considered
 
     W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
-    q = Function(W)
-    u, eta = q.split()
+    qnew = Function(W)
+    unew, etanew = qnew.split()
+    q_new = Function(W)
+    u_new, eta_new = q_new.split()
+    bnew = Function(W.sub(1))
     notInDomain = []
 
     P1coords = adaptor.adapted_mesh.coordinates.dat.data
@@ -85,12 +88,15 @@ def interp_Taylor_Hood(adaptor, u_, eta_):
     # Establish which vertices fall outside the domain:
     for x in range(len(P2coords)):
         try:
-            valu = u_.at(P2coords[x])
+            valu = u.at(P2coords[x])
+            valu_ = u_.at(P2coords[x])
         except PointNotInDomainError:
             valu = [0., 0.]
+            valu_ = [0., 0.]
             notInDomain.append(x)
         finally:
-            u.dat.data[x] = valu
+            unew.dat.data[x] = valu
+            u_new.dat.data[x] = valu_
 
     eps = 1e-6  # For playing with epsilons
     while len(notInDomain) > 0:
@@ -99,11 +105,14 @@ def interp_Taylor_Hood(adaptor, u_, eta_):
         print '#### Trying epsilon = ', eps
         for x in notInDomain:
             try:
-                valu = u_.at(P2coords[x], tolerance=eps)
+                valu = u.at(P2coords[x], tolerance=eps)
+                valu_ = u_.at(P2coords[x], tolerance=eps)
             except PointNotInDomainError:
                 valu = [0., 0.]
+                valu_ = [0., 0.]
             finally:
-                u.dat.data[x] = valu
+                unew.dat.data[x] = valu
+                u_new.dat.data[x] = valu_
                 notInDomain.remove(x)
         if eps >= 1e5:
             print '#### Playing with epsilons failed. Abort.'
@@ -113,12 +122,18 @@ def interp_Taylor_Hood(adaptor, u_, eta_):
     # Establish which vertices fall outside the domain:
     for x in range(len(P1coords)):
         try:
-            val = eta_.at(P1coords[x])
+            vale = eta.at(P1coords[x])
+            vale_ = eta_.at(P1coords[x])
+            valb = b.at(P1coords[x])
         except PointNotInDomainError:
-            val = 0.
+            vale = 0.
+            vale_ = 0.
+            valb = 0.
             notInDomain.append(x)
         finally:
-            eta.dat.data[x] = val
+            etanew.dat.data[x] = vale
+            eta_new.dat.data[x] = vale_
+            bnew.dat.data[x] = valb
 
     eps = 1e-6  # For playing with epsilons
     while len(notInDomain) > 0:
@@ -127,14 +142,20 @@ def interp_Taylor_Hood(adaptor, u_, eta_):
         print '#### Trying epsilon = ', eps
         for x in notInDomain:
             try:
-                val = eta_.at(P1coords[x], tolerance=eps)
+                vale = eta.at(P1coords[x], tolerance=eps)
+                vale_ = eta_.at(P1coords[x], tolerance=eps)
+                valb = b.at(P1coords[x], tolerance=eps)
             except PointNotInDomainError:
-                val = 0.
+                vale = 0.
+                vale_ = 0.
+                valb = 0.
             finally:
-                eta.dat.data[x] = val
+                etanew.dat.data[x] = vale
+                eta_new.dat.data[x] = vale_
+                bnew.dat.data[x] = valb
                 notInDomain.remove(x)
         if eps >= 1e8:
             print '#### Playing with epsilons failed. Abort.'
             exit(23)
 
-    return u, eta, q, W
+    return unew, u_new, etanew, eta_new, qnew, q_new, bnew, W

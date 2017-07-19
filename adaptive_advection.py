@@ -52,7 +52,7 @@ if remesh == 'n':
     rm = int(T / dt)
 
 # Create function space and set initial conditions:
-W = FunctionSpace(mesh, 'CG', 1)
+W = FunctionSpace(mesh, 'CG', 2)
 phi_ = Function(W)
 phi_.interpolate(1e-3 * exp(- (pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
 phi = Function(W, name='Concentration')
@@ -92,7 +92,7 @@ while t < T - 0.5 * dt:
         adaptor = AnisotropicAdaptation(mesh, M)
         mesh = adaptor.adapted_mesh
         phi_, phi = interp(adaptor, phi_, phi)
-        W = FunctionSpace(mesh, 'CG', 1)
+        W = FunctionSpace(mesh, 'CG', 2)
         phi.rename('Concentration')
         toc2 = clock()
 

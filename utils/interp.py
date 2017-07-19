@@ -54,6 +54,49 @@ def interp(adaptor, *fields, **kwargs):
         else:
             raise NotImplementedError("Can only interpolate CG fields")
 
+        # try:
+        #     f_new.dat.data[:] = f.at(coords)
+        # except PointNotInDomainError:
+        #     print '#### Points not in domain! Time to play with epsilons'
+        #
+        #     mesh = adaptor.adapted_mesh
+        #     dim = mesh._topological_dimension
+        #     assert (dim == 2)                           # 3D implementation not yet considered
+        #     meshd = Meshd(mesh)
+        #     plex = mesh._plex
+        #     vStart, vEnd = plex.getDepthStratum(0)      # Vertices of new plex
+        #
+        #     # Establish which vertices fall outside the domain:
+        #     for v in range(vStart, vEnd):
+        #         off = meshd.section.getOffset(v) / dim       # Vertex number
+        #         newCrd = mesh.coordinates.dat.data[off]      # Coord thereof
+        #         try:
+        #             val = f.at(newCrd)
+        #         except PointNotInDomainError:
+        #             val = 0.
+        #             notInDomain.append(v)
+        #         finally:
+        #             f_new.dat.data[off] = val
+        #
+        # eps = 1e-6  # For playing with epsilons
+        # while len(notInDomain) > 0:
+        #     print '#### Number of points not in domain: %d / %d' % (len(notInDomain), mesh.topology.num_vertices())
+        #     eps *= 10
+        #     print '#### Trying epsilon = ', eps
+        #     for v in notInDomain:
+        #         off = meshd.section.getOffset(v) / dim
+        #         newCrd = mesh.coordinates.dat.data[off]
+        #         try:
+        #             val = f.at(newCrd, tolerance=eps)
+        #         except PointNotInDomainError:
+        #             val = 0.
+        #         finally:
+        #             f_new.dat.data[off] = val
+        #             notInDomain.remove(v)
+        #     if eps >= 100:
+        #         print '#### Playing with epsilons failed. Abort.'
+        #         exit(23)
+
         try:
             f_new.dat.data[:] = f.at(coords)
         except PointNotInDomainError:
@@ -64,35 +107,33 @@ def interp(adaptor, *fields, **kwargs):
             assert (dim == 2)                           # 3D implementation not yet considered
             meshd = Meshd(mesh)
             plex = mesh._plex
-            vStart, vEnd = plex.getDepthStratum(0)      # Vertices of new plex
+            v0, v1 = plex.getDepthStratum(0)      # Vertices of new plex
 
             # Establish which vertices fall outside the domain:
-            for v in range(vStart, vEnd):
-                off = meshd.section.getOffset(v) / dim       # Vertex number
-                newCrd = mesh.coordinates.dat.data[off]      # Coord thereof
+            for x in range(len(coords)):
+
                 try:
-                    val = f.at(newCrd)
+                    val = f.at(coords[x])
                 except PointNotInDomainError:
                     val = 0.
-                    notInDomain.append(v)
+                    notInDomain.append(x)
                 finally:
-                    f_new.dat.data[off] = val
+                    f_new.dat.data[x] = val
 
         eps = 1e-6  # For playing with epsilons
         while len(notInDomain) > 0:
             print '#### Number of points not in domain: %d / %d' % (len(notInDomain), mesh.topology.num_vertices())
             eps *= 10
             print '#### Trying epsilon = ', eps
-            for v in notInDomain:
-                off = meshd.section.getOffset(v) / dim
-                newCrd = mesh.coordinates.dat.data[off]
+            for x in notInDomain:
+
                 try:
-                    val = f.at(newCrd, tolerance=eps)
+                    val = f.at(coords[x], tolerance=eps)
                 except PointNotInDomainError:
                     val = 0.
                 finally:
-                    f_new.dat.data[off] = val
-                    notInDomain.remove(v)
+                    f_new.dat.data[x] = val
+                    notInDomain.remove(x)
             if eps >= 100:
                 print '#### Playing with epsilons failed. Abort.'
                 exit(23)

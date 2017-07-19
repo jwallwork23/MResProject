@@ -1,7 +1,7 @@
 from firedrake import *
 
 
-def interp(adaptor, *fields, **kwargs):
+def interp(adaptor, *fields):
     """
     Transfers a solution field from the old mesh to the new mesh.
 
@@ -65,9 +65,7 @@ def interp(adaptor, *fields, **kwargs):
 
 def interp_Taylor_Hood(adaptor, u, u_, eta, eta_, b):
     """
-    Transfers a mixed shallow water solution triple from the old mesh to the new mesh.
-
-    :arg fields: tuple of functions defined on the old mesh that one wants to transfer
+    Transfers a mixed shallow water Taylor-Hood solution pair from the old mesh to the new mesh.
     """
 
     mesh = adaptor.adapted_mesh

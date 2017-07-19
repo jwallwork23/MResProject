@@ -113,7 +113,7 @@ def Tohoku_domain(res = 'c') :
         mesh_converter('resources/meshes/LonLatTohokuCoarse.msh', 143., 37.)
     mesh = Mesh('resources/meshes/CartesianTohoku.msh')
     mesh_coords = mesh.coordinates.dat.data
-    Vu = VectorFunctionSpace(mesh, 'CG', 1)                                 # TODO: Could we use Taylor-Hood?
+    Vu = VectorFunctionSpace(mesh, 'CG', 2)                                 #
     Ve = FunctionSpace(mesh, 'CG', 1)                                       #
     Vq = MixedFunctionSpace((Vu, Ve))                                       # Mixed FE problem
 

@@ -163,13 +163,22 @@ def from_latlon(latitude, longitude, force_zone_number=None):
     return easting, northing, zone_number, zone_letter
 
 
-def vectorlonlat2utm(lon, lat) :
-    """A function which projects vectors containing longitude-latitude coordinates onto a tangent plane at (lon0, lat0) in utm coordinates (x,y), with units being metres."""
+def vectorlonlat2utm(lon, lat):
+    """
+    A function which projects vectors containing longitude-latitude coordinates onto a tangent plane at (lon0, lat0) 
+    in utm coordinates (x,y), with units being metres.
+    """
     x = np.zeros((len(lon), 1))
     y = np.zeros((len(lat), 1))
     assert (len(x) == len(y))
-    for i in range(len(x)) :
-        x[i], y[i] = from_latlon(lon[i], lat[i])
+    for i in range(len(x)):
+        x[i], y[i], zn, zl = from_latlon(lat[i], lon[i], 54)    # Force zone number 54
+
+        # TODO: Implement a projection which doesn't restart x-coord at zone boundaries.
+        # Domain x-min = 5.44e4
+        # I think the x-origin of the mesh is the central 500,000m line of zone 53
+
+        print 'Coords ', x[i], y[i], 'Zone ', zn, zl
     return x, y
 
 

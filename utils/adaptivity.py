@@ -3,13 +3,12 @@ import numpy as np
 from numpy import linalg as la
 from scipy import linalg as sla
 
-from interp import *
 
-
-def construct_hessian(mesh, V, sol, method='parts', treat_boundaries='off'):
+def construct_hessian(mesh, V, sol, method='dL2', treat_boundaries='off'):
     """
-    A function which computes the hessian of a scalar solution field with respect to the current mesh. This code is
-    based on that provided in the Monge-Ampere tutorial provided on the Firedrake website.
+    A function which computes the hessian of a scalar solution field with respect to the current mesh. Two methods of
+    Hessian recovery on P1 fields are provided. The code for the integration by parts approach is based on that 
+    provided in the Monge-Ampere tutorial provided on the Firedrake website documentation.
     """
 
     # Construct functions:
@@ -48,10 +47,10 @@ def construct_hessian(mesh, V, sol, method='parts', treat_boundaries='off'):
     H_solv = NonlinearVariationalSolver(H_prob, solver_parameters=params)
     H_solv.solve()
 
-    if treat_boundaries == 'on':
-        assert (mesh._topological_dimension) == 2                                   # 3D not yet considered
-        plex = mesh._plex
-        vStart, vEnd = plex.getDepthStratum(0)                                      # Vertices
+    # if treat_boundaries == 'on':
+        # assert mesh._topological_dimension == 2                                     # 3D not yet considered
+        # plex = mesh._plex
+        # vStart, vEnd = plex.getDepthStratum(0)                                      # Vertices
 
         # [Get b_nodes and i_nodes]
 
@@ -78,7 +77,7 @@ def construct_hessian(mesh, V, sol, method='parts', treat_boundaries='off'):
         #             [Calculate num += H.dat.data[w] * Mass(w) and den += Mass(w)]
         #         H.dat.data[v] = num/den
 
-    # TODO: Complete finite difference approximation at boundaries
+    # TODO: Complete finite difference approximation at boundaries. Perhaps use plex.getAdjacency?
 
     return H
 
@@ -178,7 +177,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
 
 def metric_intersection(mesh, V, M1, M2):
     """
-    A function which computes the metric with respect to two different fields.
+    A function which computes the metric with respect to two different fields by intersecting the associated metrics.
     """
     M12 = Function(V)
     for i in range(mesh.topology.num_vertices()):

@@ -7,51 +7,37 @@ from scipy.io.netcdf import NetCDFFile
 
 from utm import *
 
-def vectorlonlat2utm(lon, lat) :
-    """A function which projects vectors containing longitude-latitude coordinates onto a tangent plane at (lon0, lat0) 
-    in utm coordinates (x,y), with units being metres."""
-    x = np.zeros((len(lon), 1))
-    y = np.zeros((len(lat), 1))
-    assert (len(x) == len(y))
-    for i in range(len(x)) :
-        x[i], y[i], zn, zl = from_latlon(lat[i], lon[i], 54)    # Force zone number 54
-
-        # TODO: Implement a projection which doesn't restart x-coord at zone boundaries.
-        # Domain x-min = 5.44e4
-        # I think the x-origin of the mesh is the central 500,000m line of zone 53
-
-        print 'Coords ', x[i], y[i], 'Zone ', zn, zl
-    return x, y
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 res = int(raw_input('Mesh coarseness? (Integer in range 1-5): ') or 3)
-if res == 1 :
+if res == 1:
     mesh = Mesh('resources/meshes/TohokuXFine.msh')
-elif res == 2 :
+elif res == 2:
     mesh = Mesh('resources/meshes/TohokuFine.msh')
-elif res == 3 :
+elif res == 3:
     mesh = Mesh('resources/meshes/TohokuMedium.msh')
-elif res == 4 :
+elif res == 4:
     mesh = Mesh('resources/meshes/TohokuCoarse.msh')
-elif res == 5 :
+elif res == 5:
     mesh = Mesh('resources/meshes/TohokuXCoarse.msh')
 
 # For debugging purposes
-elif res == 99 :
+elif res == 99:
     mesh = Mesh('resources/meshes/unused/500,2500,15000,3.msh')
 
-else : raise ValueError('Please try again, choosing an integer in the range 1-5.')
+else:
+    raise ValueError('Please try again, choosing an integer in the range 1-5.')
 mesh_coords = mesh.coordinates.dat.data
 Vu = VectorFunctionSpace(mesh, 'CG', 2)                                 # \ Use Taylor-Hood
 Ve = FunctionSpace(mesh, 'CG', 1)                                       # /
 Vq = MixedFunctionSpace((Vu, Ve))                                       # Mixed FE problem
 
 # Construct functions to store inital free surface and bathymetry:
-eta0 = Function(Vq.sub(1), name = 'Initial surface')
-b = Function(Vq.sub(1), name = 'Bathymetry')
+eta0 = Function(Vq.sub(1), name='Initial surface')
+b = Function(Vq.sub(1), name='Bathymetry')
 
 # Read and interpolate initial surface data (courtesy of Saito):
-nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap = False)
+nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap=False)
 lon1 = nc1.variables['x'][:]
 lat1 = nc1.variables['y'][:]
 elev1 = nc1.variables['z'][:, :]
@@ -61,7 +47,7 @@ eta0vec = eta0.dat.data
 assert mesh_coords.shape[0] == eta0vec.shape[0]
 
 # Read and interpolate bathymetry data (courtesy of GEBCO):
-nc2 = NetCDFFile('resources/bathy_data/GEBCO_bathy.nc', mmap = False)
+nc2 = NetCDFFile('resources/bathy_data/GEBCO_bathy.nc', mmap=False)
 lon2 = nc2.variables['lon'][:]
 lat2 = nc2.variables['lat'][:-1]
 elev2 = nc2.variables['elevation'][:-1, :]
@@ -71,7 +57,7 @@ b_vec = b.dat.data
 assert mesh_coords.shape[0] == b_vec.shape[0]
 
 # Interpolate data onto initial surface and bathymetry profiles:
-for i, p in enumerate(mesh_coords) :
+for i, p in enumerate(mesh_coords):
     eta0vec[i] = interpolator_surf(p[1], p[0])
     b_vec[i] = - interpolator_surf(p[1], p[0]) - interpolator_bath(p[1], p[0])
 
@@ -98,7 +84,7 @@ options.dt = dt
 options.outputdir = 'plots/tsunami_outputs'
 
 # Apply ICs:
-solver_obj.assign_initial_conditions(elev = eta0)
+solver_obj.assign_initial_conditions(elev=eta0)
 
 # Run the model:
 solver_obj.iterate()

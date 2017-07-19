@@ -51,8 +51,8 @@ else:
 
 # Courant number adjusted timestepping parameters:
 ndump = 1
-g = 9.81                            # Gravitational acceleration (m s^{-2})
-dt = 0.8 * hmin / np.sqrt(g * 0.1)  # Timestep length (s), using wavespeed sqrt(gh)
+g = 9.81                                                # Gravitational acceleration (m s^{-2})
+dt = 0.8 * hmin / np.sqrt(g * 0.1)                      # Timestep length (s), using wavespeed sqrt(gh)
 Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
@@ -92,7 +92,7 @@ mn = 0
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 q_file = File('plots/adapt_plots/gaussian_test.pvd')
-q_file.write(u, eta, time=0)
+q_file.write(u, eta, time=t)
 # ex_file = File('plots/adapt_plots/gaussian_exact.pvd')     TODO: Plot exact soln
 # ex_file.write(sol, time = t)
 m_file = File('plots/adapt_plots/gaussian_test_metric.pvd')
@@ -176,11 +176,9 @@ while t < T - 0.5 * dt:
                                                                    'assembled_pc_type': 'lu',
                                                                    'snes_lag_preconditioner': -1,
                                                                    'snes_lag_preconditioner_persists': True})
-    # Split to access data:
+    # Split to access data and relabel functions:
     u, eta = q.split()
     u_, eta_ = q_.split()
-
-    # Label functions:
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
 

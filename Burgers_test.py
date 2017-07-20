@@ -1,4 +1,5 @@
 from firedrake import *
+from firedrake_adjoint import *
 
 import numpy as np
 from time import clock
@@ -19,7 +20,7 @@ print 'Initial number of nodes : ', N1
 p = int(raw_input('Polynomial degree? (default 1): ') or 1)
 
 # Specify diffusion:
-nu = float(raw_input('Diffusion parameter (default 1e-3)?: ') or 1e-3)
+nu = Constant(float(raw_input('Diffusion parameter (default 1e-3)?: ') or 1e-3))
 
 # Set up adaptivity parameters:
 remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
@@ -47,17 +48,18 @@ else:
 
 # Courant number adjusted timestepping parameters:
 ndump = 1
-T = 2.5                                                                         # Simulation end time (s)
-dt = 0.8 * hmin         # Timestep length (s)
-Dt = Constant(dt)
-print 'Using Courant number adjusted timestep dt = %1.4f' % dt
+T = 0.2
+timestep = 0.8 * hmin
+Dt = Constant(timestep)
+print 'Using Courant number adjusted timestep dt = %1.4f' % timestep
 if remesh == 'n':
-    rm = int(T / dt)
+    rm = int(T / timestep)
 
 # Create function space and set initial conditions:
 W = FunctionSpace(mesh, 'CG', p)
-phi_ = Function(W)
-phi_.interpolate(1e-3 * exp(- (pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
+ic = Function(W)
+ic.interpolate(1e-3 * exp(- (pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
+phi_ = ic.copy(deepcopy=True)
 phi = Function(W, name='Concentration')
 phi.assign(phi_)
 
@@ -73,11 +75,11 @@ h_file = File('plots/adapt_plots/advection_test_hessian.pvd')
 tic1 = clock()
 
 # Enter timeloop:
-while t < T - 0.5 * dt:
+while t < T - 0.5 * timestep:
 
     # Update counters:
     cnt += 1
-    t += dt
+    t += timestep
     dumpn += 1
 
     if (remesh == 'y') & (cnt % rm == 0):
@@ -141,9 +143,17 @@ while t < T - 0.5 * dt:
         if remesh == 'n':
             print 't = %1.2fs' % t
 
-# End timing and print:
-toc1 = clock()
-if remesh == 'y':
-    print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
-else:
-    print 'Elapsed time for non-adaptive solver: %1.2fs' % (toc1 - tic1)
+    # End timing and print:
+    toc1 = clock()
+    if remesh == 'y':
+        print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
+    else:
+        print 'Elapsed time for non-adaptive solver: %1.2fs' % (toc1 - tic1)
+
+# TODO: fix this
+# Establish objective functional and compute derivatives:
+J = Functional(inner(phi, phi) * dx * dt[FINISH_TIME])
+print 'Functional established'
+#dJdic = compute_gradient(J, Control(ic), forget=False) # Do we need to interpolate?
+dJdnu = compute_gradient(J, Control(nu))
+print 'Derivative computed!'

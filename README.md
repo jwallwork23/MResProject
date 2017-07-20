@@ -12,8 +12,8 @@ idealised tsunami across an ocean domain with a step discontinuity (correspondin
 
 The second script test file tests the adaptive algorithm by adapting the mesh to (stationary) sensor functions.
 
-The file ``adaptive_advection`` applies anisotropic mesh adaptivity to the case of a simple 2D advection(-diffusion)
-problem, with an inital Gaussian profile.
+The file ``Burgers_test`` applies anisotropic mesh adaptivity to the case of solving the 2D Burgers' equation, with an
+inital Gaussian profile.
 
 The 2D shallow water test script called ``Gaussian_test`` applies mesh adaptivity in the case of a Taylor-Hood P2-P1
 fluid velocity-free surface displacement function space pair.

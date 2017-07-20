@@ -57,9 +57,8 @@ if remesh == 'n':
 
 # Create function space and set initial conditions:
 W = FunctionSpace(mesh, 'CG', p)
-ic = Function(W)
-ic.interpolate(1e-3 * exp(- (pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
-phi_ = ic.copy(deepcopy=True)
+phi_ = Function(W)
+phi_.interpolate(1e-3 * exp(- (pow(x - 0.5, 2) + pow(y - 0.5, 2)) / 0.04))
 phi = Function(W, name='Concentration')
 phi.assign(phi_)
 
@@ -143,17 +142,17 @@ while t < T - 0.5 * timestep:
         if remesh == 'n':
             print 't = %1.2fs' % t
 
-    # End timing and print:
-    toc1 = clock()
-    if remesh == 'y':
-        print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
-    else:
-        print 'Elapsed time for non-adaptive solver: %1.2fs' % (toc1 - tic1)
+# End timing and print:
+toc1 = clock()
+if remesh == 'y':
+    print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
+else:
+    print 'Elapsed time for non-adaptive solver: %1.2fs' % (toc1 - tic1)
 
 # TODO: fix this
 # Establish objective functional and compute derivatives:
 J = Functional(inner(phi, phi) * dx * dt[FINISH_TIME])
 print 'Functional established'
-#dJdic = compute_gradient(J, Control(ic), forget=False) # Do we need to interpolate?
-dJdnu = compute_gradient(J, Control(nu))
+dJdic = compute_gradient(J, Control(phi_), forget=False)
+#dJdnu = compute_gradient(J, Control(nu))
 print 'Derivative computed!'

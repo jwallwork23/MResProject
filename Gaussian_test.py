@@ -1,5 +1,4 @@
 from firedrake import *
-from firedrake_adjoint import *
 
 import numpy as np
 from time import clock

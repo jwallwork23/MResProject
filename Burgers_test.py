@@ -119,16 +119,12 @@ while t < T - 0.5 * dt:
         print 'Elapsed time for adaption step %d: %1.2fs' % (mn, toc2 - tic2)
         print ''
 
-    # Set up variational problem, using implicit midpoint timestepping:
+    # Set up variational problem, using implicit midpoint timestepping, and solve:
     psi = TestFunction(W)
     phih = 0.5 * (phi + phi_)
     F = ((phi - phi_) * psi - Dt * phih * psi.dx(0) + Dt * nu * inner(grad(phih), grad(psi))) * dx
-
-    # # Solve the problem and update:
-    # solve(F == 0, phi, solver_parameters={'pc_type': 'ilu',
-    #                                       'ksp_max_it': 1500})
-
-    phi_prob = NonlinearVariationalProblem(F, phi)
+    bc = DirichletBC(W, 0.0, 'on_boundary')
+    phi_prob = NonlinearVariationalProblem(F, phi, bcs=bc)
     phi_solv = NonlinearVariationalSolver(phi_prob, solver_parameters={'mat_type': 'matfree',
                                                                        'snes_type': 'ksponly',
                                                                        'pc_type': 'python',

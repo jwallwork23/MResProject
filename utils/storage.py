@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('TkAgg')             # Change backend to resolve framework problems
 import matplotlib.pyplot as plt
 from matplotlib import rc
 

@@ -1,5 +1,5 @@
 from firedrake import *
-from firedrake_adjoint import *
+# from firedrake_adjoint import *
 
 import numpy as np
 from time import clock
@@ -9,7 +9,8 @@ from utils import construct_hessian, compute_steady_metric, interp, interp_Taylo
 # Define initial (uniform) mesh:
 n = 16                                      # Resolution of uniform mesh for adjoint run
 lx = 4                                      # Extent in x-direction (m)
-mesh = SquareMesh(lx * n, lx * n, lx, lx)
+nx = n * lx
+mesh = SquareMesh(nx, nx, lx, lx)
 x, y = SpatialCoordinate(mesh)
 
 # Simulation duration:
@@ -82,6 +83,18 @@ le.rename('Adjoint free surface')
 lam_file = File('plots/adjoint_outputs/adjoint.pvd')
 lam_file.write(lu, le, time=0)
 
+# Initalise counters:
+t = T
+i = -1
+dumpn = ndump
+
+# Initialise tensor arrays for storage (with dimensions pre-allocated for speed):
+velocity_dat = np.zeros((int(T / (ndump * dt)) + 1, (2 * nx + 1) ** 2, 2))
+surface_dat = np.zeros((int(T / (ndump * dt)) + 1, (nx + 1) ** 2 + 2))
+significant_dat = np.zeros(((nx + 1) ** 2 + 2))
+velocity_dat[i, :, :] = lm.dat.data
+surface_dat[i, :] = le.dat.data
+
 # Establish test functions and midpoint averages:
 w, xi = TestFunctions(W)
 lu, le = split(lam)
@@ -90,8 +103,8 @@ luh = 0.5 * (lu + lu_)
 leh = 0.5 * (le + le_)
 
 # Set up the variational problem:
-La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) #+ ind * xi
-              + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+# + ind * xi * dx
 lam_prob = NonlinearVariationalProblem(La, lam)
 lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
 
@@ -99,21 +112,23 @@ lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
 lu, le = lam.split()
 lu_, le_ = lam_.split()
 
-# Initalise counters:
-t = T
-dumpn = ndump
-
 # Run fixed mesh adjoint solver:
 while t > 0.5 * dt:
 
     # Increment counters:
     t -= dt
+    i -= 1
     dumpn -= 1
 
     # Solve the problem and update:
     lam_solv.solve()
     lam_.assign(lam)
 
+    # Save data:
+    velocity_dat[-i, :, :] = lm.dat.data
+    surface_dat[-i, :] = le.dat.data
+
+    # Dump to vtu:
     if dumpn == 0:
         dumpn += ndump
         lam_file.write(lu, le, time=T-t)
@@ -140,6 +155,11 @@ eta.rename('Free surface displacement')
 q_file = File('plots/adjoint_outputs/forward.pvd')
 q_file.write(u, eta, time=0)
 
+# Initialise counters:
+t = 0.
+i = 0
+dumpn = 0
+
 # Establish test functions and midpoint averages:
 v, ze = TestFunctions(W)
 u, eta = split(q)
@@ -148,8 +168,8 @@ uh = 0.5 * (u + u_)
 etah = 0.5 * (eta + eta_)
 
 # Set up the variational problem:
-L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) + inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
-q_prob = NonlinearVariationalProblem(L, q)
+Lf = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) + inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
+q_prob = NonlinearVariationalProblem(Lf, q)
 q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
 
 # Split to access data and relabel functions:
@@ -158,21 +178,24 @@ u_, eta_ = q_.split()
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
-# Initialise counters:
-t = 0.
-dumpn = 0
-
 # Run fixed mesh forward solver:
 while t < T - 0.5 * dt:
 
     # Increment counters:
     t += dt
+    i += 1
     dumpn += 1
 
     # Solve the problem and update:
     q_solv.solve()
     q_.assign(q)
 
+    # Take inner product with adjoint data:
+    velocity_dat[i, :, 0] = velocity_dat[i, :, 0] * u.dat.data[:, :, 0]
+    velocity_dat[i, :, 1] = velocity_dat[i, :, 1] * u.dat.data[:, :, 1]
+    surface_dat[i, :] = surface_dat[i, :] * eta.dat.data
+
+    # Dump to vtu:
     if dumpn == ndump:
         dumpn -= ndump
         q_file.write(u, eta, time=t)

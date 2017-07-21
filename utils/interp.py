@@ -9,7 +9,7 @@ def interp(adaptor, *fields):
     """
     mesh = adaptor.adapted_mesh
     dim = mesh._topological_dimension
-    assert (dim == 2)  # 3D implementation not yet considered
+    assert dim == 2                     # 3D implementation not yet considered
 
     fields_new = ()
     for f in fields:

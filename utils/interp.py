@@ -1,29 +1,28 @@
 from firedrake import *
 
 
-def interp(adaptor, *fields):
+def interp(mesh, *fields):
     """
     Transfers a solution field from the old mesh to the new mesh.
 
     :arg fields: tuple of functions defined on the old mesh that one wants to transfer
     """
-    mesh = adaptor.adapted_mesh
     dim = mesh._topological_dimension
     assert dim == 2                     # 3D implementation not yet considered
 
     fields_new = ()
     for f in fields:
-        V_new = FunctionSpace(adaptor.adapted_mesh, f.function_space().ufl_element())
+        V_new = FunctionSpace(mesh, f.function_space().ufl_element())
         f_new = Function(V_new)
         notInDomain = []
 
         if f.ufl_element().family() == 'Lagrange' and f.ufl_element().degree() == 1:
-            coords = adaptor.adapted_mesh.coordinates.dat.data                      # Vertex/node coords
+            coords = mesh.coordinates.dat.data                      # Vertex/node coords
         elif f.ufl_element().family() == 'Lagrange':
             degree = f.ufl_element().degree()
-            C = VectorFunctionSpace(adaptor.adapted_mesh, 'CG', degree)
+            C = VectorFunctionSpace(mesh, 'CG', degree)
             interp_coordinates = Function(C)
-            interp_coordinates.interpolate(adaptor.adapted_mesh.coordinates)
+            interp_coordinates.interpolate(mesh.coordinates)
             coords = interp_coordinates.dat.data                                    # Node coords (NOT just vertices)
         else:
             raise NotImplementedError("Can only interpolate CG fields")
@@ -63,12 +62,11 @@ def interp(adaptor, *fields):
     return fields_new
 
 
-def interp_Taylor_Hood(adaptor, u, u_, eta, eta_, b):
+def interp_Taylor_Hood(mesh, u, u_, eta, eta_, b):
     """
     Transfers a mixed shallow water Taylor-Hood solution pair from the old mesh to the new mesh.
     """
 
-    mesh = adaptor.adapted_mesh
     dim = mesh._topological_dimension
     assert (dim == 2)  # 3D implementation not yet considered
 
@@ -80,8 +78,8 @@ def interp_Taylor_Hood(adaptor, u, u_, eta, eta_, b):
     bnew = Function(W.sub(1))
     notInDomain = []
 
-    P1coords = adaptor.adapted_mesh.coordinates.dat.data
-    P2coords = Function(W.sub(0)).interpolate(adaptor.adapted_mesh.coordinates).dat.data
+    P1coords = mesh.coordinates.dat.data
+    P2coords = Function(W.sub(0)).interpolate(mesh.coordinates).dat.data
 
     # Establish which vertices fall outside the domain:
     for x in range(len(P2coords)):

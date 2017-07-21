@@ -99,7 +99,7 @@ while t < T - 0.5 * timestep:
         tic2 = clock()
         adaptor = AnisotropicAdaptation(mesh, M)
         mesh = adaptor.adapted_mesh
-        phi_, phi = interp(adaptor, phi_, phi)
+        phi_, phi = interp(mesh, phi_, phi)
         W = FunctionSpace(mesh, 'CG', p)
         phi.rename('Concentration')
         toc2 = clock()

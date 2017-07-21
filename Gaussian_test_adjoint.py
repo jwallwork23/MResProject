@@ -12,9 +12,10 @@ lx = 4                                      # Extent in x-direction (m)
 nx = n * lx
 mesh = SquareMesh(nx, nx, lx, lx)
 x, y = SpatialCoordinate(mesh)
+coords = mesh.coordinates.dat.data
 
 # Simulation duration:
-T = 20.
+T = 2.
 
 # Set up adaptivity parameters:
 hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
@@ -64,7 +65,7 @@ b = 0.1
 
 # Establish indicator function for adjoint equations:
 ind = Function(W.sub(1), name='Indicator function')
-ind.interpolate(Expression('(x[0] >= 0.) & (x[0] < 0.3) & (x[1] > 1.5) & (x[1] < 2.5) ? 0.001 : 0'))
+ind.interpolate(Expression('(x[0] >= 0.) & (x[0] < 0.2) & (x[1] > 1.5) & (x[1] < 2.5) ? 0.001 : 0'))
 
 # Interpolate adjoint final time conditions:
 lu_.interpolate(Expression([0, 0]))
@@ -74,6 +75,7 @@ le_.assign(ind)
 lam = Function(W)
 lam.assign(lam_)
 lu, le = lam.split()
+vel = Function(VectorFunctionSpace(mesh, 'CG', 1))          # For interpolating velocity field
 
 # Label variables:
 lu.rename('Adjoint velocity')
@@ -89,10 +91,12 @@ i = -1
 dumpn = ndump
 
 # Initialise tensor arrays for storage (with dimensions pre-allocated for speed):
-velocity_dat = np.zeros((int(T / (ndump * dt)) + 1, (2 * nx + 1) ** 2, 2))
-surface_dat = np.zeros((int(T / (ndump * dt)) + 1, (nx + 1) ** 2 + 2))
-significant_dat = np.zeros(((nx + 1) ** 2 + 2))
-velocity_dat[i, :, :] = lm.dat.data
+velocity_dat = np.zeros((int(T / dt) + 1, pow(nx + 1, 2), 2))
+surface_dat = np.zeros((int(T / dt) + 1, pow(nx + 1, 2)))
+inner_product_dat = np.zeros((int(T / dt) + 1, pow(nx + 1, 2)))
+significant_dat = np.zeros((pow(nx + 1, 2)))
+vel.interpolate(lu)
+velocity_dat[i, :, :] = vel.dat.data
 surface_dat[i, :] = le.dat.data
 
 # Establish test functions and midpoint averages:
@@ -125,8 +129,9 @@ while t > 0.5 * dt:
     lam_.assign(lam)
 
     # Save data:
-    velocity_dat[-i, :, :] = lm.dat.data
-    surface_dat[-i, :] = le.dat.data
+    vel.interpolate(lu)
+    velocity_dat[i, :, :] = vel.dat.data
+    surface_dat[i, :] = le.dat.data
 
     # Dump to vtu:
     if dumpn == 0:
@@ -140,7 +145,7 @@ u_, eta_ = q_.split()
 
 # Interpolate forward initial conditions:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(1e-3 * exp(- (pow(x - 2.5, 2) + pow(y - 2., 2)) / 0.04))
+eta_.interpolate(1e-3 * exp(- (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
 
 # Set up dependent variables of the forward problem:
 q = Function(W)
@@ -157,7 +162,6 @@ q_file.write(u, eta, time=0)
 
 # Initialise counters:
 t = 0.
-i = 0
 dumpn = 0
 
 # Establish test functions and midpoint averages:
@@ -191,14 +195,24 @@ while t < T - 0.5 * dt:
     q_.assign(q)
 
     # Take inner product with adjoint data:
-    velocity_dat[i, :, 0] = velocity_dat[i, :, 0] * u.dat.data[:, :, 0]
-    velocity_dat[i, :, 1] = velocity_dat[i, :, 1] * u.dat.data[:, :, 1]
+    vel.interpolate(u)
+    velocity_dat[i, :, :] = velocity_dat[i, :, :] * vel.dat.data
     surface_dat[i, :] = surface_dat[i, :] * eta.dat.data
+    inner_product_dat[i, :] = velocity_dat[i, :, 0] + velocity_dat[i, :, 1] + surface_dat[i, :]
+
+    # Take maximum as most significant:
+    for j in range(pow(nx + 1, 2)):
+        if np.abs(inner_product_dat[i, j]) > np.abs(significant_dat[j]):
+            significant_dat[j] = inner_product_dat[i, j]
 
     # Dump to vtu:
     if dumpn == ndump:
         dumpn -= ndump
         q_file.write(u, eta, time=t)
         print 't = %1.2fs' % t
+
+significance = Function(W.sub(1))
+significance.dat.data[:] = significant_dat[:]
+File('plots/adjoint_outputs/significance.pvd').write(significance)
 
 # [Adaptive forward solver]

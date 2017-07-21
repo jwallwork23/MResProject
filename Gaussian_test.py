@@ -139,7 +139,7 @@ while t < T - 0.5 * dt:
         mesh = adaptor.adapted_mesh
 
         # Interpolate functions onto new mesh:
-        u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(adaptor, u, u_, eta, eta_, b)
+        u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
 
         toc2 = clock()
 

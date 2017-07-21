@@ -7,9 +7,10 @@ from time import clock
 from utils import construct_hessian, compute_steady_metric, interp, interp_Taylor_Hood
 
 # Define initial (uniform) mesh:
-na = 8                                      # (Coarse) resolution of uniform mesh for adjoint run
+n = 16                                      # Resolution of uniform mesh for adjoint run
 lx = 4                                      # Extent in x-direction (m)
-mesh_a = SquareMesh(lx * na, lx * na, lx, lx)
+mesh = SquareMesh(lx * n, lx * n, lx, lx)
+x, y = SpatialCoordinate(mesh)
 
 # Simulation duration:
 T = 20.
@@ -39,27 +40,37 @@ dt = 0.8 * hmin / np.sqrt(g * 0.1)                      # Timestep length (s), u
 Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
+# Specify solver parameters:
+params = {'mat_type': 'matfree',
+          'snes_type': 'ksponly',
+          'pc_type': 'python',
+          'pc_python_type': 'firedrake.AssembledPC',
+          'assembled_pc_type': 'lu',
+          'snes_lag_preconditioner': -1,
+          'snes_lag_preconditioner_persists': True}
+
 # Define mixed Taylor-Hood function space:
-W_a = VectorFunctionSpace(mesh_a, 'CG', 2) * FunctionSpace(mesh_a, 'CG', 1)
+W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 
 # Create adjoint variables:
-lam_ = Function(W_a)
+lam_ = Function(W)
 lu_, le_ = lam_.split()
 
-# Establish bathymetry functions on each mesh:
-b_a = Function(W_a.sub(1), name='Coarse bathymetry')
-b_a.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))     # Shelf break bathymetry at x = 50cm
+# # Establish bathymetry functions on each mesh:
+# b = Function(W_a.sub(1), name='Coarse bathymetry')
+# b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))     # Shelf break bathymetry at x = 50cm
+b = 0.1
 
 # Establish indicator function for adjoint equations:
-ind = Function(W_a.sub(1), name='Indicator function')
+ind = Function(W.sub(1), name='Indicator function')
 ind.interpolate(Expression('(x[0] >= 0.) & (x[0] < 0.3) & (x[1] > 1.5) & (x[1] < 2.5) ? 0.001 : 0'))
 
 # Interpolate adjoint final time conditions:
 lu_.interpolate(Expression([0, 0]))
-le_.interpolate(Expression('(x[0] >= 0.) & (x[0] < 0.3) & (x[1] > 1.5) & (x[1] < 2.5) ? 0.001 : 0'))
+le_.assign(ind)
 
 # Set up dependent variables of the adjoint problem:
-lam = Function(W_a)
+lam = Function(W)
 lam.assign(lam_)
 lu, le = lam.split()
 
@@ -72,23 +83,18 @@ lam_file = File('plots/adjoint_outputs/adjoint.pvd')
 lam_file.write(lu, le, time=0)
 
 # Establish test functions and midpoint averages:
-w, xi = TestFunctions(W_a)
+w, xi = TestFunctions(W)
 lu, le = split(lam)
 lu_, le_ = split(lam_)
 luh = 0.5 * (lu + lu_)
 leh = 0.5 * (le + le_)
 
 # Set up the variational problem:
-La = ((le - le_) * xi - Dt * g * b_a * inner(luh, grad(xi)) #+ ind * xi
-      + inner(lu - lu_, w) + Dt * b_a * inner(grad(leh), w)) * dx
+La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) #+ ind * xi
+              + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
 lam_prob = NonlinearVariationalProblem(La, lam)
-lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters={'mat_type': 'matfree',
-                                                                   'snes_type': 'ksponly',
-                                                                   'pc_type': 'python',
-                                                                   'pc_python_type': 'firedrake.AssembledPC',
-                                                                   'assembled_pc_type': 'lu',
-                                                                   'snes_lag_preconditioner': -1,
-                                                                   'snes_lag_preconditioner_persists': True})
+lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
+
 # Split to access data and relabel functions:
 lu, le = lam.split()
 lu_, le_ = lam_.split()
@@ -113,33 +119,63 @@ while t > 0.5 * dt:
         lam_file.write(lu, le, time=T-t)
         print 't = %1.2fs' % t
 
-# [Fixed forward solver]
-
 # Repeat above setup:
-nf = 2 * na                                 # (Medium) resolution of uniform mesh for forward run
-mesh_f = SquareMesh(lx * nf, lx * nf, lx, lx)
-x, y = SpatialCoordinate(mesh_f)
-W_f = VectorFunctionSpace(mesh_f, 'CG', 2) * FunctionSpace(mesh_f, 'CG', 1)
-q_ = Function(W_f)
+q_ = Function(W)
 u_, eta_ = q_.split()
-b_f = Function(W_f.sub(1), name='Fine bathymetry')
-b_f.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))
+
 # Interpolate forward initial conditions:
 u_.interpolate(Expression([0, 0]))
 eta_.interpolate(1e-3 * exp(- (pow(x - 2.5, 2) + pow(y - 2., 2)) / 0.04))
+
 # Set up dependent variables of the forward problem:
-q = Function(W_f)
+q = Function(W)
 q.assign(q_)
 u, eta = q.split()
+
+# Label variables:
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
+
+# Intialise files:
 q_file = File('plots/adjoint_outputs/forward.pvd')
 q_file.write(u, eta, time=0)
 
+# Establish test functions and midpoint averages:
+v, ze = TestFunctions(W)
+u, eta = split(q)
+u_, eta_ = split(q_)
+uh = 0.5 * (u + u_)
+etah = 0.5 * (eta + eta_)
+
+# Set up the variational problem:
+L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) + inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
+q_prob = NonlinearVariationalProblem(L, q)
+q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
+
+# Split to access data and relabel functions:
+u, eta = q.split()
+u_, eta_ = q_.split()
+u.rename('Fluid velocity')
+eta.rename('Free surface displacement')
+
 # Initialise counters:
 t = 0.
-cnt = 0
 dumpn = 0
-mn = 0
+
+# Run fixed mesh forward solver:
+while t < T - 0.5 * dt:
+
+    # Increment counters:
+    t += dt
+    dumpn += 1
+
+    # Solve the problem and update:
+    q_solv.solve()
+    q_.assign(q)
+
+    if dumpn == ndump:
+        dumpn -= ndump
+        q_file.write(u, eta, time=t)
+        print 't = %1.2fs' % t
 
 # [Adaptive forward solver]

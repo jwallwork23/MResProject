@@ -8,17 +8,18 @@ from utils import construct_hessian, compute_steady_metric, interp, interp_Taylo
 
 # Define initial (uniform) mesh:
 n = 16                                      # Resolution of uniform mesh for adjoint run
-lx = 40                                     # Extent in x-direction (m)
-nx = n * 4
-mesh = SquareMesh(nx, nx, lx, lx)
+lx = 30                                    # Extent in x-direction (m)
+ly = 40                                    # Extent in y-direction (m)
+mesh = RectangleMesh(3 * n, 4 * n, lx, ly)
 x, y = SpatialCoordinate(mesh)
 coords = mesh.coordinates.dat.data
+nx = len(coords)
 
 # Simulation duration:
-T = 3.5
+T = 4.
 
-# Set up adaptivity parameters:
-hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
+# # Set up adaptivity parameters:
+# hmin = float(raw_input('Minimum element size in m (default 0.05)?: ') or 0.05)
 # hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
 # rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
 # nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
@@ -36,14 +37,14 @@ hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-
 #     raise ValueError('Please try again, choosing parts or dL2.')
 
 # Specify parameters:
-b = 1.                  # (Constant) bathymetry
+b = 1.                 # (Constant) bathymetry
 ndump = 20
 g = 9.81                # Gravitational acceleration (m s^{-2})
-dt = 0.001
+dt = 0.005
 Dt = Constant(dt)
 
-# Check CFL criterion is satisfied for this discretisation:
-assert(dt < 1. / (n * np.sqrt(g * b)))
+# # Check CFL criterion is satisfied for this discretisation:
+# assert(dt < 1. / (n * np.sqrt(g * b)))
 
 # Specify solver parameters:
 params = {'mat_type': 'matfree',
@@ -63,7 +64,7 @@ lu_, le_ = lam_.split()
 
 # Establish indicator function for adjoint equations (here 0.06 is the area of the region of interest):
 f = Function(W.sub(1), name='Forcing term')
-f.interpolate(Expression('(x[0] >= 0.) & (x[0] < 1.5) & (x[1] > 18.) & (x[1] < 22.) ? 0.01 * 0.06 : 0'))
+f.interpolate(Expression('(x[0] >= 0.) & (x[0] < 2.5) & (x[1] > 18.) & (x[1] < 22.) ? 0.0005 : 0'))
 
 # Interpolate adjoint final time conditions:
 lu_.interpolate(Expression([0, 0]))
@@ -89,10 +90,10 @@ i = -1
 dumpn = ndump
 
 # Initialise tensor arrays for storage (with dimensions pre-allocated for speed):
-velocity_dat = np.zeros((int(T / dt) + 1, pow(nx + 1, 2), 2))
-surface_dat = np.zeros((int(T / dt) + 1, pow(nx + 1, 2)))
-inner_product_dat = np.zeros((int(T / dt) + 1, pow(nx + 1, 2)))
-significant_dat = np.zeros((pow(nx + 1, 2)))
+velocity_dat = np.zeros((int(T / dt) + 1, nx, 2))
+surface_dat = np.zeros((int(T / dt) + 1, nx))
+inner_product_dat = np.zeros((int(T / dt) + 1, nx))
+significant_dat = np.zeros(nx)
 vel.interpolate(lu)
 velocity_dat[i, :, :] = vel.dat.data
 surface_dat[i, :] = le.dat.data
@@ -143,7 +144,7 @@ u_, eta_ = q_.split()
 
 # Interpolate forward initial conditions:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(1e-1 * exp(- (pow(x - 20., 2) + pow(y - 20., 2)) / 1.))
+eta_.interpolate(0.5 * exp(- (pow(x - 15., 2) + 0.5 * pow(y - 20., 2)) / 10.))
 
 # Set up dependent variables of the forward problem:
 q = Function(W)
@@ -205,7 +206,7 @@ while t < T - 0.5 * dt:
     inner_product_dat[i, :] = velocity_dat[i, :, 0] + velocity_dat[i, :, 1] + surface_dat[i, :]
 
     # Take maximum as most significant:
-    for j in range(pow(nx + 1, 2)):
+    for j in range(nx):
         if np.abs(inner_product_dat[i, j]) > significant_dat[j]:
             significant_dat[j] = np.abs(inner_product_dat[i, j])
 

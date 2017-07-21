@@ -8,14 +8,14 @@ from utils import construct_hessian, compute_steady_metric, interp, interp_Taylo
 
 # Define initial (uniform) mesh:
 n = 16                                      # Resolution of uniform mesh for adjoint run
-lx = 4                                      # Extent in x-direction (m)
-nx = n * lx
+lx = 40                                     # Extent in x-direction (m)
+nx = n * 4
 mesh = SquareMesh(nx, nx, lx, lx)
 x, y = SpatialCoordinate(mesh)
 coords = mesh.coordinates.dat.data
 
 # Simulation duration:
-T = 2.
+T = 3.5
 
 # Set up adaptivity parameters:
 hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
@@ -35,12 +35,15 @@ hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-
 # if hess_meth not in ('parts', 'dL2'):
 #     raise ValueError('Please try again, choosing parts or dL2.')
 
-# Courant number adjusted timestepping parameters:
+# Specify parameters:
+b = 1.                  # (Constant) bathymetry
 ndump = 20
-g = 9.81                                                # Gravitational acceleration (m s^{-2})
-dt = 0.8 * hmin / np.sqrt(g * 0.1)                      # Timestep length (s), using wavespeed sqrt(gh)
+g = 9.81                # Gravitational acceleration (m s^{-2})
+dt = 0.001
 Dt = Constant(dt)
-print 'Using Courant number adjusted timestep dt = %1.4f' % dt
+
+# Check CFL criterion is satisfied for this discretisation:
+assert(dt < 1. / (n * np.sqrt(g * b)))
 
 # Specify solver parameters:
 params = {'mat_type': 'matfree',
@@ -58,18 +61,13 @@ W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 lam_ = Function(W)
 lu_, le_ = lam_.split()
 
-# # Establish bathymetry functions on each mesh:
-# b = Function(W_a.sub(1), name='Coarse bathymetry')
-# b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))     # Shelf break bathymetry at x = 50cm
-b = 0.1
-
-# Establish indicator function for adjoint equations:
-ind = Function(W.sub(1), name='Indicator function')
-ind.interpolate(Expression('(x[0] >= 0.) & (x[0] < 0.2) & (x[1] > 1.5) & (x[1] < 2.5) ? 0.001 : 0'))
+# Establish indicator function for adjoint equations (here 0.06 is the area of the region of interest):
+f = Function(W.sub(1), name='Forcing term')
+f.interpolate(Expression('(x[0] >= 0.) & (x[0] < 1.5) & (x[1] > 18.) & (x[1] < 22.) ? 0.01 * 0.06 : 0'))
 
 # Interpolate adjoint final time conditions:
 lu_.interpolate(Expression([0, 0]))
-le_.assign(ind)
+le_.assign(f)
 
 # Set up dependent variables of the adjoint problem:
 lam = Function(W)
@@ -107,8 +105,8 @@ luh = 0.5 * (lu + lu_)
 leh = 0.5 * (le + le_)
 
 # Set up the variational problem:
-La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
-# + ind * xi * dx
+La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
+      + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
 lam_prob = NonlinearVariationalProblem(La, lam)
 lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
 
@@ -145,7 +143,7 @@ u_, eta_ = q_.split()
 
 # Interpolate forward initial conditions:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(1e-3 * exp(- (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
+eta_.interpolate(1e-1 * exp(- (pow(x - 20., 2) + pow(y - 20., 2)) / 1.))
 
 # Set up dependent variables of the forward problem:
 q = Function(W)
@@ -182,6 +180,12 @@ u_, eta_ = q_.split()
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
+# Create a function to hold the inner product data:
+ip = Function(W.sub(1), name='Inner product')
+ip.interpolate(Expression(0))
+ip_file = File('plots/adjoint_outputs/inner_product.pvd')
+ip_file.write(ip, time=t)
+
 # Run fixed mesh forward solver:
 while t < T - 0.5 * dt:
 
@@ -202,16 +206,18 @@ while t < T - 0.5 * dt:
 
     # Take maximum as most significant:
     for j in range(pow(nx + 1, 2)):
-        if np.abs(inner_product_dat[i, j]) > np.abs(significant_dat[j]):
-            significant_dat[j] = inner_product_dat[i, j]
+        if np.abs(inner_product_dat[i, j]) > significant_dat[j]:
+            significant_dat[j] = np.abs(inner_product_dat[i, j])
 
     # Dump to vtu:
     if dumpn == ndump:
         dumpn -= ndump
         q_file.write(u, eta, time=t)
+        ip.dat.data[:] = inner_product_dat[i, :]
+        ip_file.write(ip, time=t)
         print 't = %1.2fs' % t
 
-significance = Function(W.sub(1))
+significance = Function(W.sub(1), name='Significant regions')
 significance.dat.data[:] = significant_dat[:]
 File('plots/adjoint_outputs/significance.pvd').write(significance)
 

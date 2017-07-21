@@ -242,11 +242,12 @@ lu_, le_ = split(lam_)
 luh = 0.5 * (lu + lu_)
 leh = 0.5 * (le + le_)
 
+# Establish indicator function for adjoint equations:
 f = Function(Ve, name='Forcing term')
 f.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 1. : 0.'))
 
-# Set up the variational problem:                                   TODO: Check this forcing term below works
-L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + f * xi
+# Set up the variational problem:
+L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
       + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
 lam_prob = NonlinearVariationalProblem(L2, lam)
 lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
@@ -323,7 +324,8 @@ while t > 0.5 * dt:
     leh = 0.5 * (le + le_)
 
     # Set up the variational problem
-    L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+    L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
+          + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
     lam_prob = NonlinearVariationalProblem(L2, lam)
     lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
 

@@ -7,10 +7,10 @@ from time import clock
 from utils import construct_hessian, compute_steady_metric, interp, interp_Taylor_Hood
 
 # Define initial (uniform) mesh:
-n = 16                                      # Resolution of uniform mesh for adjoint run
+n = 16                                     # Resolution of uniform mesh for adjoint run
 lx = 30                                    # Extent in x-direction (m)
-ly = 40                                    # Extent in y-direction (m)
-mesh = RectangleMesh(3 * n, 4 * n, lx, ly)
+ly = 50                                    # Extent in y-direction (m)
+mesh = RectangleMesh(3 * n, 5 * n, lx, ly)
 x, y = SpatialCoordinate(mesh)
 coords = mesh.coordinates.dat.data
 nx = len(coords)
@@ -37,7 +37,7 @@ T = 4.
 #     raise ValueError('Please try again, choosing parts or dL2.')
 
 # Specify parameters:
-b = 1.                 # (Constant) bathymetry
+b = 1.5                 # (Constant) bathymetry
 ndump = 20
 g = 9.81                # Gravitational acceleration (m s^{-2})
 dt = 0.005
@@ -64,7 +64,7 @@ lu_, le_ = lam_.split()
 
 # Establish indicator function for adjoint equations (here 0.06 is the area of the region of interest):
 f = Function(W.sub(1), name='Forcing term')
-f.interpolate(Expression('(x[0] >= 0.) & (x[0] < 2.5) & (x[1] > 18.) & (x[1] < 22.) ? 0.0005 : 0'))
+f.interpolate(Expression('(x[0] >= 0.) & (x[0] < 2.5) & (x[1] > 23.) & (x[1] < 27.) ? 0.0005 : 0'))
 
 # Interpolate adjoint final time conditions:
 lu_.interpolate(Expression([0, 0]))
@@ -144,7 +144,7 @@ u_, eta_ = q_.split()
 
 # Interpolate forward initial conditions:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(0.5 * exp(- (pow(x - 15., 2) + 0.5 * pow(y - 20., 2)) / 10.))
+eta_.interpolate(0.5 * exp(- (pow(x - 15.5, 2) + 0.5 * pow(y - 25., 2)) / 10.))
 
 # Set up dependent variables of the forward problem:
 q = Function(W)
@@ -223,3 +223,14 @@ significance.dat.data[:] = significant_dat[:]
 File('plots/adjoint_outputs/significance.pvd').write(significance)
 
 # [Adaptive forward solver]
+
+# Generate Hessian and metric of significance field:
+V = TensorFunctionSpace(mesh, 'CG', 1)
+H = construct_hessian(mesh, V, significance)
+File('plots/adjoint_outputs/significance_hessian.pvd').write(H)
+M = compute_steady_metric(mesh, V, H, significance, h_min=0.1, h_max=5)
+# M.dat.data[:] *= nx                                                         # Rescale by the number of elements
+File('plots/adjoint_outputs/significance_metric.pvd').write(M)
+adaptor = AnisotropicAdaptation(mesh, M)
+significance, eta = interp(adaptor.adapted_mesh, significance, eta)
+File('plots/adjoint_outputs/significance_mesh.pvd').write(significance)

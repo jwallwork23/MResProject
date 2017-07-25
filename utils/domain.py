@@ -110,12 +110,13 @@ def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
     return mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, bcs
 
 
-def Tohoku_domain(res=3):
+def Tohoku_domain(res=3, split='n'):
     """
     Set up a mesh, along with function spaces and functions, for the ocean domain associated
     for the Tohoku tsunami problem.
     
     :param res: mesh resolution value, ranging from 'extra coarse' (1) to extra fine (5).
+    :param split: choose whether to consider the velocity space as vector P2 or as a pair of scalar P2 spaces.
     :return: mesh, mixed function space forward and adjoint variables and bathymetry field associated with the 2D 
     ocean domain.
     """
@@ -135,16 +136,41 @@ def Tohoku_domain(res=3):
         raise ValueError('Please try again, choosing an integer in the range 1-5.')
     mesh_coords = mesh.coordinates.dat.data
 
-    # Define Taylor-Hood mixed function space:
-    W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
+    if split == 'n':
+        # Define Taylor-Hood mixed function space:
+        W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 
-    # Construct functions to store forward and adjoint variables, along with bathymetry:
-    q_ = Function(W)
-    lam_ = Function(W)
-    u_, eta_ = q_.split()
-    lu_, le_ = lam_.split()
-    eta0 = Function(W.sub(1), name='Initial surface')
-    b = Function(W.sub(1), name='Bathymetry')
+        # Construct functions to store forward and adjoint variables, along with bathymetry:
+        q_ = Function(W)
+        lam_ = Function(W)
+        u_, eta_ = q_.split()
+        lu_, le_ = lam_.split()
+        eta0 = Function(W.sub(1), name='Initial surface')
+        b = Function(W.sub(1), name='Bathymetry')
+
+        # Specify zero initial fluid velocity:
+        u_.interpolate(Expression([0, 0]))
+        lu_.interpolate(Expression([0, 0]))
+
+    elif split == 'y':
+        # Define Taylor-Hood mixed function space:
+        W = FunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
+
+        # Construct functions to store forward and adjoint variables, along with bathymetry:
+        q_ = Function(W)
+        lam_ = Function(W)
+        u_, v_, eta_ = q_.split()
+        lu_, lv_, le_ = lam_.split()
+        eta0 = Function(W.sub(2), name='Initial surface')
+        b = Function(W.sub(2), name='Bathymetry')
+
+        # Specify zero initial fluid velocity:
+        u_.interpolate(Expression(0))
+        v_.interpolate(Expression(0))
+        lu_.interpolate(Expression(0))
+        lv_.interpolate(Expression(0))
+    else:
+        raise ValueError('Please try again, split equalling y or n.')
 
     # Read and interpolate initial surface data (courtesy of Saito):
     nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap=False)
@@ -172,8 +198,6 @@ def Tohoku_domain(res=3):
         b_vec[i] = - interpolator_surf(p[1], p[0]) - interpolator_bath(p[1], p[0])
 
     # Assign initial surface and post-process the bathymetry to have a minimum depth of 30m:
-    u_.interpolate(Expression([0, 0]))
-    lu_.interpolate(Expression([0, 0]))
     eta_.assign(eta0)
     le_.interpolate(Expression('(x[0] > -160e3) & (x[0] < -130e3) & (x[1] > 10e3) & (x[1] < 100e3) ? 20 : 0'))
     b.assign(conditional(lt(30, b), b, 30))
@@ -182,4 +206,7 @@ def Tohoku_domain(res=3):
     File('plots/tsunami_outputs/init_surf.pvd').write(eta0)
     File('plots/tsunami_outputs/tsunami_bathy.pvd').write(b)
 
-    return mesh, W, q_, u_, eta_, lam_, lu_, le_, b
+    if split == 'n':
+        return mesh, W, q_, u_, eta_, lam_, lu_, le_, b
+    else:
+        return mesh, W, q_, u_, v_, eta_, lam_, lu_, lv_, b

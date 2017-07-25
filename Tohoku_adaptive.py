@@ -184,7 +184,7 @@ while t < T - 0.5 * dt:
         q_file.write(u, eta, time=t)
 
     if remesh == 'n':
-        print 't = %1.2fs' % t
+        print 't = %1.2f mins' % t/60.
 
 # End timing and print:
 toc1 = clock()

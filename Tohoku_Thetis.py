@@ -10,7 +10,7 @@ from utils import Tohoku_domain, vectorlonlat2utm
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 try:
-    mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(int(raw_input('Mesh coarseness? (Integer in 1-5): ') or 3))
+    mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(int(raw_input('Mesh coarseness? (Integer in 1-5): ') or 4))
 except:
     ValueError('Input not recognised. Try entering a natural number less than or equal to 5.')
 

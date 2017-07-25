@@ -1,54 +1,17 @@
 from firedrake import *
-
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import rc
 import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
 from math import radians
 from time import clock
+import matplotlib
+matplotlib.use('TkAgg')             # Change backend to resolve framework problems
+import matplotlib.pyplot as plt
 
-from utils import *
+from utils import from_latlon, Tohoku_domain
 
-mesh_converter('resources/meshes/LonLatTohokuCoarse.msh', 143., 37.)
-mesh = Mesh('resources/meshes/CartesianTohoku.msh')
-mesh_coords = mesh.coordinates.dat.data
-Vu = FunctionSpace(mesh, 'CG', 2)
-Vv = FunctionSpace(mesh, 'CG', 2)
-Ve = FunctionSpace(mesh, 'CG', 1)
-Vq = MixedFunctionSpace((Vu, Vv, Ve))
-
-# Construct functions to store forward and adjoint variables, along with bathymetry:
-q_ = Function(Vq)
-u_, v_, eta_ = q_.split()
-eta0 = Function(Vq.sub(2), name = 'Initial surface')
-b = Function(Vq.sub(2), name = 'Bathymetry')
-
-# Read and interpolate initial surface data (courtesy of Saito):
-nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap = False)
-lon1 = nc1.variables['x'][:]
-lat1 = nc1.variables['y'][:]
-x1, y1 = vectorlonlat2tangentxy(lon1, lat1, 143., 37.)
-elev1 = nc1.variables['z'][:, :]
-interpolator_surf = si.RectBivariateSpline(y1, x1, elev1)
-eta0vec = eta0.dat.data
-assert mesh_coords.shape[0] == eta0vec.shape[0]
-
-# Read and interpolate bathymetry data (courtesy of GEBCO):
-nc2 = NetCDFFile('resources/bathy_data/GEBCO_bathy.nc', mmap = False)
-lon2 = nc2.variables['lon'][:]
-lat2 = nc2.variables['lat'][:-1]
-x2, y2 = vectorlonlat2tangentxy(lon2, lat2, 143., 37.)
-elev2 = nc2.variables['elevation'][:-1, :]
-interpolator_bath = si.RectBivariateSpline(y2, x2, elev2)
-b_vec = b.dat.data
-assert mesh_coords.shape[0] == b_vec.shape[0]
-
-# Interpolate data onto initial surface and bathymetry profiles:
-for i, p in enumerate(mesh_coords) :
-    eta0vec[i] = interpolator_surf(p[1], p[0])
-    b_vec[i] = - interpolator_surf(p[1], p[0]) - interpolator_bath(p[1], p[0])
-b.assign(conditional(lt(30, b), b, 30))
+# Define mesh, mixed function space and variables:
+mesh, W, q_, u_, v_, eta_, lam_, lu_, lv_, b = Tohoku_domain(res=4, split='y')
 
 # Simulation duration:
 T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600.
@@ -56,16 +19,17 @@ ndump = 4
 dt = 15
 Dt = Constant(dt)
 
-# Set pressure gauge locations and arrays:
-P02x, P02y = lonlat2tangentxy(142.5, 38.5, 143, 37)
-P06x, P06y = lonlat2tangentxy(142.6, 38.7, 143, 37)
-gauge = raw_input('Gauge P02 or P06?: ') or 'P02'
-if gauge == 'P02' :
-    gcoord = [P02x, P02y]
-elif gauge == 'P06' :
-    gcoord = [P06x, P06y]
-else :
-    raise ValueError('Gauge not recognised. Please choose P02 or P06.')
+# Convert pressure gauge locations:
+glatlon = {'P02': (38.5, 142.5), 'P06': (38.7, 142.6)}
+gloc = {}
+for key in glatlon:
+    east, north, zn, zl = from_latlon(glatlon[key][0], glatlon[key][1], force_zone_number=54)
+    gloc[key] = (east, north)
+try:
+    gauge = raw_input('Gauge P02 or P06?: ') or 'P02'
+    gcoord = gloc[gauge]
+except:
+    ValueError('Gauge not recognised. Please choose P02 or P06.')
 
 # Set parameters:
 Om = 7.291e-5                   # Rotation rate of Earth (rad s^{-1})
@@ -80,7 +44,7 @@ params = {'mat_type': 'matfree',
           'pc_python_type': 'firedrake.AssembledPC',
           'assembled_pc_type': 'lu',
           'snes_lag_preconditioner': -1,
-          'snes_lag_preconditioner_persists': True,}
+          'snes_lag_preconditioner_persists': True}
 
 # params = {'ksp_type': 'gmres',
 #           'ksp_rtol': '1e-8',
@@ -94,17 +58,14 @@ params = {'mat_type': 'matfree',
 #           'pc_fieldsplit_schur_precondition': 'selfp',}
 
 # Establish cases:
-dict = {0 : 'Linear, non-rotational',
-        1 : 'Linear, rotational',
-        2 : 'Nonlinear, nonrotational',
-        3 : 'Nonlinear, rotational'}
+mode = {0: 'Linear, non-rotational', 1: 'Linear, rotational', 2: 'Nonlinear, nonrotational', 3: 'Nonlinear, rotational'}
 
 timings = []
 
-for key in dict :
+for key in mode:
 
     print ''
-    print '****************', dict[key], ' case ****************'
+    print '****************', mode[key], ' case ****************'
     print ''
 
     # Assign initial surface and post-process the bathymetry to have a minimum depth of 30m:
@@ -122,15 +83,15 @@ for key in dict :
     L = (ze * (eta - eta_) - Dt * b * (u * ze.dx(0) + v * ze.dx(1))
          + (u - u_) * w + Dt * g * eta.dx(0) * w
          + (v - v_) * z + Dt * g * eta.dx(1) * z) * dx
-    if key in (1, 3) :                      # Rotational cases
+    if key in (1, 3):                      # Rotational cases
         L += Dt * f * (u * z - v * w) * dx
-    if key in (2, 3) :                    # Nonlinear cases
+    if key in (2, 3):                    # Nonlinear cases
         L += Dt * (- eta * (u * ze.dx(0) + v * ze.dx(1))
                    + (u * u.dx(0) + v * u.dx(1)) * w + (u * v.dx(0) + v * v.dx(1)) * z
                    + nu * (u.dx(0) * w.dx(0) + u.dx(1) * w.dx(1) + v.dx(0) * z.dx(0) + v.dx(1) * z.dx(1))
                    + Cb * sqrt(u_ * u_ + v_ * v_) * (u * w + v * z) / (eta + b)) * dx
     q_prob = NonlinearVariationalProblem(L, q)
-    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters = params)
+    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
 
     # 'Split' functions in order to access their data and then relabel:
     u_, v_, eta_ = q_.split()
@@ -142,40 +103,40 @@ for key in dict :
     # Initialise counters and files:
     t = 0.
     dumpn = 0
-    q_file = File('plots/tsunami_outputs/model_verif_{y}.pvd'.format(y = key))
-    q_file.write(u, v, eta, time = t)
+    q_file = File('plots/tsunami_outputs/model_verif_{y}.pvd'.format(y=key))
+    q_file.write(u, v, eta, time=t)
     gauge_dat = [eta.at(gcoord)]
     tic1 = clock()
 
-    while t < T - 0.5 * dt :
+    while t < T - 0.5 * dt:
         t += dt
         print 't = %1.1fs' % t
         q_solv.solve()
         q_.assign(q)
         dumpn += 1
         gauge_dat.append(eta.at(gcoord))
-        if dumpn == ndump :
+        if dumpn == ndump:
             dumpn -= ndump
-            q_file.write(u, v, eta, time = t)
+            q_file.write(u, v, eta, time=t)
 
     # End timing and print:
     toc1 = clock()
     timings.append(toc1 - tic1)
 
     # Plot pressure gauge time series:
-    plt.rc('text', usetex = True)
+    plt.rc('text', usetex=True)
     font = {'family': 'serif',
             'size': 18}
     plt.rc('font', **font)
-    plt.plot(np.linspace(0, 60, len(gauge_dat)), gauge_dat, label = dict[key])
-    plt.gcf().subplots_adjust(bottom = 0.15)
+    plt.plot(np.linspace(0, 60, len(gauge_dat)), gauge_dat, label=mode[key])
+    plt.gcf().subplots_adjust(bottom=0.15)
     plt.ylim([-5, 5])
     plt.legend()
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
 
 print ''
-for key in dict :
-    print dict[key], 'case time =  %1.1fs' % timings[key]
+for key in mode:
+    print mode[key], 'case time =  %1.1fs' % timings[key]
 
-plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries_{y}.png'.format(y = gauge))
+plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries_{y}.png'.format(y=gauge))

@@ -3,12 +3,17 @@ from firedrake import *
 import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
 
-from projection import *
 from conversion import vectorlonlat2utm
 
 
 def domain_1d(n):
-    """A function which sets up a uniform mesh and associated functions for the 1D tsunami test problem."""
+    """
+    Set up a uniform mesh and associated functions for the 1D tsunami test problem.
+    
+    :param n: number of gridpoints per km.
+    :return: mesh, mixed function space forward and adjoint variables and bathymetry field associated with the 1D 
+    domain.
+    """
     
     # Define domain and mesh:
     lx = 4e5
@@ -40,7 +45,17 @@ def domain_1d(n):
 
 
 def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
-    """A function which sets up a uniform mesh and associated functions for the tank test problem."""
+    """
+    Set up a uniform mesh and associated functions for the tank test problem.
+    
+    :param n: number of cells per m in x- and y-directions.
+    :param bath: non-trivial bathymetry option.
+    :param waves: 'wave generator' option.
+    :param test2d: large scale option.
+    :param bcval: boundary condition value specification.
+    :return: mesh, mixed function space forward and adjoint variables, bathymetry field and boundary condtions 
+    associated with the 2D tank domain.
+    """
 
     # Define domain and mesh:
     if test2d == 'n':
@@ -95,18 +110,27 @@ def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
     return mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, bcs
 
 
-def Tohoku_domain(res='c'):
-    """A function which sets up a mesh, along with function spaces and functions, for the ocean domain associated
-    for the Tohoku tsunami problem."""
+def Tohoku_domain(res=3):
+    """
+    Set up a mesh, along with function spaces and functions, for the ocean domain associated
+    for the Tohoku tsunami problem.
+    
+    :param res: mesh resolution value, ranging from 'extra coarse' (1) to extra fine (5).
+    :return: mesh, mixed function space forward and adjoint variables and bathymetry field associated with the 2D 
+    ocean domain.
+    """
 
     # Define mesh and function spaces:
-    if res == 'f':
-        mesh_converter('resources/meshes/LonLatTohokuFine.msh', 143., 37.)
-    elif res == 'm':
-        mesh_converter('resources/meshes/LonLatTohokuMedium.msh', 143., 37.)
-    elif res == 'c':
-        mesh_converter('resources/meshes/LonLatTohokuCoarse.msh', 143., 37.)
-    mesh = Mesh('resources/meshes/CartesianTohoku.msh')
+    if res == 1:
+        mesh = Mesh('resources/meshes/TohokuXFine.msh')
+    elif res == 2:
+        mesh = Mesh('resources/meshes/TohokuFine.msh')
+    elif res == 3:
+        mesh = Mesh('resources/meshes/TohokuMedium.msh')
+    elif res == 4:
+        mesh = Mesh('resources/meshes/TohokuCoarse.msh')
+    elif res == 5:
+        mesh = Mesh('resources/meshes/TohokuXCoarse.msh')
     mesh_coords = mesh.coordinates.dat.data
 
     # Define Taylor-Hood mixed function space:

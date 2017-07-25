@@ -6,13 +6,21 @@ from scipy import linalg as sla
 
 def construct_hessian(mesh, V, sol, method='dL2', treat_boundaries='off'):
     """
-    A function which computes the hessian of a scalar solution field with respect to the current mesh. Two methods of
-    Hessian recovery on P1 fields are provided. The code for the integration by parts approach is based on that 
-    provided in the Monge-Ampere tutorial provided on the Firedrake website documentation.
+    Reconstructs the hessian of a scalar solution field with respect to the current mesh. The code for the integration 
+    by parts reconstruction approach is based on the Monge-Amp\`ere tutorial provided in the Firedrake website 
+    documentation.
+    
+    :param mesh: current mesh on which variables are defined.
+    :param V: TensorFunctionSpace defined on ``mesh``.
+    :param sol: P1 solution field defined on ``mesh``.
+    :param method: mode of Hessian reconstruction; either a double L2 projection ('dL2') or as integration by parts 
+    ('parts').
+    :param treat_boundaries: specify whether or not to interpolate boundary values using a finite difference stencil. 
+    :return: reconstructed Hessian associated with ``sol``.
     """
 
     # Construct functions:
-    H = Function(V)                             # Hessian-to-be
+    H = Function(V)
     sigma = TestFunction(V)
     nhat = FacetNormal(mesh)                    # Normal vector
     params = {'snes_rtol': 1e8,
@@ -82,26 +90,32 @@ def construct_hessian(mesh, V, sol, method='dL2', treat_boundaries='off'):
     return H
 
 
-def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., normalise='lp', p=2, N=1000., ieps=1000.):
+def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., normalise='lp', p=2, num=1000., ieps=1000.):
     """
-    A function which computes the steady metric for re-meshing, provided with the current mesh, hessian and free 
-    surface. Here h_min and h_max denote the respective minimum and maximum tolerated side-lengths, while a denotes the 
-    maximum tolerated aspect ratio. Further,  N denotes the target number of nodes and ieps denotes the inverse of the 
-    target error for the two respective normalisation approaches. This code is based on Nicolas Barral's function 
-    ``computeSteadyMetric``, from ``adapt.py``.
+    Computes the steady metric for mesh adaptation. Based on Nicolas Barral's function ``computeSteadyMetric``, from 
+    ``adapt.py``, 2016.
+    
+    :param mesh: current mesh on which variables are defined.
+    :param V: TensorFunctionSpace defined on ``mesh``.
+    :param H: reconstructed Hessian, usually chosen to be associated with ``sol``.
+    :param sol: P1 solution field defined on ``mesh``.
+    :param h_min: minimum tolerated side-lengths.
+    :param h_max: maximum tolerated side-lengths.
+    :param a: maximum tolerated aspect ratio.
+    :param normalise: mode of normalisation; either a manual rescaling ('manual') or an Lp approach ('Lp').
+    :param p: norm order in the Lp normalisation approach, where ``p => 1`` and ``p = infty`` is an option.
+    :param num: target number of nodes, in the case of Lp normalisation.
+    :param ieps: inverse of the target error, in the case of manual normalisation.
+    :return: steady metric associated with Hessian H.
     """
 
-    # Set parameter values:
-    ia = 1. / (a ** 2)
-    ihmin2 = 1. / (h_min ** 2)
-    ihmax2 = 1. / (h_max ** 2)
-
-    # Establish metric object:
+    ia = 1. / (a ** 2)              # Inverse square aspect ratio
+    ihmin2 = 1. / (h_min ** 2)      # Inverse square minimal side-length
+    ihmax2 = 1. / (h_max ** 2)      # Inverse square maximal side-length
     M = Function(V)
 
     if normalise == 'manual':
         for i in range(mesh.topology.num_vertices()):
-
             sol_min = 0.001     # Minimum tolerated value for the solution field
         
             # Generate local Hessian:
@@ -151,7 +165,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
             detH.dat.data[i] = pow(det, p / (2. * p + 2))
 
         detH_integral = assemble(detH * dx)
-        M *= N / detH_integral                                                  # Scale by the target number of vertices
+        M *= num / detH_integral                                                # Scale by the target number of vertices
         for i in range(mesh.topology.num_vertices()):
 
             # Find eigenpairs of metric and truncate eigenvalues:
@@ -177,7 +191,13 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
 
 def metric_intersection(mesh, V, M1, M2):
     """
-    A function which computes the metric with respect to two different fields by intersecting the associated metrics.
+    Intersect two metric fields.
+    
+    :param mesh: current mesh on which variables are defined.
+    :param V: TensorFunctionSpace defined on ``mesh``.
+    :param M1: first metric to be intersected.
+    :param M2: second metric to be intersected.
+    :return: intersection of metrics M1 and M2.
     """
     M12 = Function(V)
     for i in range(mesh.topology.num_vertices()):

@@ -35,7 +35,7 @@ ZONE_LETTERS = "CDEFGHJKLMNPQRSTUVWXX"
 
 def to_latlon(easting, northing, zone_number, zone_letter=None, northern=None):
     """
-    A function converting UTM coordinates to latitude-longitude, courtesy of Tobias Bieniek, 2012.
+    Convert UTM coordinates to latitude-longitude, courtesy of Tobias Bieniek, 2012.
     
     :param easting: eastward-measured Cartesian geographic distance.
     :param northing: northward-measured Cartesian geographic distance.
@@ -75,11 +75,7 @@ def to_latlon(easting, northing, zone_number, zone_letter=None, northern=None):
     m = y / K0
     mu = m / (R * M1)
 
-    p_rad = (mu +
-             P2 * math.sin(2 * mu) +
-             P3 * math.sin(4 * mu) +
-             P4 * math.sin(6 * mu) +
-             P5 * math.sin(8 * mu))
+    p_rad = (mu + P2 * math.sin(2 * mu) + P3 * math.sin(4 * mu) + P4 * math.sin(6 * mu) + P5 * math.sin(8 * mu))
 
     p_sin = math.sin(p_rad)
     p_sin2 = p_sin * p_sin
@@ -106,22 +102,18 @@ def to_latlon(easting, northing, zone_number, zone_letter=None, northern=None):
     d5 = d4 * d
     d6 = d5 * d
 
-    latitude = (p_rad - (p_tan / r) *
-                (d2 / 2 -
-                 d4 / 24 * (5 + 3 * p_tan2 + 10 * c - 4 * c2 - 9 * E_P2)) +
-                 d6 / 720 * (61 + 90 * p_tan2 + 298 * c + 45 * p_tan4 - 252 * E_P2 - 3 * c2))
+    latitude = (p_rad - (p_tan / r) * (d2 / 2 - d4 / 24 * (5 + 3 * p_tan2 + 10 * c - 4 * c2 - 9 * E_P2)) +
+                d6 / 720 * (61 + 90 * p_tan2 + 298 * c + 45 * p_tan4 - 252 * E_P2 - 3 * c2))
 
-    longitude = (d -
-                 d3 / 6 * (1 + 2 * p_tan2 + c) +
+    longitude = (d - d3 / 6 * (1 + 2 * p_tan2 + c) +
                  d5 / 120 * (5 - 2 * c + 28 * p_tan2 - 3 * c2 + 8 * E_P2 + 24 * p_tan4)) / p_cos
 
-    return (math.degrees(latitude),
-            math.degrees(longitude) + zone_number_to_central_longitude(zone_number))
+    return math.degrees(latitude), math.degrees(longitude) + zone_number_to_central_longitude(zone_number)
 
 
 def from_latlon(latitude, longitude, force_zone_number=None):
     """
-    A function converting latitude-longitude coordinates to UTM, courtesy of Tobias Bieniek, 2012.
+    Convert latitude-longitude coordinates to UTM, courtesy of Tobias Bieniek, 2012.
     
     :param latitude: northward anglular position, origin at the Equator.
     :param longitude: eastward angular position, with origin at the Grenwich Meridian.
@@ -162,17 +154,12 @@ def from_latlon(latitude, longitude, force_zone_number=None):
     a5 = a4 * a
     a6 = a5 * a
 
-    m = R * (M1 * lat_rad -
-             M2 * math.sin(2 * lat_rad) +
-             M3 * math.sin(4 * lat_rad) -
-             M4 * math.sin(6 * lat_rad))
+    m = R * (M1 * lat_rad - M2 * math.sin(2 * lat_rad) + M3 * math.sin(4 * lat_rad) - M4 * math.sin(6 * lat_rad))
 
-    easting = K0 * n * (a +
-                        a3 / 6 * (1 - lat_tan2 + c) +
+    easting = K0 * n * (a + a3 / 6 * (1 - lat_tan2 + c) +
                         a5 / 120 * (5 - 18 * lat_tan2 + lat_tan4 + 72 * c - 58 * E_P2)) + 500000
 
-    northing = K0 * (m + n * lat_tan * (a2 / 2 +
-                                        a4 / 24 * (5 - lat_tan2 + 9 * c + 4 * c**2) +
+    northing = K0 * (m + n * lat_tan * (a2 / 2 + a4 / 24 * (5 - lat_tan2 + 9 * c + 4 * c**2) +
                                         a6 / 720 * (61 - 58 * lat_tan2 + lat_tan4 + 600 * c - 330 * E_P2)))
 
     if latitude < 0:
@@ -183,7 +170,7 @@ def from_latlon(latitude, longitude, force_zone_number=None):
 
 def latitude_to_zone_letter(latitude):
     """
-    A function converting latitude UTM letter, courtesy of Tobias Bieniek, 2012.
+    Convert latitude UTM letter, courtesy of Tobias Bieniek, 2012.
     
     :param latitude: northward anglular position, origin at the Equator.
     :return: UTM zone letter (increasing alphabetically northward).
@@ -196,7 +183,7 @@ def latitude_to_zone_letter(latitude):
 
 def latlon_to_zone_number(latitude, longitude):
     """
-    A function converting a latitude-longitude coordinate pair to UTM zone, courtesy of Tobias Bieniek, 2012.
+    Convert a latitude-longitude coordinate pair to UTM zone, courtesy of Tobias Bieniek, 2012.
     
     :param latitude: northward anglular position, origin at the Equator.
     :param longitude: eastward angular position, with origin at the Grenwich Meridian.
@@ -220,7 +207,7 @@ def latlon_to_zone_number(latitude, longitude):
 
 def zone_number_to_central_longitude(zone_number):
     """
-    A function converting a UTM zone number to the corresponding central longitude, courtesy of Tobias Bieniek, 2012.
+    Convert a UTM zone number to the corresponding central longitude, courtesy of Tobias Bieniek, 2012.
     
     :param zone_number: UTM zone number (increasing eastward).
     :return: central eastward angular position of the UTM zone, with origin at the Grenwich Meridian.
@@ -230,7 +217,7 @@ def zone_number_to_central_longitude(zone_number):
 
 def vectorlonlat2utm(latitude, longitude, force_zone_number):
     """
-    A function which converts a vector of longitude-latitude coordinate pairs to UTM coordinates.
+    Convert a vector of longitude-latitude coordinate pairs to UTM coordinates.
     
     :param latitude: northward anglular position, origin at the Equator.
     :param longitude: eastward angular position, with origin at the Grenwich Meridian.
@@ -244,3 +231,126 @@ def vectorlonlat2utm(latitude, longitude, force_zone_number):
         x[i], y[i], zn, zl = from_latlon(latitude[i], longitude[i], force_zone_number=force_zone_number)
         # print 'Coords ', x[i], y[i], 'Zone ', zn, zl      # For debugging purposes
     return x, y
+
+
+def earth_radius(latitude):
+    """
+    :param latitude: latitudinal coordinate.
+    :return: radius of the Earth at this latitude.
+    """
+    k = 1. / 298.257  # Earth flatness constant
+    a = 6378136.3  # Semi-major axis of the Earth (m)
+    return (1 - k * (math.sin(math.radians(latitude)) ** 2)) * a
+
+
+def lonlat2tangentxy(latitude, longitude, latitude0, longitude0):
+    """
+    Project latitude-longitude coordinates onto a tangent plane at (lon0, lat0), in metric Cartesian coordinates (x,y).
+
+    :param latitude: latitudinal coordinate for projection.
+    :param longitude: longitudinal coordinate for projection.
+    :param latitude0: latitudinal tangent coordinate. 
+    :param longitude0: longitudinal tangent coordinate.
+    :return: Cartesian coordinates on tangent plane.
+    """
+    re = earth_radius(latitude)
+    rphi = re * math.cos(math.radians(latitude))
+    x = rphi * math.sin(math.radians(longitude - longitude0))
+    y = rphi * (1 - math.cos(math.radians(longitude - longitude0))) * math.sin(math.radians(latitude0)) \
+        + re * math.sin(math.radians(latitude - latitude0))
+    return x, y
+
+
+def lonlat2tangent_pair(latitude, longitude, latitude0, longitude0):
+    """
+    Project latitude-longitude coordinates onto a tangent plane at (lon0, lat0), in metric Cartesian coordinates (x,y),
+    with output given as a pair.
+
+    :param latitude: latitudinal coordinate for projection.
+    :param longitude: longitudinal coordinate for projection.
+    :param latitude0: latitudinal tangent coordinate. 
+    :param longitude0: longitudinal tangent coordinate.
+    :return: Cartesian coordinates on tangent plane.
+    """
+    x, y = lonlat2tangentxy(latitude, longitude, latitude0, longitude0)
+    return [x, y]
+
+
+def vectorlonlat2tangentxy(latitude, longitude, latitude0, longitude0):
+    """
+    Project a vector of latitude-longitude coordinates onto a tangent plane at (lon0, lat0), in metric Cartesian 
+    coordinates (x,y).
+
+    :param latitude: latitudinal coordinate for projection.
+    :param longitude: longitudinal coordinate for projection.
+    :param latitude0: latitudinal tangent coordinate. 
+    :param longitude0: longitudinal tangent coordinate.
+    :return: vector of Cartesian coordinates on tangent plane.
+    """
+    x = np.zeros((len(longitude), 1))
+    y = np.zeros((len(latitude), 1))
+    assert (len(x) == len(y))
+    for i in range(len(x)):
+        x[i], y[i] = lonlat2tangentxy(latitude[i], longitude[i], longitude0, latitude0)
+    return x, y
+
+
+def mesh_converter(meshfile, latitude0, longitude0):
+    """
+    Project a mesh file from latitude-longitude coordinates onto a tangent plane at (lon0, lat0), in metric Cartesian 
+    coordinates (x,y).
+
+    :param meshfile: .msh file to be converted.
+    :param latitude0: latitudinal tangent coordinate. 
+    :param longitude0: longitudinal tangent coordinate.
+    :return: corresponding mesh file in Cartesian coordinates on tangent plane.
+    """
+    mesh1 = open(meshfile, 'r')
+    mesh2 = open('resources/meshes/CartesianTohoku.msh', 'w')
+    i = 0
+    mode = 0
+    cnt = 0
+    n = -1
+    for line in mesh1:
+        i += 1
+        if i == 5:
+            mode += 1
+        if mode == 1:  # Read number
+            n = int(line)  # Number of nodes
+            mode += 1
+        elif mode == 2:  # Edit nodes
+            xy = line.split()
+            xy[1], xy[2] = lonlat2tangentxy(float(xy[2]), float(xy[1]), latitude0, longitude0)
+            xy[1] = str(xy[1])
+            xy[2] = str(xy[2])
+            line = ' '.join(xy)
+            line += '\n'
+            cnt += 1
+            if cnt == n:
+                assert int(xy[0]) == n  # Check all nodes have been covered
+                mode += 1  # The end of the nodes has been reached
+        mesh2.write(line)
+    mesh1.close()
+    mesh2.close()
+
+def xy2barycentric(crdM, crdTri, i):
+    """
+    Compute the barycentric coordinate of M in triangle Tri = P0, P1, P2 with respect to the ith vertex 
+    crd = det(MPj, MPk) / det(PiPj, PiPk). Courtesy of Nicolas Barral, 2016.
+    
+    :param crdM: coordinate for conversion.
+    :param crdTri: vertices of the triangle.
+    :param i: vertex index.
+    :return: 
+    """
+
+    # Get other indices using a consistent numbering order:
+    j = (i + 1) % 3
+    k = (i + 2) % 3
+
+    res1 = (crdTri[j][0] - crdM[0]) * (crdTri[k][1] - crdM[1]) - (crdTri[k][0] - crdM[0]) * (crdTri[j][1] - crdM[1])
+    res2 = (crdTri[j][0] - crdTri[i][0]) * (crdTri[k][1] - crdTri[i][1]) - \
+           (crdTri[k][0] - crdTri[i][0]) * (crdTri[j][1] - crdTri[i][1])
+    res = res1 / res2
+
+    return res

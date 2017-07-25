@@ -58,13 +58,13 @@ Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
 # Gauge locations:
-gloc = {'P02': lonlat2tangent_pair(142.5, 38.5, 143, 37),
-        'P06': lonlat2tangent_pair(142.6, 38.7, 143, 37),
-        '801': lonlat2tangent_pair(141.7, 38.2, 143, 37),
-        '802': lonlat2tangent_pair(142.1, 39.3, 143, 37),
-        '803': lonlat2tangent_pair(141.8, 38.9, 143, 37),
-        '804': lonlat2tangent_pair(142.2, 39.7, 143, 37),
-        '806': lonlat2tangent_pair(141.2, 37.0, 143, 37)}
+gloc = {'P02': from_latlon(38.5, 142.5, force_zone_number=54),
+        'P06': from_latlon(38.7, 142.6, force_zone_number=54),
+        '801': from_latlon(38.2, 141.7, force_zone_number=54),
+        '802': from_latlon(39.3, 142.1, force_zone_number=54),
+        '803': from_latlon(38.9, 141.8, force_zone_number=54),
+        '804': from_latlon(39.7, 142.2, force_zone_number=54),
+        '806': from_latlon(37.0, 141.2, force_zone_number=54)}
 
 # Set gauge arrays:
 gtype = raw_input('Pressure or tide gauge? (p/t): ') or 'p'

@@ -3,9 +3,12 @@ from firedrake import *
 
 def interp(mesh, *fields):
     """
-    Transfers a solution field from the old mesh to the new mesh.
-
-    :arg fields: tuple of functions defined on the old mesh that one wants to transfer
+    Transfer solution fields from the old mesh to the new mesh. Based around the function ``transfer_solution`` by
+    Nicolas Barral, 2017.
+    
+    :param mesh: new mesh onto which fields are to be interpolated.
+    :param fields: tuple of functions defined on the old mesh that one wants to transfer
+    :return: interpolated fields.
     """
     dim = mesh._topological_dimension
     assert dim == 2                     # 3D implementation not yet considered
@@ -64,11 +67,20 @@ def interp(mesh, *fields):
 
 def interp_Taylor_Hood(mesh, u, u_, eta, eta_, b):
     """
-    Transfers a mixed shallow water Taylor-Hood solution pair from the old mesh to the new mesh.
+    Transfer a mixed shallow water Taylor-Hood solution pair from the old mesh to the new mesh. Based around the
+    function ``transfer_solution`` by Nicolas Barral, 2017.
+    
+    :param mesh: new mesh onto which fields are to be interpolated.
+    :param u: P2 velocity field at the current timestep.
+    :param u_: P2 velocity field at the previous timestep.
+    :param eta: P1 free surface displacement at the current timestep.
+    :param eta_: P1 free surface displacement at the previous timestep.
+    :param b: bathymetry field.
+    :return: interpolated individual and mixed variable pairs, along with the associated Taylor-Hood space.
     """
 
     dim = mesh._topological_dimension
-    assert (dim == 2)  # 3D implementation not yet considered
+    assert (dim == 2)                   # 3D implementation not yet considered
 
     W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
     qnew = Function(W)

@@ -116,7 +116,7 @@ def from_latlon(latitude, longitude, force_zone_number=None):
     Convert latitude-longitude coordinates to UTM, courtesy of Tobias Bieniek, 2012.
     
     :param latitude: northward anglular position, origin at the Equator.
-    :param longitude: eastward angular position, with origin at the Grenwich Meridian.
+    :param longitude: eastward angular position, with origin at the Greenwich Meridian.
     :param force_zone_number: force coordinates to fall within a particular UTM zone.
     :return: UTM coordinate 4-tuple.
     """

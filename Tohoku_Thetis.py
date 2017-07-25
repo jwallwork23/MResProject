@@ -11,30 +11,23 @@ from utils import vectorlonlat2utm
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 res = int(raw_input('Mesh coarseness? (Integer in range 1-5): ') or 3)
 if res == 1:
-    mesh = Mesh('resources/meshes/TohokuXFine.msh')
+    mesh = Mesh('resources/meshes/TohokuXFine.msh')     # Extremely fine mesh with approx 2.5e5 vertices
 elif res == 2:
-    mesh = Mesh('resources/meshes/TohokuFine.msh')
+    mesh = Mesh('resources/meshes/TohokuFine.msh')      # Fine mesh with approx 1e5 vertices
 elif res == 3:
-    mesh = Mesh('resources/meshes/TohokuMedium.msh')
+    mesh = Mesh('resources/meshes/TohokuMedium.msh')    # Medium resolution mesh with approx 2.5e4 vertices
 elif res == 4:
-    mesh = Mesh('resources/meshes/TohokuCoarse.msh')
+    mesh = Mesh('resources/meshes/TohokuCoarse.msh')    # Coarse mesh with approx. 1.4e4 vertices
 elif res == 5:
-    mesh = Mesh('resources/meshes/TohokuXCoarse.msh')
-
-# For debugging purposes
-elif res == 99:
-    mesh = Mesh('resources/meshes/unused/500,2500,15000,3.msh')
-
+    mesh = Mesh('resources/meshes/TohokuXCoarse.msh')   # Extremely coarse mesh with approx. 2e3 vertices
 else:
     raise ValueError('Please try again, choosing an integer in the range 1-5.')
 mesh_coords = mesh.coordinates.dat.data
-Vu = VectorFunctionSpace(mesh, 'CG', 2)                                 # \ Use Taylor-Hood
-Ve = FunctionSpace(mesh, 'CG', 1)                                       # /
-Vq = MixedFunctionSpace((Vu, Ve))                                       # Mixed FE problem
 
-# Construct functions to store inital free surface and bathymetry:
-eta0 = Function(Vq.sub(1), name='Initial surface')
-b = Function(Vq.sub(1), name='Bathymetry')
+# Define a P1 function space for the intial surface and bathymetry profiles:
+W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
+eta0 = Function(W.sub(1), name='Initial surface')
+b = Function(W.sub(1), name='Bathymetry')
 
 # Read and interpolate initial surface data (courtesy of Saito):
 nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap=False)
@@ -71,13 +64,12 @@ File('plots/tsunami_outputs/tsunami_bathy.pvd').write(b)
 # Specify time parameters:
 dt = float(raw_input('Specify timestep (s) (default 1):') or 1)
 ndump = 60
-t_export = dt * ndump
-T = float(raw_input('Specify time period (hours) (default 1):') or 1) * 3600.
+T = 3600        # Simulation time period (s) of 1 hour
 
 # Construct solver:
 solver_obj = solver2d.FlowSolver2d(mesh, b)
 options = solver_obj.options
-options.t_export = t_export
+options.t_export = dt * ndump
 options.t_end = T
 options.timestepper_type = 'ssprk33'      # 3-stage, 3rd order Strong Stability Preserving Runge Kutta timestepping
 options.dt = dt

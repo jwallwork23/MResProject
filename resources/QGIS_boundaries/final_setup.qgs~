@@ -3,24 +3,30 @@
   <title></title>
   <autotransaction active="0"/>
   <evaluateDefaultValues active="0"/>
-  <layer-tree-group expanded="1" checked="Qt::Checked" name="">
+  <layer-tree-group expanded="1" checked="Qt::PartiallyChecked" name="">
     <customproperties/>
-    <layer-tree-layer expanded="1" checked="Qt::Checked" id="final_ocean20170626160718604" name="final_ocean">
+    <layer-tree-layer expanded="1" checked="Qt::Unchecked" id="final_ocean20170626160718604" name="final_ocean">
       <customproperties/>
     </layer-tree-layer>
-    <layer-tree-layer expanded="1" checked="Qt::Checked" id="Lines_from_polygons20170227153711538" name="Coastline">
+    <layer-tree-layer expanded="1" checked="Qt::Unchecked" id="Lines_from_polygons20170227153711538" name="Coastline">
       <customproperties/>
     </layer-tree-layer>
-    <layer-tree-layer expanded="1" checked="Qt::Checked" id="Lines_from_polygons20170227152549656" name="Fukushima">
+    <layer-tree-layer expanded="1" checked="Qt::Unchecked" id="Lines_from_polygons20170227152549656" name="Fukushima">
       <customproperties/>
     </layer-tree-layer>
     <layer-tree-layer expanded="1" checked="Qt::Checked" id="final_bdys20170629151141574" name="final_bdys">
       <customproperties/>
     </layer-tree-layer>
-    <layer-tree-layer expanded="1" checked="Qt::Checked" id="islands220170227151946534" name="Japan">
+    <layer-tree-layer expanded="1" checked="Qt::Checked" id="Joe_final_bdys_220170725145527908" name="Joe_final_bdys-2">
       <customproperties/>
     </layer-tree-layer>
-    <layer-tree-layer expanded="1" checked="Qt::Checked" id="GEBCO2014_bathy_ESRIASCII20170227151928835" name="Bathymetry">
+    <layer-tree-layer expanded="1" checked="Qt::Checked" id="OpenLayers_plugin_layer20170725145737369" name="Google Satellite">
+      <customproperties/>
+    </layer-tree-layer>
+    <layer-tree-layer expanded="1" checked="Qt::Unchecked" id="islands220170227151946534" name="Japan">
+      <customproperties/>
+    </layer-tree-layer>
+    <layer-tree-layer expanded="1" checked="Qt::Unchecked" id="GEBCO2014_bathy_ESRIASCII20170227151928835" name="Bathymetry">
       <customproperties/>
     </layer-tree-layer>
   </layer-tree-group>
@@ -28,40 +34,30 @@
   <mapcanvas>
     <units>meters</units>
     <extent>
-      <xmin>-16355.96125943493098021</xmin>
-      <ymin>3278970.1313831303268671</ymin>
-      <xmax>1403634.45835392735898495</xmax>
-      <ymax>4951227.81396563909947872</ymax>
+      <xmin>14219873.88867590948939323</xmin>
+      <ymin>3405398.28803852293640375</ymin>
+      <xmax>17838094.66006048768758774</xmax>
+      <ymax>5165505.49269101489335299</ymax>
     </extent>
     <rotation>0</rotation>
     <projections>1</projections>
     <destinationsrs>
       <spatialrefsys>
-        <proj4>+proj=utm +zone=54 +datum=WGS84 +units=m +no_defs</proj4>
-        <srsid>3138</srsid>
-        <srid>32654</srid>
-        <authid>EPSG:32654</authid>
-        <description>WGS 84 / UTM zone 54N</description>
-        <projectionacronym>utm</projectionacronym>
+        <proj4>+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs</proj4>
+        <srsid>3857</srsid>
+        <srid>3857</srid>
+        <authid>EPSG:3857</authid>
+        <description>WGS 84 / Pseudo Mercator</description>
+        <projectionacronym>merc</projectionacronym>
         <ellipsoidacronym>WGS84</ellipsoidacronym>
         <geographicflag>false</geographicflag>
       </spatialrefsys>
     </destinationsrs>
     <rendermaptile>0</rendermaptile>
     <layer_coordinate_transform_info>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="Boundaries20170227155823659"/>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="GEBCO2014_bathy_ESRIASCII20170227151928835"/>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="islands220170227151946534"/>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="memory_20170302154819030"/>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="Lines_from_polygons20170227153711538"/>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="final_bdys20170629151141574"/>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="GSHHS_h_L120170227153000556"/>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="Lines_from_polygons20170302154846852"/>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="boundary220170227152248269"/>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="final_ocean20170626160718604"/>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="New_scratch_layer20170302154740154"/>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="Lines_from_polygons20170227152549656"/>
-      <layer_coordinate_transform destAuthId="EPSG:32654" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="GSHHS_l_L120170227153133662"/>
+      <layer_coordinate_transform destAuthId="EPSG:3857" srcAuthId="EPSG:32654" srcDatumTransform="-1" destDatumTransform="-1" layerid="Joe_final_bdys_220170725145527908"/>
+      <layer_coordinate_transform destAuthId="EPSG:3857" srcAuthId="EPSG:4326" srcDatumTransform="-1" destDatumTransform="-1" layerid="final_bdys20170629151141574"/>
+      <layer_coordinate_transform destAuthId="EPSG:3857" srcAuthId="EPSG:3857" srcDatumTransform="-1" destDatumTransform="-1" layerid="OpenLayers_plugin_layer20170725145737369"/>
     </layer_coordinate_transform_info>
   </mapcanvas>
   <layer-tree-canvas>
@@ -72,22 +68,24 @@
       <item>Lines_from_polygons20170227153711538</item>
       <item>final_ocean20170626160718604</item>
       <item>final_bdys20170629151141574</item>
+      <item>Joe_final_bdys_220170725145527908</item>
+      <item>OpenLayers_plugin_layer20170725145737369</item>
     </custom-order>
   </layer-tree-canvas>
   <legend updateDrawingOrder="true">
-    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="final_ocean" showFeatureCount="0">
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Unchecked" name="final_ocean" showFeatureCount="0">
       <filegroup open="true" hidden="false">
-        <legendlayerfile isInOverview="0" layerid="final_ocean20170626160718604" visible="1"/>
+        <legendlayerfile isInOverview="0" layerid="final_ocean20170626160718604" visible="0"/>
       </filegroup>
     </legendlayer>
-    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="Coastline" showFeatureCount="0">
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Unchecked" name="Coastline" showFeatureCount="0">
       <filegroup open="true" hidden="false">
-        <legendlayerfile isInOverview="0" layerid="Lines_from_polygons20170227153711538" visible="1"/>
+        <legendlayerfile isInOverview="0" layerid="Lines_from_polygons20170227153711538" visible="0"/>
       </filegroup>
     </legendlayer>
-    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="Fukushima" showFeatureCount="0">
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Unchecked" name="Fukushima" showFeatureCount="0">
       <filegroup open="true" hidden="false">
-        <legendlayerfile isInOverview="0" layerid="Lines_from_polygons20170227152549656" visible="1"/>
+        <legendlayerfile isInOverview="0" layerid="Lines_from_polygons20170227152549656" visible="0"/>
       </filegroup>
     </legendlayer>
     <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="final_bdys" showFeatureCount="0">
@@ -95,14 +93,24 @@
         <legendlayerfile isInOverview="0" layerid="final_bdys20170629151141574" visible="1"/>
       </filegroup>
     </legendlayer>
-    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="Japan" showFeatureCount="0">
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="Joe_final_bdys-2" showFeatureCount="0">
       <filegroup open="true" hidden="false">
-        <legendlayerfile isInOverview="0" layerid="islands220170227151946534" visible="1"/>
+        <legendlayerfile isInOverview="0" layerid="Joe_final_bdys_220170725145527908" visible="1"/>
       </filegroup>
     </legendlayer>
-    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="Bathymetry" showFeatureCount="0">
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="Google Satellite" showFeatureCount="0">
       <filegroup open="true" hidden="false">
-        <legendlayerfile isInOverview="0" layerid="GEBCO2014_bathy_ESRIASCII20170227151928835" visible="1"/>
+        <legendlayerfile isInOverview="0" layerid="OpenLayers_plugin_layer20170725145737369" visible="1"/>
+      </filegroup>
+    </legendlayer>
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Unchecked" name="Japan" showFeatureCount="0">
+      <filegroup open="true" hidden="false">
+        <legendlayerfile isInOverview="0" layerid="islands220170227151946534" visible="0"/>
+      </filegroup>
+    </legendlayer>
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Unchecked" name="Bathymetry" showFeatureCount="0">
+      <filegroup open="true" hidden="false">
+        <legendlayerfile isInOverview="0" layerid="GEBCO2014_bathy_ESRIASCII20170227151928835" visible="0"/>
       </filegroup>
     </legendlayer>
   </legend>
@@ -156,6 +164,116 @@
         <rasterresampler maxOversampling="2"/>
       </pipe>
       <blendMode>0</blendMode>
+    </maplayer>
+    <maplayer simplifyAlgorithm="0" minimumScale="0" maximumScale="1e+08" simplifyDrawingHints="1" readOnly="0" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" geometry="Line" simplifyMaxScale="1" type="vector" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
+      <extent>
+        <xmin>54381.44545279999874765</xmin>
+        <ymin>3344868.05982874287292361</ymin>
+        <xmax>1210475.98080695490352809</xmax>
+        <ymax>4776091.26306823641061783</ymax>
+      </extent>
+      <id>Joe_final_bdys_220170725145527908</id>
+      <datasource>../../../../../Downloads/Joe_final_bdys-2.shp</datasource>
+      <keywordList>
+        <value></value>
+      </keywordList>
+      <layername>Joe_final_bdys-2</layername>
+      <srs>
+        <spatialrefsys>
+          <proj4>+proj=utm +zone=54 +datum=WGS84 +units=m +no_defs</proj4>
+          <srsid>3138</srsid>
+          <srid>32654</srid>
+          <authid>EPSG:32654</authid>
+          <description>WGS 84 / UTM zone 54N</description>
+          <projectionacronym>utm</projectionacronym>
+          <ellipsoidacronym>WGS84</ellipsoidacronym>
+          <geographicflag>false</geographicflag>
+        </spatialrefsys>
+      </srs>
+      <provider encoding="System">ogr</provider>
+      <previewExpression>'[Please define preview text]'</previewExpression>
+      <vectorjoins/>
+      <layerDependencies/>
+      <expressionfields/>
+      <defaults/>
+      <map-layer-style-manager current="">
+        <map-layer-style name=""/>
+      </map-layer-style-manager>
+      <edittypes/>
+      <renderer-v2 forceraster="0" symbollevels="0" type="singleSymbol" enableorderby="0">
+        <symbols>
+          <symbol alpha="1" clip_to_extent="1" type="line" name="0">
+            <layer pass="0" class="SimpleLine" locked="0">
+              <prop k="capstyle" v="square"/>
+              <prop k="customdash" v="5;2"/>
+              <prop k="customdash_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="customdash_unit" v="MM"/>
+              <prop k="draw_inside_polygon" v="0"/>
+              <prop k="joinstyle" v="bevel"/>
+              <prop k="line_color" v="120,177,129,255"/>
+              <prop k="line_style" v="solid"/>
+              <prop k="line_width" v="0.26"/>
+              <prop k="line_width_unit" v="MM"/>
+              <prop k="offset" v="0"/>
+              <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+              <prop k="offset_unit" v="MM"/>
+              <prop k="use_custom_dash" v="0"/>
+              <prop k="width_map_unit_scale" v="0,0,0,0,0,0"/>
+            </layer>
+          </symbol>
+        </symbols>
+        <rotation/>
+        <sizescale scalemethod="diameter"/>
+      </renderer-v2>
+      <labeling type="simple"/>
+      <customproperties/>
+      <blendMode>0</blendMode>
+      <featureBlendMode>0</featureBlendMode>
+      <layerTransparency>0</layerTransparency>
+      <displayfield></displayfield>
+      <label>0</label>
+      <labelattributes>
+        <label fieldname="" text="Label"/>
+        <family fieldname="" name=".SF NS Text"/>
+        <size fieldname="" units="pt" value="12"/>
+        <bold fieldname="" on="0"/>
+        <italic fieldname="" on="0"/>
+        <underline fieldname="" on="0"/>
+        <strikeout fieldname="" on="0"/>
+        <color fieldname="" red="0" blue="0" green="0"/>
+        <x fieldname=""/>
+        <y fieldname=""/>
+        <offset x="0" y="0" units="pt" yfieldname="" xfieldname=""/>
+        <angle fieldname="" value="0" auto="0"/>
+        <alignment fieldname="" value="center"/>
+        <buffercolor fieldname="" red="255" blue="255" green="255"/>
+        <buffersize fieldname="" units="pt" value="1"/>
+        <bufferenabled fieldname="" on=""/>
+        <multilineenabled fieldname="" on=""/>
+        <selectedonly on=""/>
+      </labelattributes>
+      <annotationform></annotationform>
+      <aliases/>
+      <excludeAttributesWMS/>
+      <excludeAttributesWFS/>
+      <attributeactions default="-1"/>
+      <attributetableconfig actionWidgetStyle="dropDown" sortExpression="" sortOrder="8">
+        <columns>
+          <column width="-1" hidden="1" type="actions"/>
+        </columns>
+      </attributetableconfig>
+      <editform></editform>
+      <editforminit/>
+      <editforminitcodesource>0</editforminitcodesource>
+      <editforminitfilepath></editforminitfilepath>
+      <editforminitcode><![CDATA[]]></editforminitcode>
+      <featformsuppress>0</featformsuppress>
+      <editorlayout>generatedlayout</editorlayout>
+      <widgets/>
+      <conditionalstyles>
+        <rowstyles/>
+        <fieldstyles/>
+      </conditionalstyles>
     </maplayer>
     <maplayer simplifyAlgorithm="0" minimumScale="0" maximumScale="1e+08" simplifyDrawingHints="1" readOnly="0" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" geometry="Line" simplifyMaxScale="1" type="vector" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
       <extent>
@@ -500,12 +618,16 @@ def my_form_open(dialog, layer, feature):
       <expressionfields/>
       <defaults>
         <default field="FID" expression=""/>
+        <default field="PhysID" expression=""/>
       </defaults>
       <map-layer-style-manager current="">
         <map-layer-style name=""/>
       </map-layer-style-manager>
       <edittypes>
         <edittype widgetv2type="TextEdit" name="FID">
+          <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
+        </edittype>
+        <edittype widgetv2type="TextEdit" name="PhysID">
           <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
         </edittype>
       </edittypes>
@@ -735,11 +857,12 @@ def my_form_open(dialog, layer, feature):
       <annotationform>.</annotationform>
       <aliases>
         <alias field="FID" index="0" name=""/>
+        <alias field="PhysID" index="1" name=""/>
       </aliases>
       <excludeAttributesWMS/>
       <excludeAttributesWFS/>
       <attributeactions default="-1"/>
-      <attributetableconfig actionWidgetStyle="dropDown" sortExpression="" sortOrder="0">
+      <attributetableconfig actionWidgetStyle="dropDown" sortExpression="&quot;PhysID&quot;" sortOrder="1">
         <columns>
           <column width="-1" hidden="0" type="field" name="FID"/>
           <column width="-1" hidden="1" type="actions"/>
@@ -774,6 +897,35 @@ def my_form_open(dialog, layer, feature):
         <fieldstyles/>
       </conditionalstyles>
     </maplayer>
+    <maplayer minimumScale="0" maximumScale="1e+08" type="plugin" hasScaleBasedVisibilityFlag="0" name="openlayers">
+      <extent>
+        <xmin>-20037508.33999999985098839</xmin>
+        <ymin>-20037508.33999999985098839</ymin>
+        <xmax>20037508.33999999985098839</xmax>
+        <ymax>20037508.33999999985098839</ymax>
+      </extent>
+      <id>OpenLayers_plugin_layer20170725145737369</id>
+      <datasource></datasource>
+      <keywordList>
+        <value></value>
+      </keywordList>
+      <layername>Google Satellite</layername>
+      <srs>
+        <spatialrefsys>
+          <proj4>+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs</proj4>
+          <srsid>3857</srsid>
+          <srid>3857</srid>
+          <authid>EPSG:3857</authid>
+          <description>WGS 84 / Pseudo Mercator</description>
+          <projectionacronym>merc</projectionacronym>
+          <ellipsoidacronym>WGS84</ellipsoidacronym>
+          <geographicflag>false</geographicflag>
+        </spatialrefsys>
+      </srs>
+      <customproperties>
+        <property key="ol_layer_type" value="Google Satellite"/>
+      </customproperties>
+    </maplayer>
     <maplayer simplifyAlgorithm="0" minimumScale="0" maximumScale="1e+08" simplifyDrawingHints="1" readOnly="0" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" geometry="Line" simplifyMaxScale="1" type="vector" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
       <extent>
         <xmin>136.17821660103194858</xmin>
@@ -807,7 +959,7 @@ def my_form_open(dialog, layer, feature):
       <defaults>
         <default field="id" expression=""/>
         <default field="PhysID" expression=""/>
-        <default field="Length" expression=""/>
+        <default field="length" expression=""/>
       </defaults>
       <map-layer-style-manager current="">
         <map-layer-style name=""/>
@@ -819,7 +971,7 @@ def my_form_open(dialog, layer, feature):
         <edittype widgetv2type="TextEdit" name="PhysID">
           <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
         </edittype>
-        <edittype widgetv2type="TextEdit" name="Length">
+        <edittype widgetv2type="TextEdit" name="length">
           <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
         </edittype>
       </edittypes>
@@ -1050,7 +1202,7 @@ def my_form_open(dialog, layer, feature):
       <aliases>
         <alias field="id" index="0" name=""/>
         <alias field="PhysID" index="1" name=""/>
-        <alias field="Length" index="2" name=""/>
+        <alias field="length" index="2" name=""/>
       </aliases>
       <excludeAttributesWMS/>
       <excludeAttributesWFS/>
@@ -1760,15 +1912,15 @@ def my_form_open(dialog, layer, feature):
       <LayerSnappingList type="QStringList">
         <value>Lines_from_polygons20170227152549656</value>
         <value>Lines_from_polygons20170227153711538</value>
+        <value>final_bdys20170629151141574</value>
         <value>final_ocean20170626160718604</value>
         <value>islands220170227151946534</value>
-        <value>final_bdys20170629151141574</value>
       </LayerSnappingList>
       <LayerSnappingEnabledList type="QStringList">
         <value>disabled</value>
         <value>enabled</value>
         <value>enabled</value>
-        <value>disabled</value>
+        <value>enabled</value>
         <value>disabled</value>
       </LayerSnappingEnabledList>
       <SnappingMode type="QString">advanced</SnappingMode>
@@ -1784,8 +1936,8 @@ def my_form_open(dialog, layer, feature):
       <LayerSnapToList type="QStringList">
         <value>to_vertex_and_segment</value>
         <value>to_vertex</value>
-        <value>to_vertex</value>
         <value>to_vertex_and_segment</value>
+        <value>to_vertex</value>
         <value>to_vertex_and_segment</value>
       </LayerSnapToList>
       <DefaultSnapType type="QString">to vertex</DefaultSnapType>
@@ -1794,7 +1946,7 @@ def my_form_open(dialog, layer, feature):
         <value>0.000000</value>
         <value>100.000000</value>
         <value>100.000000</value>
-        <value>0.000000</value>
+        <value>100.000000</value>
         <value>0.000000</value>
       </LayerSnappingToleranceList>
     </Digitizing>

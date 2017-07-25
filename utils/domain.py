@@ -131,24 +131,26 @@ def Tohoku_domain(res=3):
         mesh = Mesh('resources/meshes/TohokuCoarse.msh')
     elif res == 5:
         mesh = Mesh('resources/meshes/TohokuXCoarse.msh')
+    else:
+        raise ValueError('Please try again, choosing an integer in the range 1-5.')
     mesh_coords = mesh.coordinates.dat.data
 
     # Define Taylor-Hood mixed function space:
-    Vq = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
+    W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 
     # Construct functions to store forward and adjoint variables, along with bathymetry:
-    q_ = Function(Vq)
-    lam_ = Function(Vq)
+    q_ = Function(W)
+    lam_ = Function(W)
     u_, eta_ = q_.split()
-    lm_, le_ = lam_.split()
-    eta0 = Function(Vq.sub(1), name='Initial surface')
-    b = Function(Vq.sub(1), name='Bathymetry')
+    lu_, le_ = lam_.split()
+    eta0 = Function(W.sub(1), name='Initial surface')
+    b = Function(W.sub(1), name='Bathymetry')
 
     # Read and interpolate initial surface data (courtesy of Saito):
     nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap=False)
     lon1 = nc1.variables['x'][:]
     lat1 = nc1.variables['y'][:]
-    x1, y1 = vectorlonlat2utm(lat1, lon1, force_zone_number=54)
+    x1, y1 = vectorlonlat2utm(lat1, lon1, force_zone_number=54)             # Our mesh mainly resides in UTM zone 54
     elev1 = nc1.variables['z'][:, :]
     interpolator_surf = si.RectBivariateSpline(y1, x1, elev1)
     eta0vec = eta0.dat.data
@@ -171,7 +173,7 @@ def Tohoku_domain(res=3):
 
     # Assign initial surface and post-process the bathymetry to have a minimum depth of 30m:
     u_.interpolate(Expression([0, 0]))
-    lm_.interpolate(Expression([0, 0]))
+    lu_.interpolate(Expression([0, 0]))
     eta_.assign(eta0)
     le_.interpolate(Expression('(x[0] > -160e3) & (x[0] < -130e3) & (x[1] > 10e3) & (x[1] < 100e3) ? 20 : 0'))
     b.assign(conditional(lt(30, b), b, 30))
@@ -180,4 +182,4 @@ def Tohoku_domain(res=3):
     File('plots/tsunami_outputs/init_surf.pvd').write(eta0)
     File('plots/tsunami_outputs/tsunami_bathy.pvd').write(b)
 
-    return mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b
+    return mesh, W, q_, u_, eta_, lam_, lu_, le_, b

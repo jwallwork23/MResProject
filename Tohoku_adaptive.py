@@ -1,20 +1,19 @@
 from firedrake import *
-
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import rc
 from time import clock
 import math
 import sys
+import matplotlib
+matplotlib.use('TkAgg')             # Change backend to resolve framework problems
+import matplotlib.pyplot as plt
 
-from utils import *
+from utils import compute_steady_metric, construct_hessian, from_latlon, interp_Taylor_Hood, Tohoku_domain
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
-res = raw_input('Mesh type fine, medium or coarse? (f/m/c): ') or 'c'
-if res not in ('f', 'm', 'c'):
-    raise ValueError('Please try again, choosing f, m or c.')
-mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
-meshd = Meshd(mesh)
+try:
+    mesh, W, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(int(raw_input('Mesh coarseness? (Integer in 1-5): ') or 4))
+except:
+    ValueError('Input not recognised. Try entering a natural number less than or equal to 5.')
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
 N2 = N1                                                                 # Maximum number of nodes
 print 'Initial number of nodes : ', N1
@@ -51,20 +50,19 @@ else:
 fo = raw_input('Forward only? (y/n): ') or 'n'
 
 # Courant number adjusted timestepping parameters:
-ndump = 15
+ndump = 10
 g = 9.81                                                # Gravitational acceleration (m s^{-2})
 dt = 0.8 * hmin / np.sqrt(g * max(b.dat.data))          # Timestep length (s), using wavespeed sqrt(gh)
 Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 
-# Gauge locations:
-gloc = {'P02': from_latlon(38.5, 142.5, force_zone_number=54),
-        'P06': from_latlon(38.7, 142.6, force_zone_number=54),
-        '801': from_latlon(38.2, 141.7, force_zone_number=54),
-        '802': from_latlon(39.3, 142.1, force_zone_number=54),
-        '803': from_latlon(38.9, 141.8, force_zone_number=54),
-        '804': from_latlon(39.7, 142.2, force_zone_number=54),
-        '806': from_latlon(37.0, 141.2, force_zone_number=54)}
+# Convert gauge locations:
+glatlon = {'P02': (38.5, 142.5), 'P06': (38.7, 142.6),
+           '801': (38.2, 141.7), '802': (39.3, 142.1), '803': (38.9, 141.8), '804': (39.7, 142.2), '806': (37.0, 141.2)}
+gloc = {}
+for key in glatlon:
+    east, north, zn, zl = from_latlon(glatlon[key][0], glatlon[key][1], force_zone_number=54)
+    gloc[key] = (east, north)
 
 # Set gauge arrays:
 gtype = raw_input('Pressure or tide gauge? (p/t): ') or 'p'
@@ -76,7 +74,7 @@ elif gtype == 't':
     gcoord = gloc[gauge]
 
 # Set up functions of the weak problem:
-q = Function(Vq)
+q = Function(W)
 q.assign(q_)
 u, eta = q.split()
 
@@ -154,7 +152,7 @@ while t < T - 0.5 * dt:
         print ''
 
     # Set up functions of weak problem:
-    v, ze = TestFunctions(Vq)
+    v, ze = TestFunctions(W)
     u, eta = split(q)
     u_, eta_ = split(q_)
     uh = 0.5 * (u + u_)
@@ -184,8 +182,9 @@ while t < T - 0.5 * dt:
     if dumpn == ndump:
         dumpn -= ndump
         q_file.write(u, eta, time=t)
-        if remesh == 'n':
-            print 't = %1.2fs' % t
+
+    if remesh == 'n':
+        print 't = %1.2fs' % t
 
 # End timing and print:
 toc1 = clock()
@@ -231,19 +230,19 @@ print 'Forward problem solved.... now for the adjoint problem.'
 if remesh == 'y':
 
     # Reset mesh and setup:
-    mesh, Vq, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
+    mesh, W, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
 
 # Set up functions of weak problem:
-lam = Function(Vq)
+lam = Function(W)
 lam.assign(lam_)
-w, xi = TestFunctions(Vq)
+w, xi = TestFunctions(W)
 lu, le = split(lam)
 lu_, le_ = split(lam_)
 luh = 0.5 * (lu + lu_)
 leh = 0.5 * (le + le_)
 
 # Establish indicator function for adjoint equations:
-f = Function(Ve, name='Forcing term')
+f = Function(W.sub(1), name='Forcing term')
 f.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 1. : 0.'))
 
 # Set up the variational problem:
@@ -295,7 +294,7 @@ while t > 0.5 * dt:
         tic4 = clock()
         mesh = adapt(mesh, M)
         meshd = Meshd(mesh)
-        lam_, lam, lu_, lu, le_, le, Vq = update_SW(meshd_, meshd, lu_, lu, le_, le)
+        lam_, lam, lu_, lu, le_, le, W = update_SW(meshd_, meshd, lu_, lu, le_, le)
         b = update_variable(meshd_, meshd, b)
         f = update_variable(meshd_, meshd, f)
         toc4 = clock()
@@ -317,7 +316,7 @@ while t > 0.5 * dt:
         print ''
 
     # Set up functions of weak problem:
-    w, xi = TestFunctions(Vq)
+    w, xi = TestFunctions(W)
     lu, le = split(lam)
     lu_, le_ = split(lam_)
     luh = 0.5 * (lu + lu_)

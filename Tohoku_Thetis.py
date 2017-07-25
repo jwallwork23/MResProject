@@ -5,65 +5,18 @@ from math import radians, sin, cos
 import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
 
-from utils import vectorlonlat2utm
+from utils import Tohoku_domain, vectorlonlat2utm
 
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
-res = int(raw_input('Mesh coarseness? (Integer in range 1-5): ') or 3)
-if res == 1:
-    mesh = Mesh('resources/meshes/TohokuXFine.msh')     # Extremely fine mesh with approx 2.5e5 vertices
-elif res == 2:
-    mesh = Mesh('resources/meshes/TohokuFine.msh')      # Fine mesh with approx 1e5 vertices
-elif res == 3:
-    mesh = Mesh('resources/meshes/TohokuMedium.msh')    # Medium resolution mesh with approx 2.5e4 vertices
-elif res == 4:
-    mesh = Mesh('resources/meshes/TohokuCoarse.msh')    # Coarse mesh with approx. 1.4e4 vertices
-elif res == 5:
-    mesh = Mesh('resources/meshes/TohokuXCoarse.msh')   # Extremely coarse mesh with approx. 2e3 vertices
-else:
-    raise ValueError('Please try again, choosing an integer in the range 1-5.')
-mesh_coords = mesh.coordinates.dat.data
-
-# Define a P1 function space for the intial surface and bathymetry profiles:
-W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
-eta0 = Function(W.sub(1), name='Initial surface')
-b = Function(W.sub(1), name='Bathymetry')
-
-# Read and interpolate initial surface data (courtesy of Saito):
-nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap=False)
-lon1 = nc1.variables['x'][:]
-lat1 = nc1.variables['y'][:]
-elev1 = nc1.variables['z'][:, :]
-x1, y1 = vectorlonlat2utm(lat1, lon1, force_zone_number=54)             # Our mesh mainly resides in UTM zone 54
-interpolator_surf = si.RectBivariateSpline(y1, x1, elev1)
-eta0vec = eta0.dat.data
-assert mesh_coords.shape[0] == eta0vec.shape[0]
-
-# Read and interpolate bathymetry data (courtesy of GEBCO):
-nc2 = NetCDFFile('resources/bathy_data/GEBCO_bathy.nc', mmap=False)
-lon2 = nc2.variables['lon'][:]
-lat2 = nc2.variables['lat'][:-1]
-elev2 = nc2.variables['elevation'][:-1, :]
-x2, y2 = vectorlonlat2utm(lat2, lon2, force_zone_number=54)
-interpolator_bath = si.RectBivariateSpline(y2, x2, elev2)
-b_vec = b.dat.data
-assert mesh_coords.shape[0] == b_vec.shape[0]
-
-# Interpolate data onto initial surface and bathymetry profiles:
-for i, p in enumerate(mesh_coords):
-    eta0vec[i] = interpolator_surf(p[1], p[0])
-    b_vec[i] = - interpolator_surf(p[1], p[0]) - interpolator_bath(p[1], p[0])
-
-# Cap bathymetry:
-b.assign(conditional(lt(30, b), b, 30))
-
-# Plot initial surface and bathymetry profiles:
-File('plots/tsunami_outputs/init_surf.pvd').write(eta0)
-File('plots/tsunami_outputs/tsunami_bathy.pvd').write(b)
+try:
+    mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(int(raw_input('Mesh coarseness? (Integer in 1-5): ') or 3))
+except:
+    ValueError('Input not recognised. Try entering a natural number less than or equal to 5.')
 
 # Specify time parameters:
 dt = float(raw_input('Specify timestep (s) (default 1):') or 1)
-ndump = 60
+ndump = 60      # Inverse data dump frequency
 T = 3600        # Simulation time period (s) of 1 hour
 
 # Construct solver:

@@ -1,8 +1,8 @@
 import math
-from utm.error import OutOfRangeError
+from error import OutOfRangeError
 import numpy as np
 
-__all__ = ['to_latlon', 'from_latlon']
+__all__ = ['to_latlon', 'from_latlon', 'vectorlonlat2utm']
 
 K0 = 0.9996
 
@@ -34,6 +34,16 @@ ZONE_LETTERS = "CDEFGHJKLMNPQRSTUVWXX"
 
 
 def to_latlon(easting, northing, zone_number, zone_letter=None, northern=None):
+    """
+    A function converting UTM coordinates to latitude-longitude, courtesy of Tobias Bieniek, 2012.
+    
+    :param easting: eastward-measured Cartesian geographic distance.
+    :param northing: northward-measured Cartesian geographic distance.
+    :param zone_number: UTM zone number (increasing eastward).
+    :param zone_letter: UTM zone letter (increasing alphabetically northward).
+    :param northern: specify northern or southern hemisphere.
+    :return: latitude-longitude coordinate pair.
+    """
 
     if not zone_letter and northern is None:
         raise ValueError('either zone_letter or northern needs to be set')
@@ -110,6 +120,14 @@ def to_latlon(easting, northing, zone_number, zone_letter=None, northern=None):
 
 
 def from_latlon(latitude, longitude, force_zone_number=None):
+    """
+    A function converting latitude-longitude coordinates to UTM, courtesy of Tobias Bieniek, 2012.
+    
+    :param latitude: northward anglular position, origin at the Equator.
+    :param longitude: eastward angular position, with origin at the Grenwich Meridian.
+    :param force_zone_number: force coordinates to fall within a particular UTM zone.
+    :return: UTM coordinate 4-tuple.
+    """
     if not -80.0 <= latitude <= 84.0:
         raise OutOfRangeError('latitude out of range (must be between 80 deg S and 84 deg N)')
     if not -180.0 <= longitude <= 180.0:
@@ -164,6 +182,12 @@ def from_latlon(latitude, longitude, force_zone_number=None):
 
 
 def latitude_to_zone_letter(latitude):
+    """
+    A function converting latitude UTM letter, courtesy of Tobias Bieniek, 2012.
+    
+    :param latitude: northward anglular position, origin at the Equator.
+    :return: UTM zone letter (increasing alphabetically northward).
+    """
     if -80 <= latitude <= 84:
         return ZONE_LETTERS[int(latitude + 80) >> 3]
     else:
@@ -171,6 +195,13 @@ def latitude_to_zone_letter(latitude):
 
 
 def latlon_to_zone_number(latitude, longitude):
+    """
+    A function converting a latitude-longitude coordinate pair to UTM zone, courtesy of Tobias Bieniek, 2012.
+    
+    :param latitude: northward anglular position, origin at the Equator.
+    :param longitude: eastward angular position, with origin at the Grenwich Meridian.
+    :return: UTM zone number (increasing eastward).
+    """
     if 56 <= latitude < 64 and 3 <= longitude < 12:
         return 32
 
@@ -188,18 +219,28 @@ def latlon_to_zone_number(latitude, longitude):
 
 
 def zone_number_to_central_longitude(zone_number):
+    """
+    A function converting a UTM zone number to the corresponding central longitude, courtesy of Tobias Bieniek, 2012.
+    
+    :param zone_number: UTM zone number (increasing eastward).
+    :return: central eastward angular position of the UTM zone, with origin at the Grenwich Meridian.
+    """
     return (zone_number - 1) * 6 - 180 + 3
 
 
-def vectorlonlat2utm(lon, lat, force_zone_number=54):
+def vectorlonlat2utm(latitude, longitude, force_zone_number):
     """
-    A function which projects vectors containing longitude-latitude coordinates onto a tangent plane at (lon0, lat0) 
-    in utm coordinates (x,y), with units being metres.
+    A function which converts a vector of longitude-latitude coordinate pairs to UTM coordinates.
+    
+    :param latitude: northward anglular position, origin at the Equator.
+    :param longitude: eastward angular position, with origin at the Grenwich Meridian.
+    :param force_zone_number: 
+    :return: force coordinates to fall within a particular UTM zone.
     """
-    x = np.zeros((len(lon), 1))
-    y = np.zeros((len(lat), 1))
+    x = np.zeros((len(longitude), 1))
+    y = np.zeros((len(latitude), 1))
     assert (len(x) == len(y))
     for i in range(len(x)):
-        x[i], y[i], zn, zl = from_latlon(lat[i], lon[i], force_zone_number=force_zone_number)
+        x[i], y[i], zn, zl = from_latlon(latitude[i], longitude[i], force_zone_number=force_zone_number)
         # print 'Coords ', x[i], y[i], 'Zone ', zn, zl      # For debugging purposes
     return x, y

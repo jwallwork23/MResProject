@@ -1,10 +1,14 @@
 from firedrake import *
-from firedrake_adjoint import *
-
 import numpy as np
 from time import clock
 
-from utils import construct_hessian, compute_steady_metric, interp
+from utils.adaptivity import construct_hessian, compute_steady_metric
+from utils.interp import interp
+
+print ''
+print '******************************** BURGERS EQUATION TEST PROBLEM ********************************'
+print ''
+print 'Options...'
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
@@ -147,11 +151,3 @@ if remesh == 'y':
     print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
 else:
     print 'Elapsed time for non-adaptive solver: %1.2fs' % (toc1 - tic1)
-
-# TODO: fix this
-# Establish objective functional and compute derivatives:
-J = Functional(inner(phi, phi) * dx * dt[FINISH_TIME])
-print 'Functional established'
-dJdic = compute_gradient(J, Control(phi_), forget=False)
-#dJdnu = compute_gradient(J, Control(nu))
-print 'Derivative computed!'

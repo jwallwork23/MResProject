@@ -1,10 +1,13 @@
 from firedrake import *
-# from firedrake_adjoint import *
-
 import numpy as np
 from time import clock
 
-from utils import construct_hessian, compute_steady_metric, interp, interp_Taylor_Hood
+from utils.adaptivity import compute_steady_metric, construct_hessian
+from utils.interp import interp, interp_Taylor_Hood
+
+print ''
+print '******************************** SHALLOW WATER TEST PROBLEM ********************************'
+print ''
 
 # Define initial (uniform) mesh:
 n = 16                                     # Resolution of uniform mesh for adjoint run
@@ -37,7 +40,6 @@ T = 4.
 #     raise ValueError('Please try again, choosing parts or dL2.')
 
 # Specify parameters:
-b = 1.5                 # (Constant) bathymetry
 ndump = 20
 g = 9.81                # Gravitational acceleration (m s^{-2})
 dt = 0.005
@@ -57,6 +59,10 @@ params = {'mat_type': 'matfree',
 
 # Define mixed Taylor-Hood function space:
 W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
+
+# Interpolate bathymetry:
+b = Function(W.sub(1), name='Bathymetry')
+b.interpolate(Expression(1.5))
 
 # Create adjoint variables:
 lam_ = Function(W)

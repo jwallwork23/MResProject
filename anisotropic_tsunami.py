@@ -16,7 +16,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 print ''
-print '******************************** ADAPTIVE TSUNAMI SIMULATION ********************************'
+print '******************************** ANISOTROPIC ADAPTIVE TSUNAMI SIMULATION ********************************'
 print ''
 print 'Options...'
 
@@ -58,8 +58,6 @@ else:
     if remesh != 'n':
         raise ValueError('Please try again, choosing y or n.')
 
-fo = raw_input('Forward only? (y/n): ') or 'n'
-
 # Courant number adjusted timestepping parameters:
 ndump = 10
 g = 9.81                                                # Gravitational acceleration (m s^{-2})
@@ -98,7 +96,7 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner': -1,
           'snes_lag_preconditioner_persists': True}
 
-# Initialise counters, files and arrays:
+# Initialise counters, files and gauge data measurements:
 t = 0.
 cnt = 0
 dumpn = 0
@@ -110,8 +108,8 @@ q_file.write(u, eta, time=t)
 gauge_dat = [eta.at(gcoord)]
 maxi = max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']), eta.at(gloc['804']), eta.at(gloc['806']), 0.5)
 damage_measure = [math.log(maxi)]
-tic1 = clock()
 
+tic1 = clock()
 while t < T - 0.5 * dt:
 
     # Increment counters:
@@ -231,149 +229,3 @@ plt.axhline(3, linestyle='--', color='red')
 plt.xlabel(r'Time elapsed (mins)')
 plt.ylabel(r'Maximal log free surface')
 plt.savefig('plots/tsunami_outputs/screenshots/damage_measure_timeseries.png')
-
-if fo == 'y':
-    sys.exit(1)
-
-print 'Forward problem solved.... now for the adjoint problem.'
-
-if remesh == 'y':
-
-    # Reset mesh and setup:
-    mesh, W, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(res)
-
-# Set up functions of weak problem:
-lam = Function(W)
-lam.assign(lam_)
-w, xi = TestFunctions(W)
-lu, le = split(lam)
-lu_, le_ = split(lam_)
-luh = 0.5 * (lu + lu_)
-leh = 0.5 * (le + le_)
-
-# Establish indicator function for adjoint equations:
-f = Function(W.sub(1), name='Forcing term')
-f.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 1. : 0.'))
-
-# Set up the variational problem:
-L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
-      + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
-lam_prob = NonlinearVariationalProblem(L2, lam)
-lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
-
-# 'Split' functions to access their data and relabel:
-lu_, le_ = lam_.split()
-lu, le = lam.split()
-lu.rename('Adjoint fluid velocity')
-le.rename('Adjoint free surface displacement')
-
-# Initialise counters and files:
-cnt = 0
-mn = 0
-lam_file = File('plots/adapt_plots/tohoku_adjoint.pvd')
-m_file2 = File('plots/adapt_plots/tohoku_adjoint_metric.pvd')
-lam_file.write(lu, le, time=0)
-tic3 = clock()
-
-while t > 0.5 * dt:
-
-    # Increment counters:
-    cnt += 1
-    t -= dt
-    dumpn -= 1
-
-    if (remesh == 'y') & (cnt % rm == 0):
-        mn += 1
-
-        # Compute Hessian and metric:
-        V = TensorFunctionSpace(mesh, 'CG', 1)
-        if mtype != 'f':
-            lspd = Function(FunctionSpace(mesh, 'CG', 1))
-            lspd.interpolate(sqrt(dot(lu, lu)))
-            H = construct_hessian(mesh, V, lspd)
-            M = compute_steady_metric(mesh, V, H, lspd, h_min=hmin, h_max=hmax, N=nodes, normalise=ntype)
-        if mtype != 's':
-            H = construct_hessian(mesh, V, le)
-            M2 = compute_steady_metric(mesh, V, H, le, h_min=hmin, h_max=hmax, N=nodes, normalise=ntype)
-            if mtype == 'b':
-                M = metric_intersection(mesh, V, M, M2)
-            else:
-                M = M2
-
-        # Adapt mesh and set up new function spaces:
-        M.rename('Adjoint metric field')
-        mesh_ = mesh
-        meshd_ = Meshd(mesh_)
-        tic4 = clock()
-        mesh = adapt(mesh, M)
-        meshd = Meshd(mesh)
-        lam_, lam, lu_, lu, le_, le, W = update_SW(meshd_, meshd, lu_, lu, le_, le)
-        b = update_variable(meshd_, meshd, b)
-        f = update_variable(meshd_, meshd, f)
-        toc4 = clock()
-
-        # Data analysis:
-        n = len(mesh.coordinates.dat.data)
-        if n < N1:
-            N1 = n
-        elif n > N2:
-            N2 = n
-
-        # Print to screen:
-        print ''
-        print '************ Adaption step %d **************' % mn
-        print 'Time = %1.2fs' % t
-        print 'Number of nodes after adaption step %d: ' % mn, n
-        print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
-        print 'Elapsed time for adaption step %d: %1.2es' % (mn, toc4 - tic4)
-        print ''
-
-    # Set up functions of weak problem:
-    w, xi = TestFunctions(W)
-    lu, le = split(lam)
-    lu_, le_ = split(lam_)
-    luh = 0.5 * (lu + lu_)
-    leh = 0.5 * (le + le_)
-
-    # Set up the variational problem
-    L2 = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
-          + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
-    lam_prob = NonlinearVariationalProblem(L2, lam)
-    lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
-
-    # 'Split' functions to access their data and relabel:
-    lu_, le_ = lam_.split()
-    lu, le = lam.split()
-    lu.rename('Adjoint fluid velocity')
-    le.rename('Adjoint free surface displacement')
-
-    # Enter the inner timeloop:
-    if remesh == 'y':
-        while cnt < rm:
-            t -= dt
-            cnt += 1
-            lam_solv.solve()
-            lam_.assign(lam)
-            dumpn -= 1
-
-            if dumpn == 0:
-                dumpn += ndump
-                lam_file.write(lu, le, time=T-t)
-    else:
-        while t > 0:
-            t -= dt
-            print 't = %1.2fs' % t
-            lam_solv.solve()
-            lam_.assign(lam)
-            dumpn -= 1
-
-            if dumpn == 0:
-                dumpn += ndump
-                lam_file.write(lu, le, time=T-t)
-
-# End timing and print:
-toc3 = clock()
-if remesh == 'y':
-    print 'Elapsed time for adaptive adjoint solver: %1.2fs' % (toc3 - tic3)
-else:
-    print 'Elapsed time for non-adaptive adjoint solver: %1.2fs' % (toc3 - tic3)

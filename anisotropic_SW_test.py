@@ -1,9 +1,14 @@
 from firedrake import *
-
 import numpy as np
 from time import clock
 
-from utils import construct_hessian, compute_steady_metric, interp, interp_Taylor_Hood
+from utils.adaptivity import construct_hessian, compute_steady_metric
+from utils.interp import interp, interp_Taylor_Hood
+
+print ''
+print '******************************** SHALLOW WATER TEST PROBLEM ********************************'
+print ''
+print 'Options...'
 
 # Define initial (uniform) mesh:
 n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh

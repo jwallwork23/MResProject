@@ -2,14 +2,18 @@ from firedrake import *
 import numpy as np
 from matplotlib import rc
 from time import clock
-from utils import domain_1d
+
+from utils.domain import domain_1d
+
+# Change backend to resolve framework problems:
 import matplotlib
-matplotlib.use('TkAgg')             # Change backend to resolve framework problems
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 print ''
-print '******************************** 1D TSUNAMI TEST ********************************'
+print '******************************** 1D TSUNAMI TEST PROBLEM ********************************'
 print ''
+print 'Options...'
 
 # Specify problem parameters:
 dt = float(raw_input('Specify timestep (default 1): ') or 1.)

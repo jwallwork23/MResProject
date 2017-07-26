@@ -27,28 +27,17 @@ p = int(raw_input('Polynomial degree? (default 1): ') or 1)
 nu = Constant(float(raw_input('Diffusion parameter (default 1e-3)?: ') or 1e-3))
 
 # Set up adaptivity parameters:
-remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
-if remesh == 'y':
-    hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
-    hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
-    rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
-    nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
-    ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-    if ntype not in ('lp', 'manual'):
-        raise ValueError('Please try again, choosing lp or manual.')
-    mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
-    if mat_out not in ('y', 'n'):
-        raise ValueError('Please try again, choosing y or n.')
-    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
-    if hess_meth not in ('parts', 'dL2'):
-        raise ValueError('Please try again, choosing parts or dL2.')
-else:
-    hmin = 0.0625
-    hmax = 0.3
-    nodes = 0
-    ntype = None
-    hess_meth = None
-    mat_out = 'n'
+hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
+hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
+rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
+nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
+ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+if ntype not in ('lp', 'manual'):
+    raise ValueError('Please try again, choosing lp or manual.')
+mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
+hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
+if hess_meth not in ('parts', 'dL2'):
+    raise ValueError('Please try again, choosing parts or dL2.')
 
 # Courant number adjusted timestepping parameters:
 ndump = 1
@@ -56,8 +45,6 @@ T = 0.2
 timestep = 0.8 * hmin
 Dt = Constant(timestep)
 print 'Using Courant number adjusted timestep dt = %1.4f' % timestep
-if remesh == 'n':
-    rm = int(T / timestep)
 
 # Create function space and set initial conditions:
 W = FunctionSpace(mesh, 'CG', p)
@@ -85,14 +72,14 @@ while t < T - 0.5 * timestep:
     t += timestep
     dumpn += 1
 
-    if (remesh == 'y') & (cnt % rm == 0):
+    if cnt % rm == 0:
         tic2 = clock()
         mn += 1
 
         # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)
         H = construct_hessian(mesh, V, phi, method=hess_meth)
-        M = compute_steady_metric(mesh, V, H, phi, h_min=hmin, h_max=hmax, N=nodes, normalise=ntype)
+        M = compute_steady_metric(mesh, V, H, phi, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
         if mat_out == 'y':
             H.rename('Hessian')
             h_file.write(H, time=t)
@@ -142,12 +129,7 @@ while t < T - 0.5 * timestep:
     if dumpn == ndump:
         dumpn -= ndump
         phi_file.write(phi, time=t)
-        if remesh == 'n':
-            print 't = %1.2fs' % t
 
 # End timing and print:
 toc1 = clock()
-if remesh == 'y':
-    print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
-else:
-    print 'Elapsed time for non-adaptive solver: %1.2fs' % (toc1 - tic1)
+print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)

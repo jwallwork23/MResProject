@@ -48,10 +48,10 @@ T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
 cdt = 5e2 / np.sqrt(g * max(b.dat.data))
-try:
-    assert dt < cdt
-except:
+if dt > cdt:
     print 'WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt
+    if raw_input('Are you happy to proceed? (y/n)') == 'n':
+        exit(23)
 ndump = int(60. / dt)
 timings = {}
 
@@ -73,6 +73,7 @@ elif gtype == 't':
     gcoord = gloc[gauge]
 else:
     ValueError('Gauge type not recognised. Please choose p or t.')
+dm = raw_input('Evaluate damage measures? (y/n): ') or 'n'
 
 # Evaluate and plot (dimensionless) Coriolis parameter function:
 f = Function(W.sub(2), name='Coriolis parameter')
@@ -133,9 +134,10 @@ for key in mode:
     q_file = File('plots/tsunami_outputs/model_verif_{y}.pvd'.format(y=key))
     q_file.write(u, v, eta, time=t)
     gauge_dat = [eta.at(gcoord)]
-    maxi = max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
-               eta.at(gloc['804']), eta.at(gloc['806']), 0.5)
-    damage_measure = [math.log(maxi)]
+
+    if dm == 'y':
+        damage_measure = [math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
+                                       eta.at(gloc['804']), eta.at(gloc['806']), 0.5))]
     tic1 = clock()
 
     while t < T - 0.5 * dt:
@@ -151,7 +153,7 @@ for key in mode:
 
         # Store data:
         gauge_dat.append(eta.at(gcoord))
-        if key == 0:
+        if (key == 0) & (dm == 'y'):
             damage_measure.append(math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
                                                eta.at(gloc['804']), eta.at(gloc['806']), 0.5)))
         if dumpn == ndump:
@@ -174,13 +176,13 @@ for key in mode:
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
 print '\a'
-plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries_{y}.png'.format(y=gauge))
+plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries_{y1}_res{y2}.png'.format(y1=gauge, y2=coarseness))
 
 # Store gauge timeseries data to file:
 gauge_timeseries(gauge, gauge_dat)
 
 # Plot damage measures time series:
-if choices in (0, 4):
+if (dm == 'y') & (choices in (0, 4)):
     plt.clf()
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')

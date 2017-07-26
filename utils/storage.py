@@ -32,7 +32,11 @@ def plot_gauges(gauge):
     :return: a matplotlib plot of the corresponding gauge timeseries data.
     """
 
-    setup = {1: 'coarse', 2: 'medium', 3: 'fine', 4: 'simple', 5: 'adjoint'}
+    setup = {1: 'coarse',
+             2: 'medium',           # 25,976 vertices
+             3: 'fine',
+             4: 'anisotropic',
+             5: 'goal-based'}
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
 

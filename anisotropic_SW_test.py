@@ -26,33 +26,22 @@ if bathy not in ('f', 's'):
 T = 2.5
 
 # Set up adaptivity parameters:
-remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
-if remesh == 'y':
-    hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
-    hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
-    rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
-    nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
-    ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-    if ntype not in ('lp', 'manual'):
-        raise ValueError('Please try again, choosing lp or manual.')
-    mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
-    if mtype not in ('s', 'f', 'b'):
-        raise ValueError('Please try again, choosing s, f or b.')
-    mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
-    if mat_out not in ('y', 'n'):
-        raise ValueError('Please try again, choosing y or n.')
-    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
-    if hess_meth not in ('parts', 'dL2'):
-        raise ValueError('Please try again, choosing parts or dL2.')
-else:
-    hmin = 0.0625
-    rm = int(T)
-    nodes = 0
-    ntype = None
-    mtype = None
-    mat_out = 'n'
-    if remesh != 'n':
-        raise ValueError('Please try again, choosing y or n.')
+hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
+hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
+rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
+nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
+ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+if ntype not in ('lp', 'manual'):
+    raise ValueError('Please try again, choosing lp or manual.')
+mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
+if mtype not in ('s', 'f', 'b'):
+    raise ValueError('Please try again, choosing s, f or b.')
+mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
+if mat_out not in ('y', 'n'):
+    raise ValueError('Please try again, choosing y or n.')
+hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
+if hess_meth not in ('parts', 'dL2'):
+    raise ValueError('Please try again, choosing parts or dL2.')
 
 # Courant number adjusted timestepping parameters:
 ndump = 1
@@ -84,7 +73,6 @@ u, eta = q.split()
 
 # Initialise time, counters and files:
 t = 0.
-cnt = 0
 dumpn = 0
 mn = 0
 u.rename('Fluid velocity')
@@ -94,63 +82,58 @@ q_file.write(u, eta, time=t)
 m_file = File('plots/adapt_plots/gaussian_test_metric.pvd')
 h_file = File('plots/adapt_plots/gaussian_test_hessian.pvd')
 
+print ''
+print 'Entering outer timeloop!'
 tic1 = clock()
 while t < T - 0.5 * dt:
+    mn += 1
 
-    # Increment counters:
-    cnt += 1
-    t += dt
-    dumpn += 1
-
-    if (remesh == 'y') & (cnt % rm == 0):
-        mn += 1
-
-        # Compute Hessian and metric:
-        tic2 = clock()
-        V = TensorFunctionSpace(mesh, 'CG', 1)
-        if mtype != 'f':
-            spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
-            spd.interpolate(sqrt(dot(u, u)))
-            H = construct_hessian(mesh, V, spd, method=hess_meth)
-            if mat_out == 'y':
-                H.rename('Hessian')
-                h_file.write(H, time=t)
-            M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
-        if mtype != 's':
-            H = construct_hessian(mesh, V, eta, method=hess_meth)
-            if (mtype != 'b') & (mat_out == 'y'):
-                H.rename('Hessian')
-                h_file.write(H, time=t)
-            M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
-            if mtype == 'b':
-                M = metric_intersection(mesh, V, M, M2)
-            else:
-                M = M2
+    # Compute Hessian and metric:
+    tic2 = clock()
+    V = TensorFunctionSpace(mesh, 'CG', 1)
+    if mtype != 'f':
+        spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
+        spd.interpolate(sqrt(dot(u, u)))
+        H = construct_hessian(mesh, V, spd, method=hess_meth)
         if mat_out == 'y':
-            M.rename('Metric field')
-            m_file.write(M, time=t)
-        adaptor = AnisotropicAdaptation(mesh, M)
-        mesh = adaptor.adapted_mesh
+            H.rename('Hessian')
+            h_file.write(H, time=t)
+        M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
+    if mtype != 's':
+        H = construct_hessian(mesh, V, eta, method=hess_meth)
+        if (mtype != 'b') & (mat_out == 'y'):
+            H.rename('Hessian')
+            h_file.write(H, time=t)
+        M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
+        if mtype == 'b':
+            M = metric_intersection(mesh, V, M, M2)
+        else:
+            M = M2
+    if mat_out == 'y':
+        M.rename('Metric field')
+        m_file.write(M, time=t)
+    adaptor = AnisotropicAdaptation(mesh, M)
+    mesh = adaptor.adapted_mesh
 
-        # Interpolate functions onto new mesh:
-        u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
-        toc2 = clock()
+    # Interpolate functions onto new mesh:
+    u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
+    toc2 = clock()
 
-        # Data analysis:
-        n = len(mesh.coordinates.dat.data)
-        if n < N1:
-            N1 = n
-        elif n > N2:
-            N2 = n
+    # Data analysis:
+    n = len(mesh.coordinates.dat.data)
+    if n < N1:
+        N1 = n
+    elif n > N2:
+        N2 = n
 
-        # Print to screen:
-        print ''
-        print '************ Adaption step %d **************' % mn
-        print 'Time = %1.2fs' % t
-        print 'Number of nodes after adaption step %d: ' % mn, n
-        print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
-        print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
-        print ''
+    # Print to screen:
+    print ''
+    print '************ Adaption step %d **************' % mn
+    print 'Time = %1.2fs' % t
+    print 'Number of nodes after adaption step %d: ' % mn, n
+    print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
+    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
+    print ''
 
     # Establish test functions and midpoint averages:
     v, ze = TestFunctions(W)
@@ -175,19 +158,18 @@ while t < T - 0.5 * dt:
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
 
-    # Solve the problem and update:
-    q_solv.solve()
-    q_.assign(q)
+    for j in range(rm):
+        t += dt
+        dumpn += 1
 
-    if dumpn == ndump:
-        dumpn -= ndump
-        q_file.write(u, eta, time=t)
-        if remesh == 'n':
-            print 't = %1.2fs' % t
+        # Solve the problem and update:
+        q_solv.solve()
+        q_.assign(q)
+
+        if dumpn == ndump:
+            dumpn -= ndump
+            q_file.write(u, eta, time=t)
 
 # End timing and print:
 toc1 = clock()
-if remesh == 'y':
-    print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
-else:
-    print 'Elapsed time for non-adaptive solver: %1.2fs' % (toc1 - tic1)
+print 'Elapsed time for adaptive solver: %1.2f mins' % ((toc1 - tic1) / 60.)

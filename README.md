@@ -24,7 +24,7 @@ reasons, but may be made available upon request.
 * Simulations on a realistic domain, which build upon the test script codes and apply the methodology to the 2011 Tohoku
 tsunami, which struck the Japanese coast at Fukushima and caused muchdestruction. These include:
     - [x] ``model_verification``, which shows that the linear, non-rotational shallow water equations are sufficient.
-    - [ ] ``anisotropic_tsunami``, which solves the problem using anisotropic mesh adaptivity.
+    - [x] ``anisotropic_tsunami``, which solves the problem using anisotropic mesh adaptivity.
     - [ ] ``goal_based_tsunami``, which solve the problem using a goal-based approach.
 
 For feedback, comments and questions, please email j.wallwork16@imperial.ac.uk.

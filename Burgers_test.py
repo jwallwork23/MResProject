@@ -42,8 +42,8 @@ if hess_meth not in ('parts', 'dL2'):
 # Courant number adjusted timestepping parameters:
 ndump = 1
 T = 0.2
-timestep = 0.8 * hmin
-Dt = Constant(timestep)
+dt = 0.8 * hmin
+Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % timestep
 
 # Create function space and set initial conditions:
@@ -55,7 +55,6 @@ phi.assign(phi_)
 
 # Initialise counters and files:
 t = 0.
-cnt = 0
 dumpn = 0
 mn = 0
 phi_file = File('plots/adapt_plots/advection_test.pvd')
@@ -64,51 +63,45 @@ m_file = File('plots/adapt_plots/advection_test_metric.pvd')
 h_file = File('plots/adapt_plots/advection_test_hessian.pvd')
 tic1 = clock()
 
-# Enter timeloop:
-while t < T - 0.5 * timestep:
+print ''
+print 'Entering outer timeloop!'
+while t < T - 0.5 * dt:
+    mn += 1
 
-    # Update counters:
-    cnt += 1
-    t += timestep
-    dumpn += 1
+    # Compute Hessian and metric:
+    tic2 = clock()
+    V = TensorFunctionSpace(mesh, 'CG', 1)
+    H = construct_hessian(mesh, V, phi, method=hess_meth)
+    M = compute_steady_metric(mesh, V, H, phi, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
+    if mat_out == 'y':
+        H.rename('Hessian')
+        h_file.write(H, time=t)
+        M.rename('Metric field')
+        m_file.write(M, time=t)
 
-    if cnt % rm == 0:
-        tic2 = clock()
-        mn += 1
+    # Adapt mesh and interpolate functions:
+    adaptor = AnisotropicAdaptation(mesh, M)
+    mesh = adaptor.adapted_mesh
+    phi_, phi = interp(mesh, phi_, phi)
+    W = FunctionSpace(mesh, 'CG', p)
+    phi.rename('Concentration')
+    toc2 = clock()
 
-        # Compute Hessian and metric:
-        V = TensorFunctionSpace(mesh, 'CG', 1)
-        H = construct_hessian(mesh, V, phi, method=hess_meth)
-        M = compute_steady_metric(mesh, V, H, phi, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
-        if mat_out == 'y':
-            H.rename('Hessian')
-            h_file.write(H, time=t)
-            M.rename('Metric field')
-            m_file.write(M, time=t)
+    # Data analysis:
+    n = len(mesh.coordinates.dat.data)
+    if n < N1:
+        N1 = n
+    elif n > N2:
+        N2 = n
 
-        # Adapt mesh and interpolate functions:
-        adaptor = AnisotropicAdaptation(mesh, M)
-        mesh = adaptor.adapted_mesh
-        phi_, phi = interp(mesh, phi_, phi)
-        W = FunctionSpace(mesh, 'CG', p)
-        phi.rename('Concentration')
-        toc2 = clock()
-
-        # Data analysis:
-        n = len(mesh.coordinates.dat.data)
-        if n < N1:
-            N1 = n
-        elif n > N2:
-            N2 = n
-
-        # Print to screen:
-        print ''
-        print '************ Adaption step %d **************' % mn
-        print 'Time = %1.2fs' % t
-        print 'Number of nodes after adaption step %d: ' % mn, n
-        print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
-        print 'Elapsed time for adaption step %d: %1.2fs' % (mn, toc2 - tic2)
-        print ''
+    # Print to screen:
+    print ''
+    print '************ Adaption step %d **************' % mn
+    print 'Time = %1.2fs' % t
+    print 'Number of nodes after adaption step %d: ' % mn, n
+    print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
+    print 'Elapsed time for adaption step %d: %1.2fs' % (mn, toc2 - tic2)
+    print ''
 
     # Set up variational problem, using implicit midpoint timestepping, and solve:
     psi = TestFunction(W)
@@ -123,12 +116,17 @@ while t < T - 0.5 * timestep:
                                                                        'assembled_pc_type': 'lu',
                                                                        'snes_lag_preconditioner': -1,
                                                                        'snes_lag_preconditioner_persists': True})
-    phi_solv.solve()
-    phi_.assign(phi)
+    for j in range(rm):
+        t += dt
+        dumpn += 1
 
-    if dumpn == ndump:
-        dumpn -= ndump
-        phi_file.write(phi, time=t)
+        # Sole the problem and update:
+        phi_solv.solve()
+        phi_.assign(phi)
+
+        if dumpn == ndump:
+            dumpn -= ndump
+            phi_file.write(phi, time=t)
 
 # End timing and print:
 toc1 = clock()

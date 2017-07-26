@@ -21,14 +21,14 @@ print ''
 print 'Options...'
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
-coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5, default 3): ') or 3)
+coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5, default 4): ') or 4)
 mesh, W, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(coarseness)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
 N2 = N1                                                                 # Maximum number of nodes
 print '...... mesh loaded. Initial number of vertices : ', N1
 
 # Set target number of vertices:
-nodes = 0.5 * N1
+nodes = 0.1 * N1
 
 # Set physical parameters:
 g = 9.81                        # Gravitational acceleration (m s^{-2})
@@ -38,7 +38,7 @@ T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600
 
 # Set up adaptivity parameters:
 hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
-hmax = float(raw_input('Maximum element size in km (default 1000)?: ') or 1000.) * 1e3
+hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
 rm = int(raw_input('Timesteps per re-mesh (default 10)?: ') or 10)
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
@@ -87,7 +87,6 @@ u, eta = q.split()
 
 # Initialise counters, files and gauge data measurements:
 t = 0.
-cnt = 0
 dumpn = 0
 mn = 0
 u.rename('Fluid velocity')
@@ -98,55 +97,49 @@ gauge_dat = [eta.at(gcoord)]
 if dm == 'y':
     damage_measure = [math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
                                    eta.at(gloc['804']), eta.at(gloc['806']), 0.5))]
-
+print ''
+print 'Entering outer timeloop!'
 tic1 = clock()
 while t < T - 0.5 * dt:
+    mn += 1
 
-    # Increment counters:
-    cnt += 1
-    t += dt
-    dumpn += 1
+    # Compute Hessian and metric:
+    tic2 = clock()
+    V = TensorFunctionSpace(mesh, 'CG', 1)
+    if mtype != 'f':
+        spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
+        spd.interpolate(sqrt(dot(u, u)))
+        H = construct_hessian(mesh, V, spd, method=hess_meth)
+        M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
+    if mtype != 's':
+        H = construct_hessian(mesh, V, eta, method=hess_meth)
+        M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
+        if mtype == 'b':
+            M = metric_intersection(mesh, V, M, M2)
+        else:
+            M = M2
+    adaptor = AnisotropicAdaptation(mesh, M)
+    mesh = adaptor.adapted_mesh
 
-    if cnt % rm == 0:
-        mn += 1
+    # Interpolate functions onto new mesh:
+    u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
+    toc2 = clock()
 
-        # Compute Hessian and metric:
-        tic2 = clock()
-        V = TensorFunctionSpace(mesh, 'CG', 1)
-        if mtype != 'f':
-            spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
-            spd.interpolate(sqrt(dot(u, u)))
-            H = construct_hessian(mesh, V, spd, method=hess_meth)
-            M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
-        if mtype != 's':
-            H = construct_hessian(mesh, V, eta, method=hess_meth)
-            M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
-            if mtype == 'b':
-                M = metric_intersection(mesh, V, M, M2)
-            else:
-                M = M2
-        adaptor = AnisotropicAdaptation(mesh, M)
-        mesh = adaptor.adapted_mesh
+    # Data analysis:
+    n = len(mesh.coordinates.dat.data)
+    if n < N1:
+        N1 = n
+    elif n > N2:
+        N2 = n
 
-        # Interpolate functions onto new mesh:
-        u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
-        toc2 = clock()
-
-        # Data analysis:
-        n = len(mesh.coordinates.dat.data)
-        if n < N1:
-            N1 = n
-        elif n > N2:
-            N2 = n
-
-        # Print to screen:
-        print ''
-        print '************ Adaption step %d **************' % mn
-        print 'Time = %1.2fs' % t
-        print 'Number of nodes after adaption step %d: ' % mn, n
-        print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
-        print 'Elapsed time for this step: %1.2f mins' % ((toc2 - tic2) / 60.)
-        print ''
+    # Print to screen:
+    print ''
+    print '************ Adaption step %d **************' % mn
+    print 'Time = %1.2fs' % t
+    print 'Number of nodes after adaption step %d: ' % mn, n
+    print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
+    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
+    print ''
 
     # Set up functions of weak problem:
     v, ze = TestFunctions(W)
@@ -171,23 +164,26 @@ while t < T - 0.5 * dt:
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
 
-    # Solve the problem and update:
-    q_solv.solve()
-    q_.assign(q)
+    for j in range(rm):
+        t += dt
+        dumpn += 1
 
-    # Store data:
-    if t < T:
+        # Solve the problem and update:
+        q_solv.solve()
+        q_.assign(q)
+
+        # Store data:
         gauge_dat.append(eta.at(gcoord))
         if dm == 'y':
             damage_measure.append(math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
                                                eta.at(gloc['804']), eta.at(gloc['806']), 0.5)))
-    if dumpn == ndump:
-        dumpn -= ndump
-        q_file.write(u, eta, time=t)
+        if dumpn == ndump:
+            dumpn -= ndump
+            q_file.write(u, eta, time=t)
 print '\a'
 # End timing and print:
 toc1 = clock()
-print 'Elapsed time for adaptive forward solver: %1.2fs' % (toc1 - tic1)
+print 'Elapsed time for adaptive forward solver: %1.2f mins' % ((toc1 - tic1) / 60.)
 
 # Plot gauge time series:
 plt.rc('text', usetex=True)

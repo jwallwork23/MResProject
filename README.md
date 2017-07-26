@@ -1,7 +1,12 @@
 ## Welcome to Joe Wallwork's MRes project GitHub page! ##
 
 Here you will find:
-* A ``utils`` directory, containing the necessary functions for implementation of anisotropic mesh adaptivity.
+* A ``utils`` directory, containing the necessary functions for implementation of anisotropic mesh adaptivity:
+    * Hessians and metrics can be approximated using ``adaptivity``.
+    * Coordinate transformations are achieved using ``conversion``.
+    * Meshes, function spaces and functions on a selection of model and ocean domains are generated using ``domain``.
+    * Interpolation of functions from an old mesh to a newly adapted mesh is achieved using ``interp``.
+    * Time series data can be stored and plotted using ``storage``.
 * A ``resources`` directory, containing bathymetry and coastline data. Mesh files have been removed for copyright
 reasons, but may be made available upon request.
 * Some test files on model domains:

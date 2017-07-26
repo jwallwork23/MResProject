@@ -116,6 +116,7 @@ while t < T - 0.5 * dt:
                                                                        'assembled_pc_type': 'lu',
                                                                        'snes_lag_preconditioner': -1,
                                                                        'snes_lag_preconditioner_persists': True})
+    # Inner timeloop:
     for j in range(rm):
         t += dt
         dumpn += 1

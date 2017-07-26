@@ -15,8 +15,8 @@ n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolu
 lx = 4                                                                  # Extent in x-direction (m)
 mesh = SquareMesh(lx * n, lx * n, lx, lx)
 x, y = SpatialCoordinate(mesh)
-N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
-N2 = N1                                                                 # Maximum number of nodes
+N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
+N2 = N1                                                                 # Maximum number of vertices
 print 'Initial number of nodes : ', N1
 bathy = raw_input('Flat bathymetry or shelf break (f/s)?: ') or 'f'
 if bathy not in ('f', 's'):
@@ -158,6 +158,7 @@ while t < T - 0.5 * dt:
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
 
+    # Inner timeloop:
     for j in range(rm):
         t += dt
         dumpn += 1

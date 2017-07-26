@@ -21,13 +21,14 @@ print ''
 print 'Options...'
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
-try:
-    mesh, W, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(int(raw_input('Mesh coarseness? (Integer in 1-5): ') or 4))
-except:
-    ValueError('Input not recognised. Try entering a natural number less than or equal to 5.')
-N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
-N2 = N1                                                                 # Maximum number of nodes
+coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5, default 4): ') or 4)
+mesh, W, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(coarseness)
+N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
+N2 = N1                                                                 # Maximum number of vertices
 print '...... mesh loaded. Initial number of vertices : ', N1
+
+# Set target number of vertices:
+nodes = 0.1 * N1
 
 # Set physical parameters:
 g = 9.81                        # Gravitational acceleration (m s^{-2})
@@ -37,9 +38,8 @@ T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600
 
 # Set up adaptivity parameters:
 hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
-hmax = float(raw_input('Maximum element size in km (default 1000)?: ') or 1000.) * 1e3
+hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
 rm = int(raw_input('Timesteps per re-mesh (default 10)?: ') or 10)
-nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
@@ -54,9 +54,7 @@ if hess_meth not in ('parts', 'dL2'):
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
 cdt = hmin / np.sqrt(g * max(b.dat.data))
-try:
-    assert dt < cdt
-except:
+if dt > cdt:
     print 'WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt
     if raw_input('Are you happy to proceed? (y/n)') == 'n':
         exit(23)
@@ -80,6 +78,7 @@ elif gtype == 't':
     gcoord = gloc[gauge]
 else:
     ValueError('Gauge type not recognised. Please choose p or t.')
+dm = raw_input('Evaluate damage measures? (y/n, default n): ') or 'n'
 
 # Set up functions of the weak problem:
 q = Function(W)
@@ -88,7 +87,6 @@ u, eta = q.split()
 
 # Initialise counters, files and gauge data measurements:
 t = 0.
-cnt = 0
 dumpn = 0
 mn = 0
 u.rename('Fluid velocity')
@@ -96,57 +94,52 @@ eta.rename('Free surface displacement')
 q_file = File('plots/adapt_plots/tohoku_adapt.pvd')
 q_file.write(u, eta, time=t)
 gauge_dat = [eta.at(gcoord)]
-maxi = max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']), eta.at(gloc['804']), eta.at(gloc['806']), 0.5)
-damage_measure = [math.log(maxi)]
-
+if dm == 'y':
+    damage_measure = [math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
+                                   eta.at(gloc['804']), eta.at(gloc['806']), 0.5))]
+print ''
+print 'Entering outer timeloop!'
 tic1 = clock()
 while t < T - 0.5 * dt:
+    mn += 1
 
-    # Increment counters:
-    cnt += 1
-    t += dt
-    dumpn += 1
+    # Compute Hessian and metric:
+    tic2 = clock()
+    V = TensorFunctionSpace(mesh, 'CG', 1)
+    if mtype != 'f':
+        spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
+        spd.interpolate(sqrt(dot(u, u)))
+        H = construct_hessian(mesh, V, spd, method=hess_meth)
+        M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
+    if mtype != 's':
+        H = construct_hessian(mesh, V, eta, method=hess_meth)
+        M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
+        if mtype == 'b':
+            M = metric_intersection(mesh, V, M, M2)
+        else:
+            M = M2
+    adaptor = AnisotropicAdaptation(mesh, M)
+    mesh = adaptor.adapted_mesh
 
-    if cnt % rm == 0:
-        mn += 1
+    # Interpolate functions onto new mesh:
+    u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
+    toc2 = clock()
 
-        # Compute Hessian and metric:
-        tic2 = clock()
-        V = TensorFunctionSpace(mesh, 'CG', 1)
-        if mtype != 'f':
-            spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
-            spd.interpolate(sqrt(dot(u, u)))
-            H = construct_hessian(mesh, V, spd, method=hess_meth)
-            M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, N=nodes, normalise=ntype)
-        if mtype != 's':
-            H = construct_hessian(mesh, V, eta, method=hess_meth)
-            M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, N=nodes, normalise=ntype)
-            if mtype == 'b':
-                M = metric_intersection(mesh, V, M, M2)
-            else:
-                M = M2
-        adaptor = AnisotropicAdaptation(mesh, M)
-        mesh = adaptor.adapted_mesh
+    # Data analysis:
+    n = len(mesh.coordinates.dat.data)
+    if n < N1:
+        N1 = n
+    elif n > N2:
+        N2 = n
 
-        # Interpolate functions onto new mesh:
-        u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(adaptor, u, u_, eta, eta_, b)
-        toc2 = clock()
-
-        # Data analysis:
-        n = len(mesh.coordinates.dat.data)
-        if n < N1:
-            N1 = n
-        elif n > N2:
-            N2 = n
-
-        # Print to screen:
-        print ''
-        print '************ Adaption step %d **************' % mn
-        print 'Time = %1.2fs' % t
-        print 'Number of nodes after adaption step %d: ' % mn, n
-        print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
-        print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
-        print ''
+    # Print to screen:
+    print ''
+    print '************ Adaption step %d **************' % mn
+    print 'Time = %1.2f mins' % (t / 60.)
+    print 'Number of nodes after adaption step %d: ' % mn, n
+    print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
+    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
+    print ''
 
     # Set up functions of weak problem:
     v, ze = TestFunctions(W)
@@ -171,22 +164,27 @@ while t < T - 0.5 * dt:
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
 
-    # Solve the problem and update:
-    q_solv.solve()
-    q_.assign(q)
+    # Inner timeloop:
+    for j in range(rm):
+        t += dt
+        dumpn += 1
 
-    # Store data:
-    if t < T:
+        # Solve the problem and update:
+        q_solv.solve()
+        q_.assign(q)
+
+        # Store data:
         gauge_dat.append(eta.at(gcoord))
-        damage_measure.append(math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
-                                           eta.at(gloc['804']), eta.at(gloc['806']), 0.5)))
-    if dumpn == ndump:
-        dumpn -= ndump
-        q_file.write(u, eta, time=t)
+        if dm == 'y':
+            damage_measure.append(math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
+                                               eta.at(gloc['804']), eta.at(gloc['806']), 0.5)))
+        if dumpn == ndump:
+            dumpn -= ndump
+            q_file.write(u, eta, time=t)
 print '\a'
 # End timing and print:
 toc1 = clock()
-print 'Elapsed time for adaptive forward solver: %1.2fs' % (toc1 - tic1)
+print 'Elapsed time for adaptive forward solver: %1.2f mins' % ((toc1 - tic1) / 60.)
 
 # Plot gauge time series:
 plt.rc('text', usetex=True)
@@ -194,7 +192,6 @@ plt.rc('font', family='serif')
 plt.plot(np.linspace(0, 60, len(gauge_dat)), gauge_dat)
 plt.gcf().subplots_adjust(bottom=0.15)
 plt.ylim([-5, 5])
-# plt.legend()
 plt.xlabel(r'Time elapsed (mins)')
 plt.ylabel(r'Free surface (m)')
 plt.savefig('plots/tsunami_outputs/screenshots/anisotropic_gauge_timeseries_{y}.png'.format(y=gauge))
@@ -203,17 +200,18 @@ plt.savefig('plots/tsunami_outputs/screenshots/anisotropic_gauge_timeseries_{y}.
 gauge_timeseries(gauge, gauge_dat)
 
 # Plot damage measures time series:
-plt.clf()
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
-plt.plot(np.linspace(0, 60, len(damage_measure)), damage_measure)
-plt.gcf().subplots_adjust(bottom=0.15)
-plt.axis([0, 60, -1.5, 3.5])
-plt.axhline(-1, linestyle='--', color='blue')
-plt.axhline(0, linestyle='--', color='green')
-plt.axhline(1, linestyle='--', color='yellow')
-plt.axhline(2, linestyle='--', color='orange')
-plt.axhline(3, linestyle='--', color='red')
-plt.xlabel(r'Time elapsed (mins)')
-plt.ylabel(r'Maximal log free surface')
-plt.savefig('plots/tsunami_outputs/screenshots/anisotropic_damage_measure_timeseries.png')
+if dm == 'y':
+    plt.clf()
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    plt.plot(np.linspace(0, 60, len(damage_measure)), damage_measure)
+    plt.gcf().subplots_adjust(bottom=0.15)
+    plt.axis([0, 60, -1.5, 3.5])
+    plt.axhline(-1, linestyle='--', color='blue')
+    plt.axhline(0, linestyle='--', color='green')
+    plt.axhline(1, linestyle='--', color='yellow')
+    plt.axhline(2, linestyle='--', color='orange')
+    plt.axhline(3, linestyle='--', color='red')
+    plt.xlabel(r'Time elapsed (mins)')
+    plt.ylabel(r'Maximal log free surface')
+    plt.savefig('plots/tsunami_outputs/screenshots/anisotropic_damage_measure_timeseries.png')

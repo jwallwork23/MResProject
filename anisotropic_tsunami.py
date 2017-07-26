@@ -23,8 +23,8 @@ print 'Options...'
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5, default 4): ') or 4)
 mesh, W, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(coarseness)
-N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
-N2 = N1                                                                 # Maximum number of nodes
+N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
+N2 = N1                                                                 # Maximum number of vertices
 print '...... mesh loaded. Initial number of vertices : ', N1
 
 # Set target number of vertices:
@@ -43,7 +43,7 @@ rm = int(raw_input('Timesteps per re-mesh (default 10)?: ') or 10)
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
+mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 's'
 if mtype not in ('s', 'f', 'b'):
     raise ValueError('Please try again, choosing s, f or b.')
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
@@ -135,7 +135,7 @@ while t < T - 0.5 * dt:
     # Print to screen:
     print ''
     print '************ Adaption step %d **************' % mn
-    print 'Time = %1.2fs' % t
+    print 'Time = %1.2f mins' % (t / 60.)
     print 'Number of nodes after adaption step %d: ' % mn, n
     print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
     print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
@@ -164,6 +164,7 @@ while t < T - 0.5 * dt:
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
 
+    # Inner timeloop:
     for j in range(rm):
         t += dt
         dumpn += 1

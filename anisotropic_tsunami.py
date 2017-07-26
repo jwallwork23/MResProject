@@ -27,43 +27,40 @@ except:
     ValueError('Input not recognised. Try entering a natural number less than or equal to 5.')
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
 N2 = N1                                                                 # Maximum number of nodes
-print '...... mesh loaded. Initial number of nodes : ', N1
+print '...... mesh loaded. Initial number of vertices : ', N1
+
+# Set physical parameters:
+g = 9.81                        # Gravitational acceleration (m s^{-2})
 
 # Simulation duration:
 T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600.
 
 # Set up adaptivity parameters:
-remesh = raw_input('Use adaptive meshing (y/n)?: ') or 'y'
-if remesh == 'y':
-    hmin = float(raw_input('Minimum element size in km (default 5)?: ') or 5.) * 1e3
-    hmax = float(raw_input('Maximum element size in km (default 10)?: ') or 10.) * 1e3
-    rm = int(raw_input('Timesteps per re-mesh (default 10)?: ') or 10)
-    nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
-    ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-    if ntype not in ('lp', 'manual'):
-        raise ValueError('Please try again, choosing lp or manual.')
-    mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
-    if mtype not in ('s', 'f', 'b'):
-        raise ValueError('Please try again, choosing s, f or b.')
-    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
-    if hess_meth not in ('parts', 'dL2'):
-        raise ValueError('Please try again, choosing parts or dL2.')
-else:
-    hmin = 500
-    rm = int(T)
-    nodes = 0
-    ntype = None
-    mtype = None
-    mat_out = 'n'
-    if remesh != 'n':
-        raise ValueError('Please try again, choosing y or n.')
+hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
+hmax = float(raw_input('Maximum element size in km (default 1000)?: ') or 1000.) * 1e3
+rm = int(raw_input('Timesteps per re-mesh (default 10)?: ') or 10)
+nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
+ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+if ntype not in ('lp', 'manual'):
+    raise ValueError('Please try again, choosing lp or manual.')
+mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
+if mtype not in ('s', 'f', 'b'):
+    raise ValueError('Please try again, choosing s, f or b.')
+hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
+if hess_meth not in ('parts', 'dL2'):
+    raise ValueError('Please try again, choosing parts or dL2.')
 
 # Courant number adjusted timestepping parameters:
-ndump = 10
-g = 9.81                                                # Gravitational acceleration (m s^{-2})
-dt = 0.8 * hmin / np.sqrt(g * max(b.dat.data))          # Timestep length (s), using wavespeed sqrt(gh)
+dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
-print 'Using Courant number adjusted timestep dt = %1.4f' % dt
+cdt = hmin / np.sqrt(g * max(b.dat.data))
+try:
+    assert dt < cdt
+except:
+    print 'WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt
+    if raw_input('Are you happy to proceed? (y/n)') == 'n':
+        exit(23)
+ndump = int(60. / dt)
 
 # Convert gauge locations:
 glatlon = {'P02': (38.5, 142.5), 'P06': (38.7, 142.6),
@@ -81,20 +78,13 @@ if gtype == 'p':
 elif gtype == 't':
     gauge = raw_input('Gauge 801, 802, 803, 804 or 806?: ') or '801'
     gcoord = gloc[gauge]
+else:
+    ValueError('Gauge type not recognised. Please choose p or t.')
 
 # Set up functions of the weak problem:
 q = Function(W)
 q.assign(q_)
 u, eta = q.split()
-
-# Specify solver parameters:
-params = {'mat_type': 'matfree',
-          'snes_type': 'ksponly',
-          'pc_type': 'python',
-          'pc_python_type': 'firedrake.AssembledPC',
-          'assembled_pc_type': 'lu',
-          'snes_lag_preconditioner': -1,
-          'snes_lag_preconditioner_persists': True}
 
 # Initialise counters, files and gauge data measurements:
 t = 0.
@@ -117,7 +107,7 @@ while t < T - 0.5 * dt:
     t += dt
     dumpn += 1
 
-    if (remesh == 'y') & (cnt % rm == 0):
+    if cnt % rm == 0:
         mn += 1
 
         # Compute Hessian and metric:
@@ -140,7 +130,6 @@ while t < T - 0.5 * dt:
 
         # Interpolate functions onto new mesh:
         u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(adaptor, u, u_, eta, eta_, b)
-
         toc2 = clock()
 
         # Data analysis:
@@ -169,8 +158,13 @@ while t < T - 0.5 * dt:
     # Set up the variational problem
     L = (ze * (eta - eta_) - Dt * inner(b * uh, grad(ze)) + inner(u - u_, v) + Dt * g * (inner(grad(etah), v))) * dx
     q_prob = NonlinearVariationalProblem(L, q)
-    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
-
+    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters={'mat_type': 'matfree',
+                                                                   'snes_type': 'ksponly',
+                                                                   'pc_type': 'python',
+                                                                   'pc_python_type': 'firedrake.AssembledPC',
+                                                                   'assembled_pc_type': 'lu',
+                                                                   'snes_lag_preconditioner': -1,
+                                                                   'snes_lag_preconditioner_persists': True})
     # Split to access data and relabel functions:
     u_, eta_ = q_.split()
     u, eta = q.split()
@@ -181,25 +175,18 @@ while t < T - 0.5 * dt:
     q_solv.solve()
     q_.assign(q)
 
+    # Store data:
     if t < T:
         gauge_dat.append(eta.at(gcoord))
-        maxi = max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']), eta.at(gloc['804']),
-                   eta.at(gloc['806']), 0.5)
-        damage_measure.append(math.log(maxi))
-
+        damage_measure.append(math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
+                                           eta.at(gloc['804']), eta.at(gloc['806']), 0.5)))
     if dumpn == ndump:
         dumpn -= ndump
         q_file.write(u, eta, time=t)
-
-    if remesh == 'n':
-        print 't = %1.2f mins' % t/60.
-
+print '\a'
 # End timing and print:
 toc1 = clock()
-if remesh == 'y':
-    print 'Elapsed time for adaptive forward solver: %1.2fs' % (toc1 - tic1)
-else:
-    print 'Elapsed time for non-adaptive forward solver: %1.2fs' % (toc1 - tic1)
+print 'Elapsed time for adaptive forward solver: %1.2fs' % (toc1 - tic1)
 
 # Plot gauge time series:
 plt.rc('text', usetex=True)
@@ -210,8 +197,9 @@ plt.ylim([-5, 5])
 # plt.legend()
 plt.xlabel(r'Time elapsed (mins)')
 plt.ylabel(r'Free surface (m)')
-plt.savefig('plots/tsunami_outputs/screenshots/adaptive_gauge_timeseries_{y}.png'.format(y=gauge))
+plt.savefig('plots/tsunami_outputs/screenshots/anisotropic_gauge_timeseries_{y}.png'.format(y=gauge))
 
+# Store gauge timeseries data to file:
 gauge_timeseries(gauge, gauge_dat)
 
 # Plot damage measures time series:
@@ -228,4 +216,4 @@ plt.axhline(2, linestyle='--', color='orange')
 plt.axhline(3, linestyle='--', color='red')
 plt.xlabel(r'Time elapsed (mins)')
 plt.ylabel(r'Maximal log free surface')
-plt.savefig('plots/tsunami_outputs/screenshots/damage_measure_timeseries.png')
+plt.savefig('plots/tsunami_outputs/screenshots/anisotropic_damage_measure_timeseries.png')

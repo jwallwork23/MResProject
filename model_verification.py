@@ -1,5 +1,5 @@
 from firedrake import *
-from math import radians
+import math
 import numpy as np
 import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
@@ -7,6 +7,7 @@ from time import clock
 
 from utils.conversion import from_latlon, get_latitude
 from utils.domain import Tohoku_domain
+from utils.storage import gauge_timeseries
 
 # Change backend to resolve framework problems:
 import matplotlib
@@ -19,21 +20,22 @@ print ''
 print 'Options...'
 
 # Establish cases:
-mode = {0: 'Linear, non-rotational', 1: 'Linear, rotational', 2: 'Nonlinear, nonrotational', 3: 'Nonlinear, rotational'}
+mode = {0: 'Linear, non-rotational', 1: 'Linear, rotational',
+        2: 'Nonlinear, non-rotational', 3: 'Nonlinear, rotational'}
 for key in mode:
     print key, ' : ', mode[key]
 print ''
 choices = int(raw_input('Choose mode (0/1/2/3 or 4 to try all): ') or 4)
 if choices in (0, 1, 2, 3):
     mode = {choices: mode[choices]}
-coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5): ') or 3)
+coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5, default 3): ') or 3)
 
 # Define mesh, mixed function space and variables:
 mesh, W, q_, u_, v_, eta_, lam_, lu_, lv_, b = Tohoku_domain(res=coarseness, split='y')
 eta0 = Function(W.sub(2), name='Initial free surface')
 eta0.assign(eta_)
 coords = mesh.coordinates.dat.data
-print '........ mesh loaded'
+print '........ mesh loaded. Number of vertices : ', len(mesh.coordinates.dat.data)
 
 # Set physical parameters:
 Om = 7.291e-5                   # Rotation rate of Earth (rad s^{-1})
@@ -45,7 +47,7 @@ Cb = 0.0025                     # Bottom friction coefficient (dimensionless)
 T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600.
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
-cdt = 5e3 / np.sqrt(g * max(b.dat.data))
+cdt = 5e2 / np.sqrt(g * max(b.dat.data))
 try:
     assert dt < cdt
 except:
@@ -54,47 +56,34 @@ ndump = int(60. / dt)
 timings = {}
 
 # Convert pressure gauge locations and save in a dictionary:
-glatlon = {'P02': (38.5, 142.5), 'P06': (38.7, 142.6)}
+glatlon = {'P02': (38.5, 142.5), 'P06': (38.7, 142.6),
+           '801': (38.2, 141.7), '802': (39.3, 142.1), '803': (38.9, 141.8), '804': (39.7, 142.2), '806': (37.0, 141.2)}
 gloc = {}
 for key in glatlon:
     east, north, zn, zl = from_latlon(glatlon[key][0], glatlon[key][1], force_zone_number=54)
     gloc[key] = (east, north)
-try:
+
+# Set gauge arrays:
+gtype = raw_input('Pressure or tide gauge? (p/t): ') or 'p'
+if gtype == 'p':
     gauge = raw_input('Gauge P02 or P06?: ') or 'P02'
     gcoord = gloc[gauge]
-except:
-    ValueError('Gauge not recognised. Please choose P02 or P06.')
+elif gtype == 't':
+    gauge = raw_input('Gauge 801, 802, 803, 804 or 806?: ') or '801'
+    gcoord = gloc[gauge]
+else:
+    ValueError('Gauge type not recognised. Please choose p or t.')
 
 # Evaluate and plot (dimensionless) Coriolis parameter function:
 f = Function(W.sub(2), name='Coriolis parameter')
 for i in range(len(coords)):
     if coords[i][0] < 100000:
-        f.dat.data[i] = 2 * Om * sin(radians(get_latitude(100000, coords[i][1], 54, northern=True)))
+        f.dat.data[i] = 2 * Om * sin(math.radians(get_latitude(100000, coords[i][1], 54, northern=True)))
     elif coords[i][0] < 999999:
-        f.dat.data[i] = 2 * Om * sin(radians(get_latitude(coords[i][0], coords[i][1], 54, northern=True)))
+        f.dat.data[i] = 2 * Om * sin(math.radians(get_latitude(coords[i][0], coords[i][1], 54, northern=True)))
     else:
-        f.dat.data[i] = 2 * Om * sin(radians(get_latitude(999999, coords[i][1], 54, northern=True)))
+        f.dat.data[i] = 2 * Om * sin(math.radians(get_latitude(999999, coords[i][1], 54, northern=True)))
 File('plots/tsunami_outputs/Coriolis_parameter.pvd').write(f)
-
-# Specify solver parameters:
-params = {'mat_type': 'matfree',
-          'snes_type': 'ksponly',
-          'pc_type': 'python',
-          'pc_python_type': 'firedrake.AssembledPC',
-          'assembled_pc_type': 'lu',
-          'snes_lag_preconditioner': -1,
-          'snes_lag_preconditioner_persists': True}
-
-# params = {'ksp_type': 'gmres',
-#           'ksp_rtol': '1e-8',
-#           'pc_type': 'fieldsplit',
-#           'pc_fieldsplit_type': 'schur',
-#           'pc_fieldsplit_schur_fact_type': 'full',
-#           'fieldsplit_0_ksp_type': 'cg',
-#           'fieldsplit_0_pc_type': 'ilu',
-#           'fieldsplit_1_ksp_type': 'cg',
-#           'fieldsplit_1_pc_type': 'hypre',
-#           'pc_fieldsplit_schur_precondition': 'selfp',}
 
 for key in mode:
     print ''
@@ -124,8 +113,13 @@ for key in mode:
                    + nu * (u.dx(0) * w.dx(0) + u.dx(1) * w.dx(1) + v.dx(0) * z.dx(0) + v.dx(1) * z.dx(1))
                    + Cb * sqrt(u_ * u_ + v_ * v_) * (u * w + v * z) / (eta + b)) * dx
     q_prob = NonlinearVariationalProblem(L, q)
-    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters=params)
-
+    q_solv = NonlinearVariationalSolver(q_prob, solver_parameters={'mat_type': 'matfree',
+                                                                   'snes_type': 'ksponly',
+                                                                   'pc_type': 'python',
+                                                                   'pc_python_type': 'firedrake.AssembledPC',
+                                                                   'assembled_pc_type': 'lu',
+                                                                   'snes_lag_preconditioner': -1,
+                                                                   'snes_lag_preconditioner_persists': True})
     # 'Split' functions in order to access their data and then relabel:
     u_, v_, eta_ = q_.split()
     u, v, eta = q.split()
@@ -139,15 +133,27 @@ for key in mode:
     q_file = File('plots/tsunami_outputs/model_verif_{y}.pvd'.format(y=key))
     q_file.write(u, v, eta, time=t)
     gauge_dat = [eta.at(gcoord)]
+    maxi = max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
+               eta.at(gloc['804']), eta.at(gloc['806']), 0.5)
+    damage_measure = [math.log(maxi)]
     tic1 = clock()
 
     while t < T - 0.5 * dt:
+
+        # Increment counters:
         t += dt
+        dumpn += 1
         print 't = %1.1f mins' % (t / 60.)
+
+        # Solve problem:
         q_solv.solve()
         q_.assign(q)
-        dumpn += 1
+
+        # Store data:
         gauge_dat.append(eta.at(gcoord))
+        if key == 0:
+            damage_measure.append(math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
+                                               eta.at(gloc['804']), eta.at(gloc['806']), 0.5)))
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, v, eta, time=t)
@@ -156,7 +162,7 @@ for key in mode:
     toc1 = clock()
     timings[key] = toc1 - tic1
 
-    # Plot pressure gauge time series:
+    # Plot gauge time series:
     plt.rc('text', usetex=True)
     font = {'family': 'serif',
             'size': 18}
@@ -167,8 +173,28 @@ for key in mode:
     # plt.legend()
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
-print ''
+print '\a'
 plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries_{y}.png'.format(y=gauge))
+
+# Store gauge timeseries data to file:
+gauge_timeseries(gauge, gauge_dat)
+
+# Plot damage measures time series:
+if choices in (0, 4):
+    plt.clf()
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    plt.plot(np.linspace(0, 60, len(damage_measure)), damage_measure)
+    plt.gcf().subplots_adjust(bottom=0.15)
+    plt.axis([0, 60, -1.5, 3.5])
+    plt.axhline(-1, linestyle='--', color='blue')
+    plt.axhline(0, linestyle='--', color='green')
+    plt.axhline(1, linestyle='--', color='yellow')
+    plt.axhline(2, linestyle='--', color='orange')
+    plt.axhline(3, linestyle='--', color='red')
+    plt.xlabel(r'Time elapsed (mins)')
+    plt.ylabel(r'Maximal log free surface')
+    plt.savefig('plots/tsunami_outputs/screenshots/damage_measure_timeseries.png')
 
 for key in mode:
     print mode[key], 'case time =  %1.1fs' % timings[key]

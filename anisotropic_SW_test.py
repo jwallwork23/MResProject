@@ -82,13 +82,6 @@ q = Function(W)
 q.assign(q_)
 u, eta = q.split()
 
-# # Establish exact solution function:
-# sol = Function(Ve, name = 'Exact free surface')
-# sol.interpolate(1e-3 * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
-# k = 1.
-# l = 1.
-# kap = sqrt(pow(k, 2) + pow(l, 2))
-
 # Initialise time, counters and files:
 t = 0.
 cnt = 0
@@ -98,13 +91,10 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 q_file = File('plots/adapt_plots/gaussian_test.pvd')
 q_file.write(u, eta, time=t)
-# ex_file = File('plots/adapt_plots/gaussian_exact.pvd')     TODO: Plot exact soln
-# ex_file.write(sol, time = t)
 m_file = File('plots/adapt_plots/gaussian_test_metric.pvd')
 h_file = File('plots/adapt_plots/gaussian_test_hessian.pvd')
-tic1 = clock()
 
-# Enter timeloop:
+tic1 = clock()
 while t < T - 0.5 * dt:
 
     # Increment counters:
@@ -113,7 +103,6 @@ while t < T - 0.5 * dt:
     dumpn += 1
 
     if (remesh == 'y') & (cnt % rm == 0):
-
         mn += 1
 
         # Compute Hessian and metric:
@@ -126,13 +115,13 @@ while t < T - 0.5 * dt:
             if mat_out == 'y':
                 H.rename('Hessian')
                 h_file.write(H, time=t)
-            M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, N=nodes, normalise=ntype)
+            M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
         if mtype != 's':
             H = construct_hessian(mesh, V, eta, method=hess_meth)
             if (mtype != 'b') & (mat_out == 'y'):
                 H.rename('Hessian')
                 h_file.write(H, time=t)
-            M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, N=nodes, normalise=ntype)
+            M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
             if mtype == 'b':
                 M = metric_intersection(mesh, V, M, M2)
             else:
@@ -145,7 +134,6 @@ while t < T - 0.5 * dt:
 
         # Interpolate functions onto new mesh:
         u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
-
         toc2 = clock()
 
         # Data analysis:
@@ -194,8 +182,6 @@ while t < T - 0.5 * dt:
     if dumpn == ndump:
         dumpn -= ndump
         q_file.write(u, eta, time=t)
-        # sol.interpolate(1e-3 * cos( - kap * t * sqrt(g * 0.1)) * exp( - (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
-        # ex_file.write(sol, time = t)        # TODO: ^^ Implement properly. Why doesn't it work??
         if remesh == 'n':
             print 't = %1.2fs' % t
 

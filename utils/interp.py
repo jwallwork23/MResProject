@@ -20,7 +20,7 @@ def interp(mesh, *fields):
         notInDomain = []
 
         if f.ufl_element().family() == 'Lagrange' and f.ufl_element().degree() == 1:
-            coords = mesh.coordinates.dat.data                      # Vertex/node coords
+            coords = mesh.coordinates.dat.data                                      # Vertex/node coords
         elif f.ufl_element().family() == 'Lagrange':
             degree = f.ufl_element().degree()
             C = VectorFunctionSpace(mesh, 'CG', degree)
@@ -108,7 +108,7 @@ def interp_Taylor_Hood(mesh, u, u_, eta, eta_, b):
 
     eps = 1e-6  # For playing with epsilons
     while len(notInDomain) > 0:
-        print '#### Number of points not in domain for velocity: %d / %d' % (len(notInDomain), len(P2coords))
+        print '#### Number of points not in domain for P2 space: %d / %d' % (len(notInDomain), len(P2coords))
         eps *= 10
         print '#### Trying epsilon = ', eps
         for x in notInDomain:
@@ -145,7 +145,7 @@ def interp_Taylor_Hood(mesh, u, u_, eta, eta_, b):
 
     eps = 1e-6  # For playing with epsilons
     while len(notInDomain) > 0:
-        print '#### Number of points not in domain for free surface: %d / %d' % (len(notInDomain), len(P1coords))
+        print '#### Number of points not in domain for P1 space: %d / %d' % (len(notInDomain), len(P1coords))
         eps *= 10
         print '#### Trying epsilon = ', eps
         for x in notInDomain:

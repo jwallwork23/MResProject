@@ -3,11 +3,22 @@ import numpy as np
 from time import clock
 import math
 import sys
+
+from utils.adaptivity import compute_steady_metric, construct_hessian
+from utils.conversion import from_latlon
+from utils.domain import Tohoku_domain
+from utils.interp import interp_Taylor_Hood
+from utils.storage import gauge_timeseries
+
+# Change backend to resolve framework problems:
 import matplotlib
-matplotlib.use('TkAgg')             # Change backend to resolve framework problems
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-from utils import compute_steady_metric, construct_hessian, from_latlon, interp_Taylor_Hood, Tohoku_domain
+print ''
+print '******************************** ADAPTIVE TSUNAMI SIMULATION ********************************'
+print ''
+print 'Options...'
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 try:
@@ -16,7 +27,7 @@ except:
     ValueError('Input not recognised. Try entering a natural number less than or equal to 5.')
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
 N2 = N1                                                                 # Maximum number of nodes
-print 'Initial number of nodes : ', N1
+print '...... mesh loaded. Initial number of nodes : ', N1
 
 # Simulation duration:
 T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600.
@@ -109,7 +120,6 @@ while t < T - 0.5 * dt:
     dumpn += 1
 
     if (remesh == 'y') & (cnt % rm == 0):
-
         mn += 1
 
         # Compute Hessian and metric:
@@ -267,10 +277,13 @@ tic3 = clock()
 
 while t > 0.5 * dt:
 
-    mn += 1
-    cnt = 0
+    # Increment counters:
+    cnt += 1
+    t -= dt
+    dumpn -= 1
 
-    if remesh == 'y':
+    if (remesh == 'y') & (cnt % rm == 0):
+        mn += 1
 
         # Compute Hessian and metric:
         V = TensorFunctionSpace(mesh, 'CG', 1)

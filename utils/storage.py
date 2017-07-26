@@ -1,6 +1,8 @@
 import numpy as np
+
+# Change backend to resolve framework problems:
 import matplotlib
-matplotlib.use('TkAgg')             # Change backend to resolve framework problems
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 

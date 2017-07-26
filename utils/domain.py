@@ -1,5 +1,4 @@
 from firedrake import *
-
 import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
 

@@ -82,7 +82,7 @@ while t < T - 0.5 * timestep:
     dumpn += 1
 
     if (remesh == 'y') & (cnt % rm == 0):
-
+        tic2 = clock()
         mn += 1
 
         # Compute Hessian and metric:
@@ -96,7 +96,6 @@ while t < T - 0.5 * timestep:
             m_file.write(M, time=t)
 
         # Adapt mesh and interpolate functions:
-        tic2 = clock()
         adaptor = AnisotropicAdaptation(mesh, M)
         mesh = adaptor.adapted_mesh
         phi_, phi = interp(mesh, phi_, phi)

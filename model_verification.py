@@ -4,18 +4,22 @@ import numpy as np
 import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
 from time import clock
-from utils import from_latlon, get_latitude, Tohoku_domain
 
+from utils.conversion import from_latlon, get_latitude
+from utils.domain import Tohoku_domain
+
+# Change backend to resolve framework problems:
 import matplotlib
-matplotlib.use('TkAgg')             # Change backend to resolve framework problems
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-# Establish cases:
-mode = {0: 'Linear, non-rotational', 1: 'Linear, rotational', 2: 'Nonlinear, nonrotational', 3: 'Nonlinear, rotational'}
 print ''
 print '******************************** MODEL VERIFICATION ********************************'
 print ''
 print 'Options...'
+
+# Establish cases:
+mode = {0: 'Linear, non-rotational', 1: 'Linear, rotational', 2: 'Nonlinear, nonrotational', 3: 'Nonlinear, rotational'}
 for key in mode:
     print key, ' : ', mode[key]
 print ''

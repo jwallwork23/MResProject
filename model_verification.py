@@ -1,25 +1,41 @@
 from firedrake import *
+from math import radians
 import numpy as np
 import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
-from math import radians
 from time import clock
+from utils import from_latlon, get_latitude, Tohoku_domain
+
 import matplotlib
 matplotlib.use('TkAgg')             # Change backend to resolve framework problems
 import matplotlib.pyplot as plt
 
-from utils import from_latlon, Tohoku_domain
+# Establish cases:
+mode = {0: 'Linear, non-rotational', 1: 'Linear, rotational', 2: 'Nonlinear, nonrotational', 3: 'Nonlinear, rotational'}
+print ''
+print '**************** MODEL VERIFICATION ****************'
+print ''
+print 'Options...'
+for key in mode:
+    print key, ' : ', mode[key]
+print ''
+choices = int(raw_input('Choose sensor (0/1/2/3 or 4 to try all): ') or 4)
+coarseness = int(raw_input('Mesh coarseness? (Integer in 1-5): ') or 4)
 
 # Define mesh, mixed function space and variables:
-mesh, W, q_, u_, v_, eta_, lam_, lu_, lv_, b = Tohoku_domain(res=4, split='y')
+mesh, W, q_, u_, v_, eta_, lam_, lu_, lv_, b = Tohoku_domain(res=coarseness, split='y')
+eta0 = Function(W.sub(2), name='Initial free surface')
+eta0.assign(eta_)
+coords = mesh.coordinates.dat.data
 
 # Simulation duration:
-T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600.
+T = float(raw_input('Simulation duration in hours (default 0.75)?: ') or 0.75) * 3600.
 ndump = 4
 dt = 15
 Dt = Constant(dt)
+timings = []
 
-# Convert pressure gauge locations:
+# Convert pressure gauge locations and save in a dictionary:
 glatlon = {'P02': (38.5, 142.5), 'P06': (38.7, 142.6)}
 gloc = {}
 for key in glatlon:
@@ -33,9 +49,20 @@ except:
 
 # Set parameters:
 Om = 7.291e-5                   # Rotation rate of Earth (rad s^{-1})
-f = 2 * Om * sin(radians(37))   # Coriolis parameter (dimensionless)
+g = 9.81                        # Gravitational acceleration (m s^{-2})
 nu = 1e-3                       # Viscosity (kg s^{-1} m^{-1})
 Cb = 0.0025                     # Bottom friction coefficient (dimensionless)
+
+# Evaluate and plot (dimensionless) Coriolis parameter function:
+f = Function(W.sub(2), name='Coriolis parameter')
+for i in range(len(coords)):
+    if coords[i][0] < 100000:
+        f.dat.data[i] = 2 * Om * sin(radians(get_latitude(100000, coords[i][1], 54, northern=True)))
+    elif coords[i][0] < 999999:
+        f.dat.data[i] = 2 * Om * sin(radians(get_latitude(coords[i][0], coords[i][1], 54, northern=True)))
+    else:
+        f.dat.data[i] = 2 * Om * sin(radians(get_latitude(999999, coords[i][1], 54, northern=True)))
+File('plots/tsunami_outputs/Coriolis_parameter.pvd').write(f)
 
 # Specify solver parameters:
 params = {'mat_type': 'matfree',
@@ -57,15 +84,9 @@ params = {'mat_type': 'matfree',
 #           'fieldsplit_1_pc_type': 'hypre',
 #           'pc_fieldsplit_schur_precondition': 'selfp',}
 
-# Establish cases:
-mode = {0: 'Linear, non-rotational', 1: 'Linear, rotational', 2: 'Nonlinear, nonrotational', 3: 'Nonlinear, rotational'}
-
-timings = []
-
 for key in mode:
-
     print ''
-    print '****************', mode[key], ' case ****************'
+    print '****************', mode[key], ' case (', key + 1, ') ****************'
     print ''
 
     # Assign initial surface and post-process the bathymetry to have a minimum depth of 30m:
@@ -74,18 +95,18 @@ for key in mode:
     eta_.assign(eta0)
 
     # Set up functions of the weak problem:
-    q = Function(Vq)
+    q = Function(W)
     q.assign(q_)
-    w, z, ze = TestFunctions(Vq)
+    w, z, ze = TestFunctions(W)
     u, v, eta = split(q)
     u_, v_, eta_ = split(q_)
 
     L = (ze * (eta - eta_) - Dt * b * (u * ze.dx(0) + v * ze.dx(1))
          + (u - u_) * w + Dt * g * eta.dx(0) * w
          + (v - v_) * z + Dt * g * eta.dx(1) * z) * dx
-    if key in (1, 3):                      # Rotational cases
+    if key in (1, 3):                                   # Rotational cases
         L += Dt * f * (u * z - v * w) * dx
-    if key in (2, 3):                    # Nonlinear cases
+    if key in (2, 3):                                   # Nonlinear cases
         L += Dt * (- eta * (u * ze.dx(0) + v * ze.dx(1))
                    + (u * u.dx(0) + v * u.dx(1)) * w + (u * v.dx(0) + v * v.dx(1)) * z
                    + nu * (u.dx(0) * w.dx(0) + u.dx(1) * w.dx(1) + v.dx(0) * z.dx(0) + v.dx(1) * z.dx(1))
@@ -131,10 +152,9 @@ for key in mode:
     plt.plot(np.linspace(0, 60, len(gauge_dat)), gauge_dat, label=mode[key])
     plt.gcf().subplots_adjust(bottom=0.15)
     plt.ylim([-5, 5])
-    plt.legend()
+    # plt.legend()
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
-
 print ''
 for key in mode:
     print mode[key], 'case time =  %1.1fs' % timings[key]

@@ -2,7 +2,7 @@ import math
 from error import OutOfRangeError
 import numpy as np
 
-__all__ = ['to_latlon', 'from_latlon', 'vectorlonlat2utm']
+__all__ = ['to_latlon', 'from_latlon', 'vectorlonlat2utm', 'get_latitude']
 
 K0 = 0.9996
 
@@ -35,7 +35,7 @@ ZONE_LETTERS = "CDEFGHJKLMNPQRSTUVWXX"
 
 def to_latlon(easting, northing, zone_number, zone_letter=None, northern=None):
     """
-    Convert UTM coordinates to latitude-longitude, courtesy of Tobias Bieniek, 2012.
+    Convert UTM coordinates to latitude-longitude, courtesy of Tobias Bieniek, 2012 (with some minor edits).
     
     :param easting: eastward-measured Cartesian geographic distance.
     :param northing: northward-measured Cartesian geographic distance.
@@ -44,7 +44,6 @@ def to_latlon(easting, northing, zone_number, zone_letter=None, northern=None):
     :param northern: specify northern or southern hemisphere.
     :return: latitude-longitude coordinate pair.
     """
-
     if not zone_letter and northern is None:
         raise ValueError('either zone_letter or northern needs to be set')
 
@@ -52,9 +51,9 @@ def to_latlon(easting, northing, zone_number, zone_letter=None, northern=None):
         raise ValueError('set either zone_letter or northern, but not both')
 
     if not 100000 <= easting < 1000000:
-        raise OutOfRangeError('easting out of range (must be between 100.000 m and 999.999 m)')
+        raise OutOfRangeError('easting out of range (must be between 100,000 m and 999,999 m)')
     if not 0 <= northing <= 10000000:
-        raise OutOfRangeError('northing out of range (must be between 0 m and 10.000.000 m)')
+        raise OutOfRangeError('northing out of range (must be between 0 m and 10,000,000 m)')
     if not 1 <= zone_number <= 60:
         raise OutOfRangeError('zone number out of range (must be between 1 and 60)')
 
@@ -109,6 +108,21 @@ def to_latlon(easting, northing, zone_number, zone_letter=None, northern=None):
                  d5 / 120 * (5 - 2 * c + 28 * p_tan2 - 3 * c2 + 8 * E_P2 + 24 * p_tan4)) / p_cos
 
     return math.degrees(latitude), math.degrees(longitude) + zone_number_to_central_longitude(zone_number)
+
+
+def get_latitude(easting, northing, zone_number, zone_letter=None, northern=None):
+    """
+    Convert UTM coordinates to latitude alone.
+
+    :param easting: eastward-measured Cartesian geographic distance.
+    :param northing: northward-measured Cartesian geographic distance.
+    :param zone_number: UTM zone number (increasing eastward).
+    :param zone_letter: UTM zone letter (increasing alphabetically northward).
+    :param northern: specify northern or southern hemisphere.
+    :return: latitude coordinate.
+    """
+    latitude, longitude = to_latlon(easting, northing, zone_number, zone_letter, northern)
+    return latitude
 
 
 def from_latlon(latitude, longitude, force_zone_number=None):
@@ -332,6 +346,7 @@ def mesh_converter(meshfile, latitude0, longitude0):
         mesh2.write(line)
     mesh1.close()
     mesh2.close()
+
 
 def xy2barycentric(crdM, crdTri, i):
     """

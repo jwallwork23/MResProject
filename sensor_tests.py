@@ -1,8 +1,17 @@
 from firedrake import *
-
 from time import clock
-
 from utils import construct_hessian, compute_steady_metric, interp, Meshd
+
+print ''
+print '******************************** SENSOR ADAPTIVITY TESTS ********************************'
+print ''
+print 'Options...'
+print 'f1(x,y) = x^2 + y^2'
+print 'f2(x,y) = / 0.01 * sin(50(x-1)(y-1))     if      abs((x-1)(y-1)) >= pi/25,'
+print '          \ sin(50(x-1)(y-1))            else'
+print 'f1(x,y) = 0.1 * sin(50x) + atan(0.1 / (sin(5y) - 2x))'
+print 'f1(x,y) = atan(0.1 / (sin(5y) - 2x)) + atan(0.5 / (sin(3y) - 7x))'
+print ''
 
 # Specify problem parameters:
 choices = int(raw_input('Choose sensor (1/2/3/4 or 0 to try all): ') or 0)
@@ -46,7 +55,7 @@ for i in f:
         mesh = mesh1
         V = TensorFunctionSpace(mesh1, 'CG', 1)
 
-        print '*********** Sensor %d ***********' % i
+        print '**************** Sensor %d ****************' % i
 
         for j in range(N):
 

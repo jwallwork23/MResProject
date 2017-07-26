@@ -7,6 +7,10 @@ import matplotlib
 matplotlib.use('TkAgg')             # Change backend to resolve framework problems
 import matplotlib.pyplot as plt
 
+print ''
+print '******************************** 1D TSUNAMI TEST ********************************'
+print ''
+
 # Specify problem parameters:
 dt = float(raw_input('Specify timestep (default 1): ') or 1.)
 Dt = Constant(dt)
@@ -18,6 +22,7 @@ n = 1e-3        # Number of cells per km
 T = 4200.       # Simulation duration (s)
 ndump = 60      # Timesteps per data dump
 g = 9.81        # Gravitational acceleration (m s^{-2})
+print ''
 
 # Check CFL criterion is satisfied for this discretisation:
 assert(dt < 1. / (n * np.sqrt(g * 4000.)))                                      # Maximal wavespeed sqrt(gb)
@@ -84,6 +89,8 @@ for j in range(nx + 1):
         sig_eta[i, j] = 1
 
 # Enter the forward timeloop:
+print '******************************** Forward solver ********************************'
+print ''
 while t < T - 0.5 * dt:
     t += dt
     print 't = ', t, ' seconds'
@@ -112,7 +119,8 @@ while t < T - 0.5 * dt:
     if t in snaps.values():
         eta_snapshots.append(Function(eta))
 
-print 'Forward problem solved.... now for the adjoint problem.'
+print '... forward problem solved...'
+print ''
 
 # Set up functions of the adjoint weak problem:
 lam = Function(Vq)
@@ -163,6 +171,8 @@ for j in range(nx + 1):
         q_dot_lam[i, j] = 0
 
 # Enter the backward timeloop:
+print '******************************** Adjoint solver ********************************'
+print ''
 while t > 0.5 * dt:
     t -= dt
     print 't = ', t, ' seconds'
@@ -192,7 +202,7 @@ while t > 0.5 * dt:
     # Dump snapshot data:
     if t in snaps.values():
         le_snapshots.append(Function(le))
-
+print '... adjoint problem solved... just need to plot results.'
 
 # Font formatting:
 rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})

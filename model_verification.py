@@ -13,27 +13,41 @@ import matplotlib.pyplot as plt
 # Establish cases:
 mode = {0: 'Linear, non-rotational', 1: 'Linear, rotational', 2: 'Nonlinear, nonrotational', 3: 'Nonlinear, rotational'}
 print ''
-print '**************** MODEL VERIFICATION ****************'
+print '******************************** MODEL VERIFICATION ********************************'
 print ''
 print 'Options...'
 for key in mode:
     print key, ' : ', mode[key]
 print ''
-choices = int(raw_input('Choose sensor (0/1/2/3 or 4 to try all): ') or 4)
-coarseness = int(raw_input('Mesh coarseness? (Integer in 1-5): ') or 4)
+choices = int(raw_input('Choose mode (0/1/2/3 or 4 to try all): ') or 4)
+if choices in (0, 1, 2, 3):
+    mode = {choices: mode[choices]}
+coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5): ') or 3)
 
 # Define mesh, mixed function space and variables:
 mesh, W, q_, u_, v_, eta_, lam_, lu_, lv_, b = Tohoku_domain(res=coarseness, split='y')
 eta0 = Function(W.sub(2), name='Initial free surface')
 eta0.assign(eta_)
 coords = mesh.coordinates.dat.data
+print '........ mesh loaded'
+
+# Set physical parameters:
+Om = 7.291e-5                   # Rotation rate of Earth (rad s^{-1})
+g = 9.81                        # Gravitational acceleration (m s^{-2})
+nu = 1e-3                       # Viscosity (kg s^{-1} m^{-1})
+Cb = 0.0025                     # Bottom friction coefficient (dimensionless)
 
 # Simulation duration:
-T = float(raw_input('Simulation duration in hours (default 0.75)?: ') or 0.75) * 3600.
-ndump = 4
-dt = 15
+T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600.
+dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
-timings = []
+cdt = 5e3 / np.sqrt(g * max(b.dat.data))
+try:
+    assert dt < cdt
+except:
+    print 'WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt
+ndump = int(60. / dt)
+timings = {}
 
 # Convert pressure gauge locations and save in a dictionary:
 glatlon = {'P02': (38.5, 142.5), 'P06': (38.7, 142.6)}
@@ -46,12 +60,6 @@ try:
     gcoord = gloc[gauge]
 except:
     ValueError('Gauge not recognised. Please choose P02 or P06.')
-
-# Set parameters:
-Om = 7.291e-5                   # Rotation rate of Earth (rad s^{-1})
-g = 9.81                        # Gravitational acceleration (m s^{-2})
-nu = 1e-3                       # Viscosity (kg s^{-1} m^{-1})
-Cb = 0.0025                     # Bottom friction coefficient (dimensionless)
 
 # Evaluate and plot (dimensionless) Coriolis parameter function:
 f = Function(W.sub(2), name='Coriolis parameter')
@@ -86,7 +94,7 @@ params = {'mat_type': 'matfree',
 
 for key in mode:
     print ''
-    print '****************', mode[key], ' case (', key + 1, ') ****************'
+    print '****************', mode[key], ' case (', key, ') ****************'
     print ''
 
     # Assign initial surface and post-process the bathymetry to have a minimum depth of 30m:
@@ -131,7 +139,7 @@ for key in mode:
 
     while t < T - 0.5 * dt:
         t += dt
-        print 't = %1.1fs' % t
+        print 't = %1.1f mins' % (t / 60.)
         q_solv.solve()
         q_.assign(q)
         dumpn += 1
@@ -142,7 +150,7 @@ for key in mode:
 
     # End timing and print:
     toc1 = clock()
-    timings.append(toc1 - tic1)
+    timings[key] = toc1 - tic1
 
     # Plot pressure gauge time series:
     plt.rc('text', usetex=True)
@@ -156,7 +164,7 @@ for key in mode:
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
 print ''
+plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries_{y}.png'.format(y=gauge))
+
 for key in mode:
     print mode[key], 'case time =  %1.1fs' % timings[key]
-
-plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries_{y}.png'.format(y=gauge))

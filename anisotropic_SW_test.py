@@ -2,7 +2,7 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils.adaptivity import construct_hessian, compute_steady_metric
+from utils.adaptivity import construct_hessian, compute_steady_metric, metric_intersection
 from utils.interp import interp, interp_Taylor_Hood
 
 print ''
@@ -18,7 +18,7 @@ x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
 print 'Initial number of nodes : ', N1
-bathy = raw_input('Flat bathymetry or shelf break (f/s)?: ') or 'f'
+bathy = raw_input('Flat bathymetry or shelf break (f/s, default f)?: ') or 'f'
 if bathy not in ('f', 's'):
     raise ValueError('Please try again, choosing f or s.')
 
@@ -28,18 +28,17 @@ T = 2.5
 # Set up adaptivity parameters:
 hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
 hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
-rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
 nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
-ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
+mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default f): ') or 'f'
 if mtype not in ('s', 'f', 'b'):
     raise ValueError('Please try again, choosing s, f or b.')
-mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
+mat_out = raw_input('Output Hessian and metric? (y/n, default n): ') or 'n'
 if mat_out not in ('y', 'n'):
     raise ValueError('Please try again, choosing y or n.')
-hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
+hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
 
@@ -49,6 +48,7 @@ g = 9.81                                                # Gravitational accelera
 dt = 0.8 * hmin / np.sqrt(g * 0.1)                      # Timestep length (s), using wavespeed sqrt(gh)
 Dt = Constant(dt)
 print 'Using Courant number adjusted timestep dt = %1.4f' % dt
+rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
 
 # Define mixed Taylor-Hood function space and a function defined thereupon:
 W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)

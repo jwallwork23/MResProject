@@ -32,11 +32,11 @@ def plot_gauges(gauge):
     :return: a matplotlib plot of the corresponding gauge timeseries data.
     """
 
-    setup = {1: 'coarse',
-             2: 'medium',           # 25,976 vertices
-             3: 'fine',
-             4: 'anisotropic',
-             5: 'goal-based'}
+    setup = {1: 'coarse',           # 3,126 vertices
+             2: 'medium'}           # 25,976 vertices
+             # 3: 'fine',             # 226,967 vertices
+             # 4: 'anisotropic',
+             # 5: 'goal-based'}
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
 
@@ -51,7 +51,8 @@ def plot_gauges(gauge):
 
     plt.gcf().subplots_adjust(bottom=0.15)
     plt.ylim([-5, 5])
-    plt.legend()
+    plt.legend(loc='upper right')
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
+    plt.show()
     plt.savefig('plots/tsunami_outputs/screenshots/full_gauge_timeseries_{y}.png'.format(y=gauge))

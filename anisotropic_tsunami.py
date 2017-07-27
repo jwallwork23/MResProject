@@ -4,7 +4,7 @@ from time import clock
 import math
 import sys
 
-from utils.adaptivity import compute_steady_metric, construct_hessian
+from utils.adaptivity import compute_steady_metric, construct_hessian, metric_intersection
 from utils.conversion import from_latlon
 from utils.domain import Tohoku_domain
 from utils.interp import interp_Taylor_Hood
@@ -21,7 +21,7 @@ print ''
 print 'Options...'
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
-coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5, default 4): ') or 4)
+coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5, default 5): ') or 5)
 mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(coarseness)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
@@ -34,19 +34,18 @@ g = 9.81                        # Gravitational acceleration (m s^{-2})
 T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600.
 
 # Set up adaptivity parameters:
-hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
+hmin = float(raw_input('Minimum element size in km (default 1)?: ') or 1) * 1e3
 hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
-rm = int(raw_input('Timesteps per re-mesh (default 10)?: ') or 10)
-ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 's'
+mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default b): ') or 'b'
 if mtype not in ('s', 'f', 'b'):
     raise ValueError('Please try again, choosing s, f or b.')
-hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
+hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = 0.1 * N1    # Target number of vertices
+nodes = N1    # Target number of vertices
 
 # Courant number adjusted timestepping parameters:
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
@@ -57,6 +56,7 @@ if dt > cdt:
     if raw_input('Are you happy to proceed? (y/n)') == 'n':
         exit(23)
 ndump = int(60. / dt)
+rm = int(raw_input('Timesteps per re-mesh (default 30)?: ') or 30)
 
 # Convert gauge locations:
 glatlon = {'P02': (38.5, 142.5), 'P06': (38.7, 142.6),
@@ -67,12 +67,12 @@ for key in glatlon:
     gloc[key] = (east, north)
 
 # Set gauge arrays:
-gtype = raw_input('Pressure or tide gauge? (p/t): ') or 'p'
+gtype = raw_input('Pressure or tide gauge? (p/t, default p): ') or 'p'
 if gtype == 'p':
-    gauge = raw_input('Gauge P02 or P06?: ') or 'P02'
+    gauge = raw_input('Gauge P02 or P06? (default P02): ') or 'P02'
     gcoord = gloc[gauge]
 elif gtype == 't':
-    gauge = raw_input('Gauge 801, 802, 803, 804 or 806?: ') or '801'
+    gauge = raw_input('Gauge 801, 802, 803, 804 or 806? (default 801): ') or '801'
     gcoord = gloc[gauge]
 else:
     ValueError('Gauge type not recognised. Please choose p or t.')

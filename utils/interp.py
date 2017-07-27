@@ -46,9 +46,9 @@ def interp(mesh, *fields):
                     f_new.dat.data[x] = val
         eps = 1e-6                              # Tolerance to be increased
         while len(notInDomain) > 0:
-            print '#### Number of points not in domain: %d / %d' % (len(notInDomain), len(coords))
+            print '#### Points not in domain: %d / %d' % (len(notInDomain), len(coords)),
             eps *= 10
-            print '#### Trying tolerance = ', eps
+            print '...... Trying tolerance = ', eps
             for x in notInDomain:
                 try:
                     val = f.at(coords[x], tolerance=eps)
@@ -108,9 +108,9 @@ def interp_Taylor_Hood(mesh, u, u_, eta, eta_, b):
 
     eps = 1e-6  # For playing with epsilons
     while len(notInDomain) > 0:
-        print '#### Number of points not in domain for P2 space: %d / %d' % (len(notInDomain), len(P2coords))
+        print '#### Points not in domain for P2 space: %d / %d' % (len(notInDomain), len(P2coords)),
         eps *= 10
-        print '#### Trying epsilon = ', eps
+        print '...... Trying epsilon = ', eps
         for x in notInDomain:
             try:
                 valu = u.at(P2coords[x], tolerance=eps)
@@ -122,7 +122,7 @@ def interp_Taylor_Hood(mesh, u, u_, eta, eta_, b):
                 unew.dat.data[x] = valu
                 u_new.dat.data[x] = valu_
                 notInDomain.remove(x)
-        if eps >= 1e5:
+        if eps > 1e8:
             print '#### Playing with epsilons failed. Abort.'
             exit(23)
     assert (len(notInDomain) == 0)  # All nodes should have been brought back into the domain
@@ -145,9 +145,9 @@ def interp_Taylor_Hood(mesh, u, u_, eta, eta_, b):
 
     eps = 1e-6  # For playing with epsilons
     while len(notInDomain) > 0:
-        print '#### Number of points not in domain for P1 space: %d / %d' % (len(notInDomain), len(P1coords))
+        print '#### Points not in domain for P1 space: %d / %d' % (len(notInDomain), len(P1coords)),
         eps *= 10
-        print '#### Trying epsilon = ', eps
+        print '...... Trying epsilon = ', eps
         for x in notInDomain:
             try:
                 vale = eta.at(P1coords[x], tolerance=eps)
@@ -162,7 +162,7 @@ def interp_Taylor_Hood(mesh, u, u_, eta, eta_, b):
                 eta_new.dat.data[x] = vale_
                 bnew.dat.data[x] = valb
                 notInDomain.remove(x)
-        if eps >= 1e8:
+        if eps > 1e8:
             print '#### Playing with epsilons failed. Abort.'
             exit(23)
 

@@ -31,10 +31,10 @@
   <mapcanvas>
     <units>meters</units>
     <extent>
-      <xmin>13967280.35885995253920555</xmin>
-      <ymin>3100242.63286929484456778</ymin>
-      <xmax>18110791.88272085413336754</xmax>
-      <ymax>5730165.60250430833548307</ymax>
+      <xmin>13741777.85342501103878021</xmin>
+      <ymin>3191853.02570223994553089</ymin>
+      <xmax>17885289.3772859051823616</xmax>
+      <ymax>5821775.99533725343644619</ymax>
     </extent>
     <rotation>0</rotation>
     <projections>1</projections>
@@ -790,7 +790,7 @@ def my_form_open(dialog, layer, feature):
         <ymax>20037508.33999999985098839</ymax>
       </extent>
       <id>OpenLayers_plugin_layer20170725145737369</id>
-      <datasource></datasource>
+      <datasource>.</datasource>
       <keywordList>
         <value></value>
       </keywordList>

@@ -66,25 +66,26 @@ for key in glatlon:
 # Set gauge arrays:
 gtype = raw_input('Pressure or tide gauge? (p/t): ') or 'p'
 if gtype == 'p':
-    gauge = raw_input('Gauge P02 or P06?: ') or 'P02'
+    gauge = raw_input('Gauge P02 or P06? (default P02): ') or 'P02'
     gcoord = gloc[gauge]
 elif gtype == 't':
-    gauge = raw_input('Gauge 801, 802, 803, 804 or 806?: ') or '801'
+    gauge = raw_input('Gauge 801, 802, 803, 804 or 806? (default 801): ') or '801'
     gcoord = gloc[gauge]
 else:
     ValueError('Gauge type not recognised. Please choose p or t.')
-dm = raw_input('Evaluate damage measures? (y/n): ') or 'n'
+dm = raw_input('Evaluate damage measures? (y/n, default n): ') or 'n'
 
 # Evaluate and plot (dimensionless) Coriolis parameter function:
-f = Function(W.sub(2), name='Coriolis parameter')
-for i in range(len(coords)):
-    if coords[i][0] < 100000:
-        f.dat.data[i] = 2 * Om * sin(math.radians(get_latitude(100000, coords[i][1], 54, northern=True)))
-    elif coords[i][0] < 999999:
-        f.dat.data[i] = 2 * Om * sin(math.radians(get_latitude(coords[i][0], coords[i][1], 54, northern=True)))
-    else:
-        f.dat.data[i] = 2 * Om * sin(math.radians(get_latitude(999999, coords[i][1], 54, northern=True)))
-File('plots/tsunami_outputs/Coriolis_parameter.pvd').write(f)
+if mode not in (0, 2):
+    f = Function(W.sub(2), name='Coriolis parameter')
+    for i in range(len(coords)):
+        if coords[i][0] < 100000:
+            f.dat.data[i] = 2 * Om * sin(math.radians(get_latitude(100000, coords[i][1], 54, northern=True)))
+        elif coords[i][0] < 999999:
+            f.dat.data[i] = 2 * Om * sin(math.radians(get_latitude(coords[i][0], coords[i][1], 54, northern=True)))
+        else:
+            f.dat.data[i] = 2 * Om * sin(math.radians(get_latitude(999999, coords[i][1], 54, northern=True)))
+    File('plots/tsunami_outputs/Coriolis_parameter.pvd').write(f)
 
 for key in mode:
     print ''
@@ -141,11 +142,12 @@ for key in mode:
     tic1 = clock()
 
     while t < T - 0.5 * dt:
+        tic2 = clock()
 
         # Increment counters:
         t += dt
         dumpn += 1
-        print 't = %1.1f mins' % (t / 60.)
+        print 't = %1.1f mins' % (t / 60.),
 
         # Solve problem:
         q_solv.solve()
@@ -159,6 +161,8 @@ for key in mode:
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, v, eta, time=t)
+        toc2 = clock()
+        print '[Real time this timestep:', (toc2 - tic2), ']'
 
     # End timing and print:
     toc1 = clock()

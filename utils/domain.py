@@ -122,15 +122,18 @@ def Tohoku_domain(res=3, split='n'):
 
     # Define mesh and function spaces:
     if res == 1:
-        mesh = Mesh('resources/meshes/TohokuXFine.msh')
+        mesh = Mesh('resources/meshes/TohokuXFine.msh')     # 226,967 vertices,
+        print 'WARNING: chosen mesh resolution can be extremely computationally intensive'      # ~1 minute per timestep
+        if raw_input('Are you happy to proceed? (y/n)') == 'n':
+            exit(23)
     elif res == 2:
-        mesh = Mesh('resources/meshes/TohokuFine.msh')
+        mesh = Mesh('resources/meshes/TohokuFine.msh')      # 97,343 vertices
     elif res == 3:
-        mesh = Mesh('resources/meshes/TohokuMedium.msh')
+        mesh = Mesh('resources/meshes/TohokuMedium.msh')    # 25,976 vertices
     elif res == 4:
-        mesh = Mesh('resources/meshes/TohokuCoarse.msh')
+        mesh = Mesh('resources/meshes/TohokuCoarse.msh')    # 13,788 vertices
     elif res == 5:
-        mesh = Mesh('resources/meshes/TohokuXCoarse.msh')
+        mesh = Mesh('resources/meshes/TohokuXCoarse.msh')   # 3,126 vertices
     else:
         raise ValueError('Please try again, choosing an integer in the range 1-5.')
     mesh_coords = mesh.coordinates.dat.data

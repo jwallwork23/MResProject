@@ -32,27 +32,27 @@ def plot_gauges(gauge):
     :return: a matplotlib plot of the corresponding gauge timeseries data.
     """
 
-    setup = {1: 'coarse',           # 3,126 vertices
-             2: 'medium'}           # 25,976 vertices
-             # 3: 'fine',             # 226,967 vertices
-             # 4: 'anisotropic',
-             # 5: 'goal-based'}
+    progress = int(raw_input('How far have we got for this gauge? (1/2/3/4/5): ') or 1)
+    setup = {0: 'coarse',           # 3,126 vertices
+             1: 'medium',           # 25,976 vertices
+             2: 'fine',             # 226,967 vertices
+             3: 'anisotropic',
+             4: 'goal-based'}
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
+    plt.clf()
 
     # Loop over mesh resolutions:
-    for key in setup:
+    for key in range(progress):
         val = []
         infile = open('timeseries/{y1}_{y2}.txt'.format(y1=gauge, y2=setup[key]), 'r')
         for line in infile:
             val.append(float(line))
         infile.close()
         plt.plot(np.linspace(0, 60, len(val)), val)     # Plot time series for this setup
-
-    plt.gcf().subplots_adjust(bottom=0.15)
+    plt.gcf()
     plt.ylim([-5, 5])
-    plt.legend(loc='upper right')
+    plt.legend()
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
-    plt.show()
     plt.savefig('plots/tsunami_outputs/screenshots/full_gauge_timeseries_{y}.png'.format(y=gauge))

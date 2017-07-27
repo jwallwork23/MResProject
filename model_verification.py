@@ -75,6 +75,7 @@ else:
     ValueError('Gauge type not recognised. Please choose p or t.')
 dm = raw_input('Evaluate damage measures? (y/n, default n): ') or 'n'
 
+tic1 = clock()
 # Evaluate and plot (dimensionless) Coriolis parameter function:
 if mode not in (0, 2):
     f = Function(W.sub(2), name='Coriolis parameter')
@@ -139,7 +140,6 @@ for key in mode:
     if dm == 'y':
         damage_measure = [math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
                                        eta.at(gloc['804']), eta.at(gloc['806']), 0.5))]
-    tic1 = clock()
 
     while t < T - 0.5 * dt:
         tic2 = clock()
@@ -162,7 +162,13 @@ for key in mode:
             dumpn -= ndump
             q_file.write(u, v, eta, time=t)
         toc2 = clock()
-        print '[Real time this timestep:', (toc2 - tic2), ']'
+        duration = toc2 - tic2
+        if duration < 60:
+            print '[Real time this timestep:', duration, 'seconds]'
+        elif duration < 3600:
+            print '[Real time this timestep:', (duration / 60.), 'minutes]'
+        else:
+            print '[Real time this timestep:', (duration / 3600.), 'hours]'
 
     # End timing and print:
     toc1 = clock()

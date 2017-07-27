@@ -57,10 +57,10 @@ phi.assign(phi_)
 t = 0.
 dumpn = 0
 mn = 0
-phi_file = File('plots/adapt_plots/advection_test.pvd')
+phi_file = File('plots/anisotropic_outputs/Burgers_test.pvd')
 phi_file.write(phi, time=t)
-m_file = File('plots/adapt_plots/advection_test_metric.pvd')
-h_file = File('plots/adapt_plots/advection_test_hessian.pvd')
+m_file = File('plots/anisotropic_outputs/Burgers_test_metric.pvd')
+h_file = File('plots/anisotropic_outputs/Burgers_test_hessian.pvd')
 tic1 = clock()
 
 print ''

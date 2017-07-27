@@ -26,5 +26,6 @@ tsunami, which struck the Japanese coast at Fukushima and caused muchdestruction
     - [x] ``model_verification``, which shows that the linear, non-rotational shallow water equations are sufficient.
     - [x] ``anisotropic_tsunami``, which solves the problem using anisotropic mesh adaptivity.
     - [ ] ``goal_based_tsunami``, which solve the problem using a goal-based approach.
+* A collection of videos generated from simulation outputs, contained in the ``plots`` directory.
 
 For feedback, comments and questions, please email j.wallwork16@imperial.ac.uk.

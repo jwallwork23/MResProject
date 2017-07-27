@@ -15,8 +15,9 @@ lx = 30                                    # Extent in x-direction (m)
 ly = 50                                    # Extent in y-direction (m)
 mesh = RectangleMesh(3 * n, 5 * n, lx, ly)
 x, y = SpatialCoordinate(mesh)
-coords = mesh.coordinates.dat.data
-nx = len(coords)
+N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
+N2 = N1                                                                 # Maximum number of vertices
+print '...... mesh loaded. Initial number of vertices : ', N1
 
 # Simulation duration:
 T = 4.
@@ -68,7 +69,7 @@ b.interpolate(Expression(1.5))
 lam_ = Function(W)
 lu_, le_ = lam_.split()
 
-# Establish indicator function for adjoint equations (here 0.06 is the area of the region of interest):
+# Establish indicator function for adjoint equations:
 f = Function(W.sub(1), name='Forcing term')
 f.interpolate(Expression('(x[0] >= 0.) & (x[0] < 2.5) & (x[1] > 23.) & (x[1] < 27.) ? 0.0005 : 0'))
 
@@ -87,7 +88,7 @@ lu.rename('Adjoint velocity')
 le.rename('Adjoint free surface')
 
 # Initialise files:
-lam_file = File('plots/adjoint_outputs/adjoint.pvd')
+lam_file = File('plots/goal-based_outputs/test_adjoint.pvd')
 lam_file.write(lu, le, time=0)
 
 # Initalise counters:
@@ -96,10 +97,10 @@ i = -1
 dumpn = ndump
 
 # Initialise tensor arrays for storage (with dimensions pre-allocated for speed):
-velocity_dat = np.zeros((int(T / dt) + 1, nx, 2))
-surface_dat = np.zeros((int(T / dt) + 1, nx))
-inner_product_dat = np.zeros((int(T / dt) + 1, nx))
-significant_dat = np.zeros(nx)
+velocity_dat = np.zeros((int(T / dt) + 1, N1, 2))
+surface_dat = np.zeros((int(T / dt) + 1, N1))
+inner_product_dat = np.zeros((int(T / dt) + 1, N1))
+significant_dat = np.zeros(N1)
 vel.interpolate(lu)
 velocity_dat[i, :, :] = vel.dat.data
 surface_dat[i, :] = le.dat.data
@@ -162,7 +163,7 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Intialise files:
-q_file = File('plots/adjoint_outputs/forward.pvd')
+q_file = File('plots/goal-based_outputs/test_forward.pvd')
 q_file.write(u, eta, time=0)
 
 # Initialise counters:
@@ -190,7 +191,7 @@ eta.rename('Free surface displacement')
 # Create a function to hold the inner product data:
 ip = Function(W.sub(1), name='Inner product')
 ip.interpolate(Expression(0))
-ip_file = File('plots/adjoint_outputs/inner_product.pvd')
+ip_file = File('plots/goal-based_outputs/test_inner_product.pvd')
 ip_file.write(ip, time=t)
 
 # Run fixed mesh forward solver:
@@ -212,7 +213,7 @@ while t < T - 0.5 * dt:
     inner_product_dat[i, :] = velocity_dat[i, :, 0] + velocity_dat[i, :, 1] + surface_dat[i, :]
 
     # Take maximum as most significant:
-    for j in range(nx):
+    for j in range(N1):
         if np.abs(inner_product_dat[i, j]) > significant_dat[j]:
             significant_dat[j] = np.abs(inner_product_dat[i, j])
 
@@ -226,17 +227,17 @@ while t < T - 0.5 * dt:
 
 significance = Function(W.sub(1), name='Significant regions')
 significance.dat.data[:] = significant_dat[:]
-File('plots/adjoint_outputs/significance.pvd').write(significance)
+File('plots/goal-based_outputs/test_significance.pvd').write(significance)
 
 # [Adaptive forward solver]
 
 # Generate Hessian and metric of significance field:
 V = TensorFunctionSpace(mesh, 'CG', 1)
 H = construct_hessian(mesh, V, significance)
-File('plots/adjoint_outputs/significance_hessian.pvd').write(H)
+File('plots/goal-based_outputs/test_significance_hessian.pvd').write(H)
 M = compute_steady_metric(mesh, V, H, significance, h_min=0.1, h_max=5)
-# M.dat.data[:] *= nx                                                         # Rescale by the number of elements
-File('plots/adjoint_outputs/significance_metric.pvd').write(M)
+# M.dat.data[:] *= N1                                                         # Rescale by the number of elements
+File('plots/goal-based_outputs/test_significance_metric.pvd').write(M)
 adaptor = AnisotropicAdaptation(mesh, M)
 significance, eta = interp(adaptor.adapted_mesh, significance, eta)
-File('plots/adjoint_outputs/significance_mesh.pvd').write(significance)
+File('plots/goal-based_outputs/test_significance_mesh.pvd').write(significance)

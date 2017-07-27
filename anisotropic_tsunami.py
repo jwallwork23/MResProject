@@ -22,13 +22,10 @@ print 'Options...'
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5, default 4): ') or 4)
-mesh, W, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(coarseness)
+mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(coarseness)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
 print '...... mesh loaded. Initial number of vertices : ', N1
-
-# Set target number of vertices:
-nodes = 0.1 * N1
 
 # Set physical parameters:
 g = 9.81                        # Gravitational acceleration (m s^{-2})
@@ -49,6 +46,7 @@ if mtype not in ('s', 'f', 'b'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
+nodes = 0.1 * N1    # Target number of vertices
 
 # Courant number adjusted timestepping parameters:
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
@@ -91,7 +89,7 @@ dumpn = 0
 mn = 0
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
-q_file = File('plots/adapt_plots/tohoku_adapt.pvd')
+q_file = File('plots/anisotropic_outputs/tsunami.pvd')
 q_file.write(u, eta, time=t)
 gauge_dat = [eta.at(gcoord)]
 if dm == 'y':
@@ -194,7 +192,7 @@ plt.gcf().subplots_adjust(bottom=0.15)
 plt.ylim([-5, 5])
 plt.xlabel(r'Time elapsed (mins)')
 plt.ylabel(r'Free surface (m)')
-plt.savefig('plots/tsunami_outputs/screenshots/anisotropic_gauge_timeseries_{y}.png'.format(y=gauge))
+plt.savefig('plots/anisotropic_outputs/timeseries/timeseries_{y}.png'.format(y=gauge))
 
 # Store gauge timeseries data to file:
 gauge_timeseries(gauge, gauge_dat)
@@ -214,4 +212,4 @@ if dm == 'y':
     plt.axhline(3, linestyle='--', color='red')
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Maximal log free surface')
-    plt.savefig('plots/tsunami_outputs/screenshots/anisotropic_damage_measure_timeseries.png')
+    plt.savefig('plots/anisotropic_outputs/timeseries/damage_measure_timeseries.png')

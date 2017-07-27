@@ -77,10 +77,10 @@ dumpn = 0
 mn = 0
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
-q_file = File('plots/adapt_plots/gaussian_test.pvd')
+q_file = File('plots/anisotropic_outputs/SW_test.pvd')
 q_file.write(u, eta, time=t)
-m_file = File('plots/adapt_plots/gaussian_test_metric.pvd')
-h_file = File('plots/adapt_plots/gaussian_test_hessian.pvd')
+m_file = File('plots/anisotropic_outputs/SW_test_metric.pvd')
+h_file = File('plots/anisotropic_outputs/SW_test_hessian.pvd')
 
 print ''
 print 'Entering outer timeloop!'

@@ -23,7 +23,8 @@ reasons, but may be made available upon request.
     - [ ] ``goal_based_SW_test``, which considers a similar problem, but using a goal-based approach to adaptivity.
 * Simulations on a realistic domain, which build upon the test script codes and apply the methodology to the 2011 Tohoku
 tsunami, which struck the Japanese coast at Fukushima and caused muchdestruction. These include:
-    - [x] ``model_verification``, which shows that the linear, non-rotational shallow water equations are sufficient.
+    - [x] ``model_verification``, which shows that the linear, non-rotational shallow water equations are sufficient
+    and provides an efficient, non-adaptive solver for the tsunami modelling problem.
     - [x] ``anisotropic_tsunami``, which solves the problem using anisotropic mesh adaptivity.
     - [ ] ``goal_based_tsunami``, which solve the problem using a goal-based approach.
 * A collection of videos generated from simulation outputs, contained in the ``plots`` directory.

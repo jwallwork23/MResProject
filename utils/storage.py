@@ -15,7 +15,7 @@ def gauge_timeseries(gauge, dat):
     :return: a file containing the timeseries data.
     """
 
-    name = raw_input('Enter a name for this time series: ')
+    name = raw_input('Enter a name for this time series (e.g. xcoarse): ')
     outfile = open('timeseries/{y1}_{y2}.txt'.format(y1=gauge, y2=name), 'w+')
 
     for i in range(len(dat)):
@@ -33,9 +33,9 @@ def plot_gauges(gauge):
     """
 
     progress = int(raw_input('How far have we got for this gauge? (1/2/3/4/5): ') or 1)
-    setup = {0: 'coarse',           # 3,126 vertices
+    setup = {0: 'xcoarse',          # 3,126 vertices
              1: 'medium',           # 25,976 vertices
-             2: 'fine',             # 226,967 vertices
+             2: 'fine',             # 97,343 vertices
              3: 'anisotropic',
              4: 'goal-based'}
     plt.rc('text', usetex=True)
@@ -49,10 +49,10 @@ def plot_gauges(gauge):
         for line in infile:
             val.append(float(line))
         infile.close()
-        plt.plot(np.linspace(0, 60, len(val)), val)     # Plot time series for this setup
+        plt.plot(np.linspace(0, 60, len(val)), val, label=setup[key])     # Plot time series for this setup
     plt.gcf()
     plt.ylim([-5, 5])
-    plt.legend()
+    plt.legend(loc=1)
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
     plt.savefig('plots/tsunami_outputs/screenshots/full_gauge_timeseries_{y}.png'.format(y=gauge))

@@ -34,7 +34,7 @@ def plot_gauges(gauge, problem='comparison'):
     """
 
     if problem == 'comparison':
-        setup = {0: 'coarse',           # 7,194 vertices
+        setup = {0: 'xcoarse',          # 3,126 vertices
                  1: 'medium',           # 25,976 vertices
                  2: 'fine',             # 97,343 vertices
                  3: 'anisotropic',

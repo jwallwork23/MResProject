@@ -45,7 +45,7 @@ if mtype not in ('s', 'f', 'b'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = N1    # Target number of vertices
+nodes = 0.25 * N1    # Target number of vertices
 
 # Courant number adjusted timestepping parameters:
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)

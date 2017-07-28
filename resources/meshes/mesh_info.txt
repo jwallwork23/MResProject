@@ -14,9 +14,9 @@ Meshes in this directory have the following inner and outer resolutions and grad
 
 	TohokuMedium.msh
 	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	Fukushima:	2000m, 8000m,  1 deg. gradation
-	Else:		5000m, 10000m, 1 deg. gradation
-	(25,976 nodes)
+	Fukushima:	3000m, 10000m,  1 deg. gradation
+	Else:		6000m, 10000m, 1 deg. gradation
+	(17,086 nodes)
 
     	TohokuFine.msh
     	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -39,11 +39,20 @@ def plot_gauges(gauge, problem='comparison'):
                  2: 'fine',             # 97,343 vertices
                  3: 'anisotropic',
                  4: 'goal-based'}
+        labels = {0: 'Fixed, coarse mesh',
+                  1: 'Fixed, intermediate mesh',
+                  2: 'Fixed, fine mesh',
+                  3: 'Anisotropic adapted mesh',
+                  4: 'Goal-based adapted mesh'}
     else:
-        setup = {0: 'fine',                         # Linear, non-rotational case
-                 1: 'fine_rotational',              # Linear, rotational case
-                 2: 'fine_nonlinear',               # Nonlinear, non-rotational case
-                 3: 'fine_nonlinear_rotational'}    # Nonlinear, rotational case
+        setup = {0: 'fine',
+                 1: 'fine_rotational',
+                 2: 'fine_nonlinear',
+                 3: 'fine_nonlinear_rotational'}
+        labels = {0: 'Linear, non-rotational equations',
+                  1: 'Linear, rotational equations',
+                  2: 'Nonlinear, non-rotational equations',
+                  3: 'Nonlinear, rotational equations'}
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
     plt.clf()
@@ -58,7 +67,7 @@ def plot_gauges(gauge, problem='comparison'):
         for line in infile:
             val.append(float(line))
         infile.close()
-        plt.plot(np.linspace(0, 60, len(val)), val, label=setup[key])     # Plot time series for this setup
+        plt.plot(np.linspace(0, 60, len(val)), val, label=labels[key])     # Plot time series for this setup
     plt.gcf()
     # plt.ylim([-5, 5])
     plt.legend(loc=1)

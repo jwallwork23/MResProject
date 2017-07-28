@@ -131,7 +131,7 @@ def Tohoku_domain(res=3, split='n'):
     elif res == 3:
         mesh = Mesh('resources/meshes/TohokuMedium.msh')    # 25,976 vertices, ~0.25 seconds per timestep
     elif res == 4:
-        mesh = Mesh('resources/meshes/TohokuCoarse.msh')    # 13,788 vertices, ~0.1 seconds per timestep
+        mesh = Mesh('resources/meshes/TohokuCoarse.msh')    # 7,194 vertices, ~0.07 seconds per timestep
     elif res == 5:
         mesh = Mesh('resources/meshes/TohokuXCoarse.msh')   # 3,126 vertices, ~0.03 seconds per timestep
     else:

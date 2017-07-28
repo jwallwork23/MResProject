@@ -24,23 +24,32 @@ def gauge_timeseries(gauge, dat):
     outfile.close()
 
 
-def plot_gauges(gauge):
+def plot_gauges(gauge, problem='comparison'):
     """
     Plot timeseries data on a single axis.
     
     :param gauge: gauge name string, from the set {'P02', 'P06', '801', '802', '803', '804', '806'}.
+    :param problem: problem type name string, corresponding to either 'verification' or 'comparison'.
     :return: a matplotlib plot of the corresponding gauge timeseries data.
     """
 
-    progress = int(raw_input('How far have we got for this gauge? (1/2/3/4/5): ') or 1)
-    setup = {0: 'xcoarse',          # 3,126 vertices
-             1: 'medium',           # 25,976 vertices
-             2: 'fine',             # 97,343 vertices
-             3: 'anisotropic',
-             4: 'goal-based'}
+    if problem == 'comparison':
+        setup = {0: 'coarse',           # 7,194 vertices
+                 1: 'medium',           # 25,976 vertices
+                 2: 'fine',             # 97,343 vertices
+                 3: 'anisotropic',
+                 4: 'goal-based'}
+    else:
+        setup = {0: 'fine',                         # Linear, non-rotational case
+                 1: 'fine_rotational',              # Linear, rotational case
+                 2: 'fine_nonlinear',               # Nonlinear, non-rotational case
+                 3: 'fine_nonlinear_rotational'}    # Nonlinear, rotational case
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
     plt.clf()
+
+    # Temporary user specified input for incomplete plots:
+    progress = int(raw_input('How far have we got for this gauge? (1/2/3/4/5): ') or 1)
 
     # Loop over mesh resolutions:
     for key in range(progress):
@@ -51,8 +60,8 @@ def plot_gauges(gauge):
         infile.close()
         plt.plot(np.linspace(0, 60, len(val)), val, label=setup[key])     # Plot time series for this setup
     plt.gcf()
-    plt.ylim([-5, 5])
+    # plt.ylim([-5, 5])
     plt.legend(loc=1)
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
-    plt.savefig('plots/tsunami_outputs/screenshots/full_gauge_timeseries_{y}.png'.format(y=gauge))
+    plt.savefig('plots/tsunami_outputs/screenshots/full_gauge_timeseries_{y1}_{y2}.png'.format(y1=gauge, y2=problem))

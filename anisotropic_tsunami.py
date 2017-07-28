@@ -35,7 +35,7 @@ T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600
 
 # Set up adaptivity parameters:
 hmin = float(raw_input('Minimum element size in km (default 1)?: ') or 1) * 1e3
-hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
+hmax = float(raw_input('Maximum element size in km (default 100)?: ') or 100.) * 1e3
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
@@ -45,7 +45,7 @@ if mtype not in ('s', 'f', 'b'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = 0.25 * N1    # Target number of vertices
+nodes = 0.5 * N1    # Target number of vertices
 
 # Courant number adjusted timestepping parameters:
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
@@ -56,7 +56,7 @@ if dt > cdt:
     if raw_input('Are you happy to proceed? (y/n)') == 'n':
         exit(23)
 ndump = int(60. / dt)
-rm = int(raw_input('Timesteps per re-mesh (default 30)?: ') or 30)
+rm = int(raw_input('Timesteps per re-mesh (default 10)?: ') or 10)
 
 # Convert gauge locations:
 glatlon = {'P02': (38.5, 142.5), 'P06': (38.7, 142.6),
@@ -91,6 +91,7 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 q_file = File('plots/anisotropic_outputs/tsunami.pvd')
 q_file.write(u, eta, time=t)
+m_file = File('plots/anisotropic_outputs/tsunami_metric.pvd')
 gauge_dat = [eta.at(gcoord)]
 if dm == 'y':
     damage_measure = [math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
@@ -161,6 +162,7 @@ while t < T - 0.5 * dt:
     u, eta = q.split()
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
+    M.rename('Metric')
 
     # Inner timeloop:
     for j in range(rm):
@@ -179,10 +181,14 @@ while t < T - 0.5 * dt:
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, eta, time=t)
+            m_file.write(M, time=t)
 print '\a'
 # End timing and print:
 toc1 = clock()
-print 'Elapsed time for adaptive forward solver: %1.2f mins' % ((toc1 - tic1) / 60.)
+print 'Elapsed time for adaptive forward solver: %1.2fs' % (toc1 - tic1)
+
+# Store gauge timeseries data to file:
+gauge_timeseries(gauge, gauge_dat)
 
 # Plot gauge time series:
 plt.rc('text', usetex=True)
@@ -192,10 +198,7 @@ plt.gcf().subplots_adjust(bottom=0.15)
 plt.ylim([-5, 5])
 plt.xlabel(r'Time elapsed (mins)')
 plt.ylabel(r'Free surface (m)')
-plt.savefig('plots/anisotropic_outputs/timeseries/timeseries_{y}.png'.format(y=gauge))
-
-# Store gauge timeseries data to file:
-gauge_timeseries(gauge, gauge_dat)
+plt.savefig('plots/anisotropic_outputs/screenshots/timeseries_{y}.png'.format(y=gauge))
 
 # Plot damage measures time series:
 if dm == 'y':

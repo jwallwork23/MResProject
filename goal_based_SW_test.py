@@ -97,13 +97,12 @@ i = -1
 dumpn = ndump
 
 # Initialise tensor arrays for storage (with dimensions pre-allocated for speed):
-velocity_dat = np.zeros((int(T / dt) + 1, N1, 2))
-surface_dat = np.zeros((int(T / dt) + 1, N1))
+sol_dat = np.zeros((int(T / dt) + 1, N1, 3))
 inner_product_dat = np.zeros((int(T / dt) + 1, N1))
 significant_dat = np.zeros(N1)
 vel.interpolate(lu)
-velocity_dat[i, :, :] = vel.dat.data
-surface_dat[i, :] = le.dat.data
+sol_dat[i, :, :2] = vel.dat.data
+sol_dat[i, :, 2] = le.dat.data
 
 # Establish test functions and midpoint averages:
 w, xi = TestFunctions(W)
@@ -136,8 +135,8 @@ while t > 0.5 * dt:
 
     # Save data:
     vel.interpolate(lu)
-    velocity_dat[i, :, :] = vel.dat.data
-    surface_dat[i, :] = le.dat.data
+    sol_dat[i, :, :2] = vel.dat.data
+    sol_dat[i, :, 2] = le.dat.data
 
     # Dump to vtu:
     if dumpn == 0:
@@ -208,9 +207,8 @@ while t < T - 0.5 * dt:
 
     # Take inner product with adjoint data:
     vel.interpolate(u)
-    velocity_dat[i, :, :] = velocity_dat[i, :, :] * vel.dat.data
-    surface_dat[i, :] = surface_dat[i, :] * eta.dat.data
-    inner_product_dat[i, :] = velocity_dat[i, :, 0] + velocity_dat[i, :, 1] + surface_dat[i, :]
+    inner_product_dat[i, :] = sol_dat[i, :, 0] * vel.dat.data[:, 0] + sol_dat[i, :, 1] * vel.dat.data[:, 1] \
+                              + sol_dat[i, :, 2] * eta.dat.data
 
     # Take maximum as most significant:
     for j in range(N1):

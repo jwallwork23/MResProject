@@ -4,7 +4,7 @@ from numpy import linalg as la
 from scipy import linalg as sla
 
 
-def construct_hessian(mesh, V, sol, method='dL2', treat_boundaries='off'):
+def construct_hessian(mesh, V, sol, method='dL2'):
     """
     Reconstructs the hessian of a scalar solution field with respect to the current mesh. The code for the integration 
     by parts reconstruction approach is based on the Monge-Amp\`ere tutorial provided in the Firedrake website 
@@ -15,13 +15,12 @@ def construct_hessian(mesh, V, sol, method='dL2', treat_boundaries='off'):
     :param sol: P1 solution field defined on ``mesh``.
     :param method: mode of Hessian reconstruction; either a double L2 projection ('dL2') or as integration by parts 
     ('parts').
-    :param treat_boundaries: specify whether or not to interpolate boundary values using a finite difference stencil. 
     :return: reconstructed Hessian associated with ``sol``.
     """
 
     # Construct functions:
     H = Function(V)
-    sigma = TestFunction(V)
+    tau = TestFunction(V)
     nhat = FacetNormal(mesh)                    # Normal vector
     params = {'snes_rtol': 1e8,
               'ksp_rtol': 1e-5,
@@ -35,57 +34,25 @@ def construct_hessian(mesh, V, sol, method='dL2', treat_boundaries='off'):
 
     if method == 'parts':
         # Hessian reconstruction using integration by parts:
-        Lh = (inner(sigma, H) + inner(div(sigma), grad(sol)) ) * dx
-        Lh -= (sigma[0,1] * nhat[1] * sol.dx(0) + sigma[1,0] * nhat[0] * sol.dx(1)) * ds
-        Lh -= (sigma[0,0] * nhat[1] * sol.dx(0) + sigma[1,1] * nhat[0] * sol.dx(1)) * ds        # Term not in tutorial
+        Lh = (inner(tau, H) + inner(div(tau), grad(sol)) ) * dx
+        Lh -= (tau[0, 1] * nhat[1] * sol.dx(0) + tau[1, 0] * nhat[0] * sol.dx(1)) * ds
+        Lh -= (tau[0, 0] * nhat[1] * sol.dx(0) + tau[1, 1] * nhat[0] * sol.dx(1)) * ds        # Term not in tutorial
     elif method == 'dL2':
         # Hessian reconstruction using a double L2 projection:
-        W = VectorFunctionSpace(mesh, 'CG', 1)
-        phi = Function(W)
-        psi = TestFunction(W)
-        Lg = (inner(phi, psi) - inner(psi, grad(sol))) * dx
-        g_prob = NonlinearVariationalProblem(Lg, phi)
+        V = VectorFunctionSpace(mesh, 'CG', 1)
+        g = Function(V)
+        psi = TestFunction(V)
+        Lg = (inner(g, psi) - inner(grad(sol), psi)) * dx
+        g_prob = NonlinearVariationalProblem(Lg, g)
         g_solv = NonlinearVariationalSolver(g_prob, solver_parameters=params)
         g_solv.solve()
-        Lh = (inner(sigma, H) + inner(div(sigma), phi)) * dx
-        Lh -= (sigma[0, 1] * nhat[1] * phi[0] + sigma[1, 0] * nhat[0] * phi[1]) * ds
-        Lh -= (sigma[0, 0] * nhat[1] * phi[0] + sigma[1, 1] * nhat[0] * phi[1]) * ds
+        Lh = (inner(tau, H) + inner(div(tau), g)) * dx
+        Lh -= (tau[0, 1] * nhat[1] * g[0] + tau[1, 0] * nhat[0] * g[1]) * ds
+        Lh -= (tau[0, 0] * nhat[1] * g[0] + tau[1, 1] * nhat[0] * g[1]) * ds
 
     H_prob = NonlinearVariationalProblem(Lh, H)
     H_solv = NonlinearVariationalSolver(H_prob, solver_parameters=params)
     H_solv.solve()
-
-    # if treat_boundaries == 'on':
-        # assert mesh._topological_dimension == 2                                     # 3D not yet considered
-        # plex = mesh._plex
-        # vStart, vEnd = plex.getDepthStratum(0)                                      # Vertices
-
-        # [Get b_nodes and i_nodes]
-
-        # noIntNbrs = []
-
-        # [Create some functions int_nbrs and bdy_nbrs]
-
-        # for v in b_nodes:
-
-        #     if len(int_nbrs(v)) == 0:
-        #         noIntNbrs.append(v)
-        #     else :
-        #         num = np.zeros((2, 2))
-        #         den = 0
-        #         for w in int_nbrs(v) :
-        #             [Calculate num += H.dat.data[w] * Mass(w) and den += Mass(w)]
-        #         H.dat.data[v] = num/den
-
-        # if len(noIntNbrs) > 0 :
-        #     for v in noIntNbrs :
-        #         num = np.zeros((2, 2))
-        #         den = 0
-        #         for w in bdy_nbrs(v) :
-        #             [Calculate num += H.dat.data[w] * Mass(w) and den += Mass(w)]
-        #         H.dat.data[v] = num/den
-
-    # TODO: Complete finite difference approximation at boundaries. Perhaps use plex.getAdjacency?
 
     return H
 
@@ -109,7 +76,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
     :return: steady metric associated with Hessian H.
     """
 
-    ia = 1. / (a ** 2)              # Inverse square aspect ratio
+    ia2 = 1. / (a ** 2)             # Inverse square aspect ratio
     ihmin2 = 1. / (h_min ** 2)      # Inverse square minimal side-length
     ihmax2 = 1. / (h_max ** 2)      # Inverse square maximal side-length
     M = Function(V)
@@ -130,8 +97,8 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
             lam1 = min(ihmin2, max(ihmax2, abs(lam[0])))
             lam2 = min(ihmin2, max(ihmax2, abs(lam[1])))
             lam_max = max(lam1, lam2)
-            lam1 = max(lam1, ia * lam_max)
-            lam2 = max(lam2, ia * lam_max)
+            lam1 = max(lam1, ia2 * lam_max)
+            lam2 = max(lam2, ia2 * lam_max)
 
             # Reconstruct edited Hessian:
             M.dat.data[i][0, 0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]
@@ -174,8 +141,8 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
             lam1 = min(ihmin2, max(ihmax2, abs(lam[0])))
             lam2 = min(ihmin2, max(ihmax2, abs(lam[1])))
             lam_max = max(lam1, lam2)
-            lam1 = max(lam1, ia * lam_max)
-            lam2 = max(lam2, ia * lam_max)
+            lam1 = max(lam1, ia2 * lam_max)
+            lam2 = max(lam2, ia2 * lam_max)
 
             # Reconstruct edited Hessian:
             M.dat.data[i][0, 0] = lam1 * v1[0] * v1[0] + lam2 * v2[0] * v2[0]

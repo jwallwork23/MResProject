@@ -67,9 +67,12 @@ def plot_gauges(gauge, problem='comparison'):
         for line in infile:
             val.append(float(line))
         infile.close()
-        plt.plot(np.linspace(0, 60, len(val)), val, label=labels[key])     # Plot time series for this setup
+        if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational'):
+            plt.plot(np.linspace(0, 25, len(val)), val, label=labels[key])
+        else:
+            plt.plot(np.linspace(0, 60, len(val)), val, label=labels[key])     # Plot time series for this setup
     plt.gcf()
-    # plt.ylim([-5, 5])
+    plt.ylim([-5, 5])
     plt.legend(loc=1)
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')

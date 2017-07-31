@@ -21,32 +21,31 @@ N1 = len(mesh.coordinates.dat.data)                                     # Minimu
 N2 = N1                                                                 # Maximum number of vertices
 print '...... mesh loaded. Initial number of vertices : ', N1
 
-# # Set up adaptivity parameters:
-# hmin = float(raw_input('Minimum element size in m (default 0.05)?: ') or 0.05)
-# hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
-# rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
-# nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
-# ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-# if ntype not in ('lp', 'manual'):
-#     raise ValueError('Please try again, choosing lp or manual.')
-# mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
-# if mtype not in ('s', 'f', 'b'):
-#     raise ValueError('Please try again, choosing s, f or b.')
-# mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
-# if mat_out not in ('y', 'n'):
-#     raise ValueError('Please try again, choosing y or n.')
-# hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
-# if hess_meth not in ('parts', 'dL2'):
-#     raise ValueError('Please try again, choosing parts or dL2.')
+# Set up adaptivity parameters:
+hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5) * 1e-3
+hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
+rm = int(raw_input('Timesteps per re-mesh (default 40)?: ') or 40)
+nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
+ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+if ntype not in ('lp', 'manual'):
+    raise ValueError('Please try again, choosing lp or manual.')
+mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
+if mtype not in ('s', 'f', 'b'):
+    raise ValueError('Please try again, choosing s, f or b.')
+mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
+if mat_out not in ('y', 'n'):
+    raise ValueError('Please try again, choosing y or n.')
+hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
+if hess_meth not in ('parts', 'dL2'):
+    raise ValueError('Please try again, choosing parts or dL2.')
 
 # Specify parameters:
-ndump = 20              # Timesteps per dump
+ndump = 20              # Timesteps per data dump
 T = 4.                  # Simulation duration (s)
 Ts = 1.                 # Time range lower limit (s), during which we can assume the wave won't reach the shore
 g = 9.81                # Gravitational acceleration (m s^{-2})
 dt = 0.005
 Dt = Constant(dt)
-rm = 40                 # Timesteps per remesh
 
 # # Check CFL criterion is satisfied for this discretisation:
 # assert(dt < 1. / (n * np.sqrt(g * b)))
@@ -122,7 +121,8 @@ lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
 lu, le = lam.split()
 lu_, le_ = lam_.split()
 
-# Run fixed mesh adjoint solver:
+print ''
+print 'Starting fixed resolution adjoint run...'
 while t > 0.5 * dt:
 
     # Increment counters:
@@ -145,6 +145,7 @@ while t > 0.5 * dt:
 
         lam_file.write(lu, le, time=T-t)
         print 't = %1.1fs' % t
+print '... done!'
 
 # Repeat above setup:
 q_ = Function(W)
@@ -172,11 +173,12 @@ sig_file = File('plots/goal-based_outputs/test_significance.pvd')
 t = 0.
 dumpn = 0
 
-# Run fixed mesh forward solver:
+print ''
+print 'Starting mesh adaptive forward run...'
 while t < T - 0.5 * dt:
+    tic2 = clock()
     i += 1
 
-    tic2 = clock()
     # Interpolate velocity in a P1 space:
     vel.interpolate(u)
 

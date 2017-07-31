@@ -7,8 +7,8 @@ Here you will find:
     * Meshes, function spaces and functions on a selection of model and ocean domains are generated using ``domain``.
     * Interpolation of functions from an old mesh to a newly adapted mesh is achieved using ``interp``.
     * Time series data can be stored and plotted using ``storage``.
-* A ``resources`` directory, containing bathymetry and coastline data. Mesh files have been removed for copyright
-reasons, but may be made available upon request.
+* A ``resources`` directory, containing bathymetry and coastline data for the ocean domain surrounding Fukushima. Mesh
+files have been removed for copyright reasons, but may be made available upon request.
 * Some test files on model domains:
     - [x] ``1D_tsunami_test``, which replicates results of Brisa Davis and Randall LeVeque's 2016 paper _'Adjoint
     methods for guiding adaptive mesh refinement in tsunami modelling'_ and studies the forward and adjoint problems
@@ -27,6 +27,6 @@ tsunami, which struck the Japanese coast at Fukushima and caused muchdestruction
     and provides an efficient, non-adaptive solver for the tsunami modelling problem.
     - [x] ``anisotropic_tsunami``, which solves the problem using anisotropic mesh adaptivity.
     - [ ] ``goal_based_tsunami``, which solve the problem using a goal-based approach.
-* A collection of videos generated from simulation outputs, contained in the ``plots`` directory.
+* A ``timeseries`` directory, containing free surface displacement output values at two pressure gauge locations.
 
 For feedback, comments and questions, please email j.wallwork16@imperial.ac.uk.

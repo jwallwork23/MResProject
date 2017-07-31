@@ -64,7 +64,7 @@ params = {'mat_type': 'matfree',
 
 # Establish indicator function for adjoint equations:
 f = Function(W.sub(1), name='Forcing term')
-f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 580e3) & (x[1] > 4130e3) & (x[1] < 4260e3) ? 117e8 : 0.'))
+f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 580e3) & (x[1] > 4130e3) & (x[1] < 4260e3) ? 1.17e10 : 0.'))
 
 # Set up dependent variables of the adjoint problem:
 lam = Function(W)
@@ -101,7 +101,7 @@ leh = 0.5 * (le + le_)
 
 # Set up the variational problem:
 La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
-      + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+      + inner(lu - lu_, w) + Dt * (b * inner(grad(leh), w) + leh * inner(grad(b), w))) * dx
 lam_prob = NonlinearVariationalProblem(La, lam)
 lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
 

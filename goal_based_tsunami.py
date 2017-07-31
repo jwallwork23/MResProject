@@ -46,7 +46,7 @@ nodes = 0.5 * N1                # Target number of vertices
 
 # Specify parameters:
 ndump = 30                      # Timesteps per data dump
-T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600.
+T = float(raw_input('Simulation duration in hours (default 0.415)?: ') or 0.415) * 3600.
 Ts = 300.                       # Time range lower limit (s), during which we can assume the wave won't reach the shore
 g = 9.81                        # Gravitational acceleration (m s^{-2})
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
@@ -64,7 +64,7 @@ params = {'mat_type': 'matfree',
 
 # Establish indicator function for adjoint equations:
 f = Function(W.sub(1), name='Forcing term')
-f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 580e3) & (x[1] > 4130e3) & (x[1] < 4260e3) ? 1.17e10 : 0.'))
+f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 580e3) & (x[1] > 4130e3) & (x[1] < 4260e3) ? 1.75e13 : 0.'))
 
 # Set up dependent variables of the adjoint problem:
 lam = Function(W)
@@ -100,7 +100,7 @@ luh = 0.5 * (lu + lu_)
 leh = 0.5 * (le + le_)
 
 # Set up the variational problem:
-La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
+La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + f * xi
       + inner(lu - lu_, w) + Dt * (b * inner(grad(leh), w) + leh * inner(grad(b), w))) * dx
 lam_prob = NonlinearVariationalProblem(La, lam)
 lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)

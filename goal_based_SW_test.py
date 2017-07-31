@@ -20,6 +20,7 @@ x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
 print '...... mesh loaded. Initial number of vertices : ', N1
+bathy = raw_input('Flat bathymetry or shelf break (f/s, default f)?: ') or 'f'
 
 # Set up adaptivity parameters:
 hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5) * 1e-3
@@ -64,7 +65,10 @@ W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 
 # Interpolate bathymetry:
 b = Function(W.sub(1), name='Bathymetry')
-b.interpolate(Expression(1.5))
+if bathy == 'f':
+    b.interpolate(Expression(1.5))
+else:
+    b.interpolate(Expression('x[0] <= 3.75 ? 0.15 : 1.5'))      # Shelf break bathymetry
 
 # Create adjoint variables:
 lam_ = Function(W)
@@ -112,7 +116,7 @@ luh = 0.5 * (lu + lu_)
 leh = 0.5 * (le + le_)
 
 # Set up the variational problem:
-La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
+La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + f * xi
       + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
 lam_prob = NonlinearVariationalProblem(La, lam)
 lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
@@ -144,7 +148,7 @@ while t > 0.5 * dt:
         sol_dat[i, :, 2] = le.dat.data
 
         lam_file.write(lu, le, time=T-t)
-        print 't = %1.1fs' % t
+        print 't = %1.1fs, i = %d' % (t, i)
 print '... done!'
 
 # Repeat above setup:
@@ -177,7 +181,6 @@ print ''
 print 'Starting mesh adaptive forward run...'
 while t < T - 0.5 * dt:
     tic2 = clock()
-    i += 1
 
     # Interpolate velocity in a P1 space:
     vel.interpolate(u)
@@ -195,7 +198,7 @@ while t < T - 0.5 * dt:
         sol_e.dat.data[:] = sol_dat[j, :, 2]
 
         # Interpolate saved data onto new mesh:
-        if (i + int(T / (dt * ndump))) != 1:
+        if (i + int(T / (dt * ndump))) != 0:
             print '#### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/',\
                 len(range(max(i, int((Ts - T) / (dt * ndump))), 0))
             sol_v, sol_e = interp(mesh, sol_v, sol_e)
@@ -227,7 +230,7 @@ while t < T - 0.5 * dt:
     # Print to screen:
     print ''
     print '************ Adaption step %d **************' % (i + 40)
-    print 'Time = %1.2fs' % t
+    print 'Time = %1.2fs, i = %d' % (t, i)
     print 'Number of nodes after adaption', n
     print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
     print 'Total elapsed time for this step: %1.2fs' % (toc2 - tic2)
@@ -263,8 +266,9 @@ while t < T - 0.5 * dt:
         # Dump to vtu:
         if dumpn == ndump:
             dumpn -= ndump
+            i += 1
             q_file.write(u, eta, time=t)
             sig_file.write(significance, time=t)
 
 toc1 = clock()
-print 'Elapsed time for adaptive solver: %1.2f mins' % ((toc1 - tic1) / 60.)
+print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)

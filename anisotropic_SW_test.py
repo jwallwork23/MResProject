@@ -17,10 +17,8 @@ mesh = SquareMesh(lx * n, lx * n, lx, lx)
 x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
-print 'Initial number of nodes : ', N1
+print '...... mesh loaded. Initial number of nodes : ', N1
 bathy = raw_input('Flat bathymetry or shelf break (f/s, default f)?: ') or 'f'
-if bathy not in ('f', 's'):
-    raise ValueError('Please try again, choosing f or s.')
 
 # Simulation duration:
 T = 2.5

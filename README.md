@@ -20,7 +20,7 @@ reasons, but may be made available upon request.
     with an initial Gaussian profile.
     - [x] ``anisotropic_SW_test``, which applies mesh adaptivity to the shallow water equations in the case of a
     Taylor-Hood __P2__-__P1__ fluid velocity-free surface displacement function space pair.
-    - [ ] ``goal_based_SW_test``, which considers a similar problem, but using a goal-based approach to adaptivity.
+    - [x] ``goal_based_SW_test``, which considers a similar problem, but using a goal-based approach to adaptivity.
 * Simulations on a realistic domain, which build upon the test script codes and apply the methodology to the 2011 Tohoku
 tsunami, which struck the Japanese coast at Fukushima and caused muchdestruction. These include:
     - [x] ``model_verification``, which shows that the linear, non-rotational shallow water equations are sufficient

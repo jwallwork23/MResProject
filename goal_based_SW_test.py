@@ -38,12 +38,13 @@ print '...... mesh loaded. Initial number of vertices : ', N1
 #     raise ValueError('Please try again, choosing parts or dL2.')
 
 # Specify parameters:
-ndump = 20
-T = 4.                  # Simulation duration (s)
+ndump = 20              # Timesteps per dump
+T = 4                   # Simulation duration (s)
 ts = 1.                 # Time range lower limit (s)                    TODO: Incorporate this functionality.
 g = 9.81                # Gravitational acceleration (m s^{-2})
 dt = 0.005
 Dt = Constant(dt)
+rm = 40                 # Timesteps per remesh
 
 # # Check CFL criterion is satisfied for this discretisation:
 # assert(dt < 1. / (n * np.sqrt(g * b)))
@@ -140,7 +141,7 @@ while t > 0.5 * dt:
     if dumpn == 0:
         dumpn += ndump
         lam_file.write(lu, le, time=T-t)
-        print 't = %1.2fs' % t
+        print 't = %1.1fs' % t
 
 # Repeat above setup:
 q_ = Function(W)
@@ -164,6 +165,7 @@ q_file = File('plots/goal-based_outputs/test_forward.pvd')
 q_file.write(u, eta, time=0)
 
 # Initialise counters:
+i = 0
 t = 0.
 dumpn = 0
 
@@ -185,9 +187,12 @@ u_, eta_ = q_.split()
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
-# Create a function to hold the inner product data:
+# Create functions to hold inner product and significance data:
+ip = Function(W.sub(1), name='Inner product')
 significance = Function(W.sub(1), name='Significant regions')
 sig_file = File('plots/goal-based_outputs/test_significance.pvd')
+test = Function(W.sub(1), name='TEST')
+test_file = File('plots/goal-based_outputs/TEST.pvd')
 
 # Run fixed mesh forward solver:
 while t < T - 0.5 * dt:
@@ -204,28 +209,34 @@ while t < T - 0.5 * dt:
     # Take inner product with adjoint data:
     vel.interpolate(u)
 
-    # Take maximal L2 inner product as most significant:
-    for j in range(i + 1):
-        ip = Function(W.sub(1), name='Inner product')
-        ip.dat.data[:] = sol_dat[j, :, 0] * vel.dat.data[:, 0] + sol_dat[j, :, 1] * vel.dat.data[:, 1] \
-                                  + sol_dat[j, :, 2] * eta.dat.data
-        if (j == 0) | (np.abs(assemble(ip * dx)) > np.abs(assemble(significance * dx))):
-            significance.dat.data[:] = ip.dat.data[:]
-
     # Dump to vtu:
     if dumpn == ndump:
         dumpn -= ndump
+        print 't = %1.1fs' % t
+
+        # Take maximal L2 inner product as most significant:
+        for j in range(i, 0):
+            ip.dat.data[:] = sol_dat[j, :, 0] * vel.dat.data[:, 0] + sol_dat[j, :, 1] * vel.dat.data[:, 1] \
+                             + sol_dat[j, :, 2] * eta.dat.data
+            if (j == 0) | (np.abs(assemble(ip * dx)) > np.abs(assemble(significance * dx))):
+                significance.dat.data[:] = ip.dat.data[:]
+
+        if  i % rm == 0:
+            # Generate Hessian and metric of significance field:
+            V = TensorFunctionSpace(mesh, 'CG', 1)
+            H = construct_hessian(mesh, V, significance)
+            M = compute_steady_metric(mesh, V, H, significance, h_min=0.1, h_max=5)
+            adaptor = AnisotropicAdaptation(mesh, M)
+            test, test = interp(adaptor.adapted_mesh, test, test)
+            test.rename('TEST')
+
+        # Dump to .vtu:
         q_file.write(u, eta, time=t)
         sig_file.write(significance, time=t)
-        print 't = %1.2fs' % t
+        test_file.write(test, time=t)
 
-# # Generate Hessian and metric of significance field:
-# V = TensorFunctionSpace(mesh, 'CG', 1)
-# H = construct_hessian(mesh, V, significance)
+
 # File('plots/goal-based_outputs/test_significance_hessian.pvd').write(H)
-# M = compute_steady_metric(mesh, V, H, significance, h_min=0.1, h_max=5)
 # # M.dat.data[:] *= N1                                                         # Rescale by the number of elements
 # File('plots/goal-based_outputs/test_significance_metric.pvd').write(M)
-# adaptor = AnisotropicAdaptation(mesh, M)
-# significance, eta = interp(adaptor.adapted_mesh, significance, eta)
 # File('plots/goal-based_outputs/test_significance_mesh.pvd').write(significance)

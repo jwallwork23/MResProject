@@ -35,7 +35,7 @@ T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600
 
 # Set up adaptivity parameters:
 hmin = float(raw_input('Minimum element size in km (default 1)?: ') or 1) * 1e3
-hmax = float(raw_input('Maximum element size in km (default 100)?: ') or 100.) * 1e3
+hmax = float(raw_input('Maximum element size in km (default 1000)?: ') or 1000.) * 1e3
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
@@ -45,7 +45,7 @@ if mtype not in ('s', 'f', 'b'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = 0.5 * N1    # Target number of vertices
+nodes = 0.25 * N1    # Target number of vertices
 
 # Courant number adjusted timestepping parameters:
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
@@ -56,7 +56,7 @@ if dt > cdt:
     if raw_input('Are you happy to proceed? (y/n)') == 'n':
         exit(23)
 ndump = int(60. / dt)
-rm = int(raw_input('Timesteps per re-mesh (default 10)?: ') or 10)
+rm = int(raw_input('Timesteps per re-mesh (default 30)?: ') or 30)
 
 # Convert gauge locations:
 glatlon = {'P02': (38.5, 142.5), 'P06': (38.7, 142.6),

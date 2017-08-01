@@ -37,7 +37,7 @@ def plot_gauges(gauge, problem='comparison'):
         setup = {0: 'xcoarse',          # 3,126 vertices
                  1: 'medium',           # 25,976 vertices
                  2: 'fine',             # 97,343 vertices
-                 3: 'anisotropic',
+                 3: 'anisotropic_quarterscaled_rm=30',
                  4: 'goal-based'}
         labels = {0: 'Fixed, coarse mesh',
                   1: 'Fixed, intermediate mesh',
@@ -58,21 +58,26 @@ def plot_gauges(gauge, problem='comparison'):
     plt.clf()
 
     # Temporary user specified input for incomplete plots:
-    progress = int(raw_input('How far have we got for this gauge? (1/2/3/4/5): ') or 1)
+    progress = int(raw_input('How far have we got for this gauge? (1/2/3/4/5): ') or 4)
 
     # Loop over mesh resolutions:
     for key in range(progress):
         val = []
+        i = 0
+        v0 = 0
         infile = open('timeseries/{y1}_{y2}.txt'.format(y1=gauge, y2=setup[key]), 'r')
         for line in infile:
-            val.append(float(line))
+            if i == 0:
+                i += 1
+                v0 = float(line)
+            val.append(float(line) - v0)
         infile.close()
         if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational'):
             plt.plot(np.linspace(0, 25, len(val)), val, label=labels[key])
         else:
             plt.plot(np.linspace(0, 60, len(val)), val, label=labels[key])     # Plot time series for this setup
     plt.gcf()
-    plt.ylim([-5, 5])
+    # plt.ylim([-5, 5])
     plt.legend(loc=1)
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')

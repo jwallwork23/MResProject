@@ -11,45 +11,43 @@ print ''
 tic1 = clock()
 
 # Define initial (uniform) mesh:
-n = 16                                                                  # Resolution of uniform mesh for adjoint run
-lx = 30                                                                 # Extent in x-direction (m)
-ly = 50                                                                 # Extent in y-direction (m)
-mesh = RectangleMesh(3 * n, 5 * n, lx, ly)
+lx = 4e5                                                                        # Extent in x-direction (m)
+mesh = SquareMesh(64, 64, lx, lx)
 mesh_ = mesh
 x, y = SpatialCoordinate(mesh)
-N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
-N2 = N1                                                                 # Maximum number of vertices
-print '...... mesh loaded. Initial number of vertices : ', N1
+N1 = len(mesh.coordinates.dat.data)                                             # Minimum number of vertices
+N2 = N1                                                                         # Maximum number of vertices
+print '...... mesh loaded. Initial number of nodes : ', N1
 bathy = raw_input('Flat bathymetry or shelf break (f/s, default f)?: ') or 'f'
 
+# Simulation duration:
+T = 1e3
+
 # Set up adaptivity parameters:
-hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5) * 1e-3
-hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
-rm = int(raw_input('Timesteps per re-mesh (default 40)?: ') or 40)
-nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
+hmin = float(raw_input('Minimum element size in m (default 1)?: ') or 1.)
+hmax = float(raw_input('Maximum element size in m (default 1000)?: ') or 1e3)
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b): ') or 'f'
+mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, defualt f): ') or 'f'
 if mtype not in ('s', 'f', 'b'):
     raise ValueError('Please try again, choosing s, f or b.')
-mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
+mat_out = raw_input('Output Hessian and metric? (y/n, default n): ') or 'n'
 if mat_out not in ('y', 'n'):
     raise ValueError('Please try again, choosing y or n.')
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
+nodes = 0.5 * N1                # Target number of vertices
 
-# Specify parameters:
-ndump = 20              # Timesteps per data dump
-T = 4.                  # Simulation duration (s)
-Ts = 1.                 # Time range lower limit (s), during which we can assume the wave won't reach the shore
-g = 9.81                # Gravitational acceleration (m s^{-2})
-dt = 0.005
+# Courant number adjusted timestepping parameters:
+ndump = 50
+g = 9.81                                                # Gravitational acceleration (m s^{-2})
+dt = hmin / np.sqrt(g * 0.1)                            # Timestep length (s), using wavespeed sqrt(gh)
 Dt = Constant(dt)
-
-# # Check CFL criterion is satisfied for this discretisation:
-# assert(dt < 1. / (n * np.sqrt(g * b)))
+print 'Using Courant number adjusted timestep dt = %1.4f' % dt
+rm = int(raw_input('Timesteps per re-mesh (default 100)?: ') or 100)
+Ts = 250.                 # Time range lower limit (s), during which we can assume the wave won't reach the shore
 
 # Specify solver parameters:
 params = {'mat_type': 'matfree',
@@ -66,9 +64,9 @@ W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 # Interpolate bathymetry:
 b = Function(W.sub(1), name='Bathymetry')
 if bathy == 'f':
-    b.interpolate(Expression(1.5))
+    b.interpolate(Expression(4000.))
 else:
-    b.interpolate(Expression('x[0] <= 3.75 ? 0.15 : 1.5'))      # Shelf break bathymetry
+    b.interpolate(Expression('x[0] <= 50e3 ? 200. : 4000.'))      # Shelf break bathymetry
 
 # Create adjoint variables:
 lam_ = Function(W)
@@ -76,7 +74,7 @@ lu_, le_ = lam_.split()
 
 # Establish indicator function for adjoint equations:
 f = Function(W.sub(1), name='Forcing term')
-f.interpolate(Expression('(x[0] >= 0.) & (x[0] < 2.5) & (x[1] > 23.) & (x[1] < 27.) ? 3. * 2.5 * 4. : 0.'))
+f.interpolate(Expression('(x[0] >= 10e3) & (x[0] < 25e3) & (x[1] > 180e3) & (x[1] < 220e3) ? 1. : 0.'))
 
 # Interpolate adjoint final time conditions:
 lu_.interpolate(Expression([0, 0]))
@@ -116,7 +114,7 @@ luh = 0.5 * (lu + lu_)
 leh = 0.5 * (le + le_)
 
 # Set up the variational problem:
-La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + f * xi
+La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
       + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
 lam_prob = NonlinearVariationalProblem(La, lam)
 lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
@@ -127,6 +125,7 @@ lu_, le_ = lam_.split()
 
 print ''
 print 'Starting fixed resolution adjoint run...'
+tic2 = clock()
 while t > 0.5 * dt:
 
     # Increment counters:
@@ -148,8 +147,10 @@ while t > 0.5 * dt:
         sol_dat[i, :, 2] = le.dat.data
 
         lam_file.write(lu, le, time=T-t)
-        print 't = %1.1fs, i = %d' % (t, i)
-print '... done!'
+        print 't = %1.1fs' % t
+print '... done!',
+toc2 = clock()
+print 'Elapsed time for adjoint solver: %1.2fs' % (toc2 - tic2)
 
 # Repeat above setup:
 q_ = Function(W)
@@ -157,7 +158,7 @@ u_, eta_ = q_.split()
 
 # Interpolate forward initial conditions:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(0.5 * exp(- (pow(x - 15.5, 2) + 0.5 * pow(y - 25., 2)) / 10.))
+eta_.interpolate(exp(- (pow(x - 200e3, 2) + pow(y - 200e3, 2)) / 200.))
 
 # Set up dependent variables of the forward problem:
 q = Function(W)

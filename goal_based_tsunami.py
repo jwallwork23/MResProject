@@ -64,7 +64,7 @@ params = {'mat_type': 'matfree',
 
 # Establish indicator function for adjoint equations:
 f = Function(W.sub(1), name='Forcing term')
-f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 580e3) & (x[1] > 4130e3) & (x[1] < 4260e3) ? 1.75e13 : 0.'))
+f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 580e3) & (x[1] > 4130e3) & (x[1] < 4260e3) ? 20. : 0.'))
 
 # Set up dependent variables of the adjoint problem:
 lam = Function(W)

@@ -11,7 +11,7 @@ print ''
 print 'Options...'
 
 # Define initial (uniform) mesh:
-n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
+n = int(raw_input('Initial mesh cells per m (default 16)?: ') or 16)    # Resolution of initial uniform mesh
 lx = 4                                                                  # Extent in x-direction (m)
 mesh = SquareMesh(lx * n, lx * n, lx, lx)
 x, y = SpatialCoordinate(mesh)
@@ -24,7 +24,7 @@ bathy = raw_input('Flat bathymetry or shelf break (f/s, default f)?: ') or 'f'
 T = 2.5
 
 # Set up adaptivity parameters:
-hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
+hmin = float(raw_input('Minimum element size in mm (default 0.5)?: ') or 0.5) * 1e-3
 hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
 nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
@@ -41,7 +41,7 @@ if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
 
 # Courant number adjusted timestepping parameters:
-ndump = 1
+ndump = 50
 g = 9.81                                                # Gravitational acceleration (m s^{-2})
 dt = 0.8 * hmin / np.sqrt(g * 0.1)                      # Timestep length (s), using wavespeed sqrt(gh)
 Dt = Constant(dt)

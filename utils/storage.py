@@ -17,10 +17,8 @@ def gauge_timeseries(gauge, dat):
 
     name = raw_input('Enter a name for this time series (e.g. xcoarse): ')
     outfile = open('timeseries/{y1}_{y2}.txt'.format(y1=gauge, y2=name), 'w+')
-
     for i in range(len(dat)):
         outfile.write(str(dat[i]) + '\n')
-
     outfile.close()
 
 
@@ -34,10 +32,10 @@ def plot_gauges(gauge, problem='comparison'):
     """
 
     if problem == 'comparison':
-        setup = {0: 'xcoarse',          # 3,126 vertices
-                 1: 'medium',           # 25,976 vertices
-                 2: 'fine',             # 97,343 vertices
-                 3: 'anisotropic_quarterscaled_rm=30',
+        setup = {0: 'xcoarse',                      # 3,126 vertices
+                 1: 'medium',                       # 25,976 vertices
+                 2: 'fine',                         # 97,343 vertices
+                 3: 'anisotropic_point85scaled_rm=30',
                  4: 'goal-based'}
         labels = {0: 'Fixed, coarse mesh',
                   1: 'Fixed, intermediate mesh',
@@ -53,8 +51,10 @@ def plot_gauges(gauge, problem='comparison'):
                   1: 'Linear, rotational equations',
                   2: 'Nonlinear, non-rotational equations',
                   3: 'Nonlinear, rotational equations'}
+    styles = {0: ':', 1: '--', 2: '-', 3: '-.', 4: ':'}
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
+    plt.rc('legend', fontsize='x-large')
     plt.clf()
 
     # Temporary user specified input for incomplete plots:
@@ -72,13 +72,29 @@ def plot_gauges(gauge, problem='comparison'):
                 v0 = float(line)
             val.append(float(line) - v0)
         infile.close()
-        if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational'):
-            plt.plot(np.linspace(0, 25, len(val)), val, label=labels[key])
+        if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational', 'anisotropic_point85scaled_rm=30'):
+            plt.plot(np.linspace(0, 25, len(val)), val, label=labels[key], linestyle=styles[key])
         else:
-            plt.plot(np.linspace(0, 60, len(val)), val, label=labels[key])     # Plot time series for this setup
+            plt.plot(np.linspace(0, 60, len(val)), val, label=labels[key], linestyle=styles[key])
     plt.gcf()
     # plt.ylim([-5, 5])
     plt.legend(loc=1)
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
     plt.savefig('plots/tsunami_outputs/screenshots/full_gauge_timeseries_{y1}_{y2}.png'.format(y1=gauge, y2=problem))
+
+
+def store_field(name, field):
+    """
+    Store a field's data to disk.
+
+    :param name: chosen name for output file.
+    :param field: field to be saved.
+    :return: readable text file ``name.txt``.
+    """
+
+    outfile = open('stored/{y}.txt'.format(y=name), 'w+')
+    dat = field.dat.data
+    for i in range(len(dat)):
+        outfile.write(str(dat) + '\n')
+    outfile.close()

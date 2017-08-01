@@ -115,7 +115,6 @@ while t < T - 0.5 * dt:
 
     # Interpolate functions onto new mesh:
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
-    toc2 = clock()
 
     # Data analysis:
     n = len(mesh.coordinates.dat.data)
@@ -123,15 +122,6 @@ while t < T - 0.5 * dt:
         N1 = n
     elif n > N2:
         N2 = n
-
-    # Print to screen:
-    print ''
-    print '************ Adaption step %d **************' % mn
-    print 'Time = %1.2fs' % t
-    print 'Number of nodes after adaption step %d: ' % mn, n
-    print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
-    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
-    print ''
 
     # Establish test functions and midpoint averages:
     v, ze = TestFunctions(W)
@@ -168,7 +158,17 @@ while t < T - 0.5 * dt:
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, eta, time=t)
+    toc2 = clock()
 
+    # Print to screen:
+    print ''
+    print '************ Adaption step %d **************' % mn
+    print 'Time = %1.2fs' % t
+    print 'Number of nodes after adaption step %d: ' % mn, n
+    print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
+    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
+    print ''
+print '\a'
 # End timing and print:
 toc1 = clock()
 print 'Elapsed time for adaptive solver: %1.2f mins' % ((toc1 - tic1) / 60.)

@@ -45,7 +45,7 @@ if mtype not in ('s', 'f', 'b'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = 0.25 * N1    # Target number of vertices
+nodes = 0.85 * N1    # Target number of vertices
 
 # Courant number adjusted timestepping parameters:
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
@@ -122,7 +122,6 @@ while t < T - 0.5 * dt:
 
     # Interpolate functions onto new mesh:
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
-    toc2 = clock()
 
     # Data analysis:
     n = len(mesh.coordinates.dat.data)
@@ -130,15 +129,6 @@ while t < T - 0.5 * dt:
         N1 = n
     elif n > N2:
         N2 = n
-
-    # Print to screen:
-    print ''
-    print '************ Adaption step %d **************' % mn
-    print 'Time = %1.2f mins' % (t / 60.)
-    print 'Number of nodes after adaption step %d: ' % mn, n
-    print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
-    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
-    print ''
 
     # Set up functions of weak problem:
     v, ze = TestFunctions(W)
@@ -182,6 +172,16 @@ while t < T - 0.5 * dt:
             dumpn -= ndump
             q_file.write(u, eta, time=t)
             m_file.write(M, time=t)
+    toc2 = clock()
+
+    # Print to screen:
+    print ''
+    print '************ Adaption step %d **************' % mn
+    print 'Time = %1.2f mins' % (t / 60.)
+    print 'Number of nodes after adaption step %d: ' % mn, n
+    print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
+    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
+    print ''
 print '\a'
 # End timing and print:
 toc1 = clock()

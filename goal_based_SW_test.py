@@ -13,13 +13,13 @@ tic1 = clock()
 
 # Define initial (uniform) mesh:
 n = 16
-lx = 30                                                                         # Extent in x-direction (m)
-ly = 50                                                                         # Extent in y-direction (m)
+lx = 30                                                         # Extent in x-direction (m)
+ly = 50                                                         # Extent in y-direction (m)
 mesh = RectangleMesh(3 * n, 5 * n, lx, ly)
 mesh_ = mesh
 x, y = SpatialCoordinate(mesh)
-N1 = len(mesh.coordinates.dat.data)                                             # Minimum number of vertices
-N2 = N1                                                                         # Maximum number of vertices
+N1 = len(mesh.coordinates.dat.data)                             # Minimum number of vertices
+N2 = N1                                                         # Maximum number of vertices
 print '...... mesh loaded. Initial number of nodes : ', N1
 bathy = raw_input('Flat bathymetry or shelf break (f/s, default f)?: ') or 'f'
 
@@ -38,7 +38,7 @@ if mat_out not in ('y', 'n'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = 0.5 * N1                # Target number of vertices
+nodes = 0.85 * N1                # Target number of vertices
 
 # Specify parameters:
 depth = 1.5             # Water depth for flat bathymetry case (m)
@@ -124,9 +124,9 @@ if stored == 'n':
     lu, le = lam.split()
     lu_, le_ = lam_.split()
 
-print ''
-print 'Starting fixed resolution adjoint run...'
-tic2 = clock()
+    print ''
+    print 'Starting fixed resolution adjoint run...'
+    tic2 = clock()
 while t > 0.5 * dt:
 
     # Increment counters:
@@ -142,18 +142,19 @@ while t > 0.5 * dt:
     if dumpn == 0:
         i -= 1
         dumpn += ndump
-        print 't = %1.1fs' % t
 
         # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
         if stored == 'n':
+            print 't = %1.1fs' % t
             lu_P1.interpolate(lu)
             with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
                 chk.store(lu_P1)
                 chk.store(le)
             lam_file.write(lu, le, time=T-t)
-print '... done!',
-toc2 = clock()
-print 'Elapsed time for adjoint solver: %1.2fs' % (toc2 - tic2)
+if stored == 'n':
+    print '... done!',
+    toc2 = clock()
+    print 'Elapsed time for adjoint solver: %1.2fs' % (toc2 - tic2)
 
 # Repeat above setup:
 q_ = Function(W)

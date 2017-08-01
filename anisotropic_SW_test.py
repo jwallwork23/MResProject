@@ -12,8 +12,9 @@ print 'ANISOTROPIC mesh adaptive solver initially defined on a square mesh'
 
 # Define initial (uniform) mesh:
 n = 16                                                          # Resolution of initial uniform mesh
-lx = 4                                                          # Extent in x-direction (m)
-mesh = SquareMesh(lx * n, lx * n, lx, lx)
+lx = 30                                                         # Extent in x-direction (m)
+ly = 50                                                         # Extent in y-direction (m)
+mesh = RectangleMesh(3 * n, 5 * n, lx, ly)
 x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                             # Minimum number of vertices
 N2 = N1                                                         # Maximum number of vertices
@@ -23,12 +24,11 @@ print 'Options...'
 bathy = raw_input('Flat bathymetry or shelf break (f/s, default f)?: ') or 'f'
 
 # Simulation duration:
-T = 2.5
+T = 4.
 
 # Set up adaptivity parameters:
-hmin = float(raw_input('Minimum element size in mm (default 0.5)?: ') or 0.5) * 1e-3
+hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
 hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
-nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
@@ -41,13 +41,15 @@ if mat_out not in ('y', 'n'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
+nodes = 0.85 * N1                # Target number of vertices
 
 # Courant number adjusted timestepping parameters:
-ndump = 50
-g = 9.81                                                # Gravitational acceleration (m s^{-2})
-dt = 0.8 * hmin / np.sqrt(g * 0.1)                      # Timestep length (s), using wavespeed sqrt(gh)
+depth = 1.5             # Water depth for flat bathymetry case (m)
+ndump = 20              # Timesteps per data dump
+T = 4.                  # Simulation duration (s)
+g = 9.81                # Gravitational acceleration (m s^{-2})
+dt = 0.005
 Dt = Constant(dt)
-print 'Using Courant number adjusted timestep dt = %1.4f' % dt
 rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
 
 # Define mixed Taylor-Hood function space and a function defined thereupon:
@@ -60,11 +62,11 @@ b = Function(W.sub(1), name='Bathymetry')
 if bathy == 'f':
     b.assign(0.1)  # (Constant) tank water depth (m)
 else:
-    b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))  # Shelf break bathymetry
+    b.interpolate(Expression('x[0] <= 3.75 ? 0.15 : 1.5'))  # Shelf break bathymetry
 
 # Interpolate initial conditions:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(1e-3 * exp(- (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
+eta_.interpolate(0.01 * exp(- (pow(x - 15.5, 2) + pow(y - 25., 2)) / 10.))
 
 # Set up dependent variables of problem:
 q = Function(W)

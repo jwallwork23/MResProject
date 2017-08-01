@@ -192,7 +192,7 @@ plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries_{y1}_res{y2}.png
 gauge_timeseries(gauge, gauge_dat)
 
 # Plot damage measures time series:
-if (dm == 'y') & (choices in (0, 4)):
+if dm == 'y':
     plt.clf()
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')

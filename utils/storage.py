@@ -77,8 +77,8 @@ def plot_gauges(gauge, problem='comparison'):
         else:
             plt.plot(np.linspace(0, 60, len(val)), val, label=labels[key], linestyle=styles[key])
     plt.gcf()
-    # plt.ylim([-5, 5])
-    plt.legend(loc=1)
+    plt.ylim([-5, 5])
+    plt.legend(loc=4)       # 'upper right' == 1 and 'lower right' == 4
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
     plt.savefig('plots/tsunami_outputs/screenshots/full_gauge_timeseries_{y1}_{y2}.png'.format(y1=gauge, y2=problem))

@@ -190,16 +190,6 @@ print 'Elapsed time for adaptive forward solver: %1.2fs' % (toc1 - tic1)
 # Store gauge timeseries data to file:
 gauge_timeseries(gauge, gauge_dat)
 
-# Plot gauge time series:
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
-plt.plot(np.linspace(0, 60, len(gauge_dat)), gauge_dat)
-plt.gcf().subplots_adjust(bottom=0.15)
-plt.ylim([-5, 5])
-plt.xlabel(r'Time elapsed (mins)')
-plt.ylabel(r'Free surface (m)')
-plt.savefig('plots/anisotropic_outputs/screenshots/timeseries_{y}.png'.format(y=gauge))
-
 # Plot damage measures time series:
 if dm == 'y':
     plt.clf()

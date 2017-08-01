@@ -8,16 +8,18 @@ from utils.interp import interp, interp_Taylor_Hood
 print ''
 print '******************************** SHALLOW WATER TEST PROBLEM ********************************'
 print ''
-print 'Options...'
+print 'ANISOTROPIC mesh adaptive solver initially defined on a square mesh'
 
 # Define initial (uniform) mesh:
-n = int(raw_input('Initial mesh cells per m (default 16)?: ') or 16)    # Resolution of initial uniform mesh
-lx = 4                                                                  # Extent in x-direction (m)
+n = 16                                                          # Resolution of initial uniform mesh
+lx = 4                                                          # Extent in x-direction (m)
 mesh = SquareMesh(lx * n, lx * n, lx, lx)
 x, y = SpatialCoordinate(mesh)
-N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
-N2 = N1                                                                 # Maximum number of vertices
+N1 = len(mesh.coordinates.dat.data)                             # Minimum number of vertices
+N2 = N1                                                         # Maximum number of vertices
 print '...... mesh loaded. Initial number of nodes : ', N1
+print ''
+print 'Options...'
 bathy = raw_input('Flat bathymetry or shelf break (f/s, default f)?: ') or 'f'
 
 # Simulation duration:
@@ -163,7 +165,7 @@ while t < T - 0.5 * dt:
     # Print to screen:
     print ''
     print '************ Adaption step %d **************' % mn
-    print 'Time = %1.2fs' % t
+    print 'Time = %1.2fs / %1.1fs' % (t, T)
     print 'Number of nodes after adaption step %d: ' % mn, n
     print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
     print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)

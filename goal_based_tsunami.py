@@ -18,11 +18,11 @@ import matplotlib.pyplot as plt
 print ''
 print '******************************** GOAL-BASED ADAPTIVE TSUNAMI SIMULATION ********************************'
 print ''
+print 'GOAL-BASED, mesh adaptive solver initially defined on a mesh of'
 tic1 = clock()
-print 'Options...'
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
-coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5, default 5): ') or 5)
+coarseness = int(raw_input('coarseness (Integer in range 1-5, default 5): ') or 5)
 mesh, W, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(coarseness)
 mesh_ = mesh
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
@@ -30,6 +30,7 @@ N2 = N1                                                                 # Maximu
 print '...... mesh loaded. Initial number of vertices : ', N1
 
 # Set up adaptivity parameters:
+print 'More options...'
 hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
 hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
 rm = int(raw_input('Timesteps per re-mesh (default 60)?: ') or 60)
@@ -207,7 +208,7 @@ while t < T - 0.5 * dt:
     # Print to screen:
     print ''
     print '************ Adaption step %d **************' % (i + 40)
-    print 'Time = %1.1fs' % t
+    print 'Time = %1.2f mins / %1.1f mins' % (t / 60., T / 60.)
     print 'Number of nodes after adaption', n
     print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
     print 'Total elapsed time for this step: %1.2fs' % (toc2 - tic2)

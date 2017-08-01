@@ -18,10 +18,11 @@ import matplotlib.pyplot as plt
 print ''
 print '******************************** ANISOTROPIC ADAPTIVE TSUNAMI SIMULATION ********************************'
 print ''
-print 'Options...'
+print ''
+print 'GOAL-BASED, mesh adaptive solver initially defined on a mesh of'
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
-coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5, default 5): ') or 5)
+coarseness = int(raw_input('coarseness (Integer in range 1-5, default 5): ') or 5)
 mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(coarseness)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
@@ -30,6 +31,7 @@ print '...... mesh loaded. Initial number of vertices : ', N1
 # Set physical parameters:
 g = 9.81                        # Gravitational acceleration (m s^{-2})
 
+print 'More options...'
 # Simulation duration:
 T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600.
 
@@ -177,7 +179,7 @@ while t < T - 0.5 * dt:
     # Print to screen:
     print ''
     print '************ Adaption step %d **************' % mn
-    print 'Time = %1.2f mins' % (t / 60.)
+    print 'Time = %1.2f mins / %1.1f mins' % (t / 60., T /60.)
     print 'Number of nodes after adaption step %d: ' % mn, n
     print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
     print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)

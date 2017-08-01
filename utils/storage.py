@@ -82,19 +82,3 @@ def plot_gauges(gauge, problem='comparison'):
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
     plt.savefig('plots/tsunami_outputs/screenshots/full_gauge_timeseries_{y1}_{y2}.png'.format(y1=gauge, y2=problem))
-
-
-def store_field(name, field):
-    """
-    Store a field's data to disk.
-
-    :param name: chosen name for output file.
-    :param field: field to be saved.
-    :return: readable text file ``name.txt``.
-    """
-
-    outfile = open('stored/{y}.txt'.format(y=name), 'w+')
-    dat = field.dat.data
-    for i in range(len(dat)):
-        outfile.write(str(dat) + '\n')
-    outfile.close()

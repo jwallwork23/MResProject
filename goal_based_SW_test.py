@@ -8,7 +8,7 @@ from utils.interp import interp, interp_Taylor_Hood
 print ''
 print '******************************** SHALLOW WATER TEST PROBLEM ********************************'
 print ''
-print 'GOAL-BASED, mesh adaptive solver defined on a rectangular mesh'
+print 'GOAL-BASED, mesh adaptive solver initially defined on a rectangular mesh'
 tic1 = clock()
 
 # Define initial (uniform) mesh:
@@ -49,6 +49,7 @@ g = 9.81                # Gravitational acceleration (m s^{-2})
 dt = 0.005
 Dt = Constant(dt)
 rm = int(raw_input('Timesteps per re-mesh (default 40)?: ') or 40)
+stored = raw_input('Adjoint already computed? (y/n, default y): ') or 'y'
 
 # # Check CFL criterion is satisfied for this discretisation:
 # assert(dt < 1. / (n * np.sqrt(g * b)))
@@ -70,67 +71,58 @@ b = Function(W.sub(1), name='Bathymetry')
 if bathy == 'f':
     b.interpolate(Expression(depth))
 else:
-    b.interpolate(Expression('x[0] <= 3.75 ? 0.15. : 1.5'))      # Shelf break bathymetry
-
-# Create adjoint variables:
-lam_ = Function(W)
-lu_, le_ = lam_.split()
-
-# Establish indicator function for adjoint equations:
-f = Function(W.sub(1), name='Forcing term')
-f.interpolate(Expression('(x[0] >= 0.) & (x[0] < 2.5) & (x[1] > 23.) & (x[1] < 27.) ? 0.01 : 0.'))
-
-# Interpolate adjoint final time conditions:
-lu_.interpolate(Expression([0, 0]))
-le_.assign(f)
-
-# Set up dependent variables of the adjoint problem:
-lam = Function(W)
-lam.assign(lam_)
-lu, le = lam.split()
-vel = Function(VectorFunctionSpace(mesh, 'CG', 1))          # For interpolating velocity field
-
-# Label variables:
-lu.rename('Adjoint velocity')
-le.rename('Adjoint free surface')
-
-# Initialise files:
-lam_file = File('plots/goal-based_outputs/test_adjoint.pvd')
-lam_file.write(lu, le, time=0)
+    b.interpolate(Expression('x[0] <= 3.75 ? 0.15 : 1.5'))  # Shelf break bathymetry
 
 # Initalise counters:
 t = T
 i = -1
 dumpn = ndump
 
-# Store final time data to HDF5:
-with DumbCheckpoint('data_dumps/adjoint_velocity_{y}'.format(y=i), mode=FILE_CREATE) as chk:
-    chk.store(lu)
-    chk.store(le)
+if stored == 'n':
+    # Create adjoint variables:
+    lam_ = Function(W)
+    lu_, le_ = lam_.split()
 
-# Initialise tensor arrays for storage (with dimensions pre-allocated for speed):
-sol_dat = np.zeros((int(T / (dt * ndump)) + 1, N1, 3))
-significant_dat = np.zeros((int(T / (dt * ndump)) + 1, N1))
-vel.interpolate(lu)
-sol_dat[i, :, :2] = vel.dat.data
-sol_dat[i, :, 2] = le.dat.data
+    # Establish indicator function for adjoint equations:
+    f = Function(W.sub(1), name='Forcing term')
+    f.interpolate(Expression('(x[0] >= 0.) & (x[0] < 2.5) & (x[1] > 23.) & (x[1] < 27.) ? 0.01 : 0.'))
 
-# Establish test functions and midpoint averages:
-w, xi = TestFunctions(W)
-lu, le = split(lam)
-lu_, le_ = split(lam_)
-luh = 0.5 * (lu + lu_)
-leh = 0.5 * (le + le_)
+    # Interpolate adjoint final time conditions:
+    lu_.interpolate(Expression([0, 0]))
+    le_.assign(f)
 
-# Set up the variational problem:
-La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
-      + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
-lam_prob = NonlinearVariationalProblem(La, lam)
-lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
+    # Set up dependent variables of the adjoint problem:
+    lam = Function(W)
+    lam.assign(lam_)
+    lu, le = lam.split()
+    lu.rename('Adjoint velocity')
+    le.rename('Adjoint free surface')
 
-# Split to access data and relabel functions:
-lu, le = lam.split()
-lu_, le_ = lam_.split()
+    # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
+    lu_P1 = Function(VectorFunctionSpace(mesh, 'CG', 1), name='P1 adjoint velocity')
+    lu_P1.interpolate(lu)
+    with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
+        chk.store(lu_P1)
+        chk.store(le)
+    lam_file = File('plots/goal-based_outputs/test_adjoint.pvd')
+    lam_file.write(lu, le, time=0)
+
+    # Establish test functions and midpoint averages:
+    w, xi = TestFunctions(W)
+    lu, le = split(lam)
+    lu_, le_ = split(lam_)
+    luh = 0.5 * (lu + lu_)
+    leh = 0.5 * (le + le_)
+
+    # Set up the variational problem:
+    La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
+          + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+    lam_prob = NonlinearVariationalProblem(La, lam)
+    lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
+
+    # Split to access data and relabel functions:
+    lu, le = lam.split()
+    lu_, le_ = lam_.split()
 
 print ''
 print 'Starting fixed resolution adjoint run...'
@@ -142,26 +134,23 @@ while t > 0.5 * dt:
     dumpn -= 1
 
     # Solve the problem and update:
-    lam_solv.solve()
-    lam_.assign(lam)
+    if stored == 'n':
+        lam_solv.solve()
+        lam_.assign(lam)
 
     # Dump to vtu:
     if dumpn == 0:
         i -= 1
         dumpn += ndump
-
-        # Store data to HDF5:
-        with DumbCheckpoint('data_dumps/adjoint_velocity_{y}'.format(y=i), mode=FILE_CREATE) as chk:
-            chk.store(lu)
-            chk.store(le)
-
-        # Save data:
-        vel.interpolate(lu)
-        sol_dat[i, :, :2] = vel.dat.data
-        sol_dat[i, :, 2] = le.dat.data
-
-        lam_file.write(lu, le, time=T-t)
         print 't = %1.1fs' % t
+
+        # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
+        if stored == 'n':
+            lu_P1.interpolate(lu)
+            with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
+                chk.store(lu_P1)
+                chk.store(le)
+            lam_file.write(lu, le, time=T-t)
 print '... done!',
 toc2 = clock()
 print 'Elapsed time for adjoint solver: %1.2fs' % (toc2 - tic2)
@@ -191,6 +180,7 @@ sig_file = File('plots/goal-based_outputs/test_significance.pvd')
 # Initialise counters:
 t = 0.
 dumpn = 0
+i0 = i
 
 print ''
 print 'Starting mesh adaptive forward run...'
@@ -198,6 +188,7 @@ while t < T - 0.5 * dt:
     tic2 = clock()
 
     # Interpolate velocity in a P1 space:
+    vel = Function(VectorFunctionSpace(mesh, 'CG', 1))
     vel.interpolate(u)
 
     # Create functions to hold inner product and significance data:
@@ -207,19 +198,22 @@ while t < T - 0.5 * dt:
     # Take maximal L2 inner product as most significant:
     for j in range(max(i, int((Ts - T) / (dt * ndump))), 0):
 
-        sol_v = Function(VectorFunctionSpace(mesh_, 'CG', 1))
-        sol_e = Function(FunctionSpace(mesh_, 'CG', 1))
-        sol_v.dat.data[:, :] = sol_dat[j, :, :2]
-        sol_e.dat.data[:] = sol_dat[j, :, 2]
+        W = VectorFunctionSpace(mesh_, 'CG', 1) * FunctionSpace(mesh_, 'CG', 1)
+
+        with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_READ) as chk:
+            lu_P1 = Function(W.sub(0), name='P1 adjoint velocity')
+            le = Function(W.sub(1), name='Adjoint free surface')
+            chk.load(lu_P1)
+            chk.load(le)
 
         # Interpolate saved data onto new mesh:
         if (i + int(T / (dt * ndump))) != 0:
             print '#### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/',\
                 len(range(max(i, int((Ts - T) / (dt * ndump))), 0))
-            sol_v, sol_e = interp(mesh, sol_v, sol_e)
+            lu_P1, le = interp(mesh, lu_P1, le)
 
-        ip.dat.data[:] = sol_v.dat.data[:, 0] * vel.dat.data[:, 0] + sol_v.dat.data[:, 1] * vel.dat.data[:, 1] \
-                         + sol_e.dat.data * eta.dat.data
+        ip.dat.data[:] = lu_P1.dat.data[:, 0] * vel.dat.data[:, 0] + lu_P1.dat.data[:, 1] * vel.dat.data[:, 1] \
+                         + le.dat.data * eta.dat.data
         if (j == 0) | (np.abs(assemble(ip * dx)) > np.abs(assemble(significance * dx))):
             significance.dat.data[:] = ip.dat.data[:]
 
@@ -230,7 +224,6 @@ while t < T - 0.5 * dt:
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
-    vel = Function(VectorFunctionSpace(mesh, 'CG', 1))
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
 
@@ -244,8 +237,8 @@ while t < T - 0.5 * dt:
 
     # Print to screen:
     print ''
-    print '************ Adaption step %d **************' % (i + 40)
-    print 'Time = %1.2fs, i = %d' % (t, i)
+    print '************ Adaption step %d **************' % (i + i0)
+    print 'Time = %1.2fs / %1.1fs' % (t, T)
     print 'Number of nodes after adaption', n
     print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
     print 'Total elapsed time for this step: %1.2fs' % (toc2 - tic2)

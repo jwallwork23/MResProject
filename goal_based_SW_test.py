@@ -46,7 +46,7 @@ Ts = 0.5                # Time range lower limit (s), during which we can assume
 g = 9.81                # Gravitational acceleration (m s^{-2})
 dt = 0.05
 Dt = Constant(dt)
-rm = int(raw_input('Timesteps per re-mesh (default 10)?: ') or 10)
+rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
 stored = raw_input('Adjoint already computed? (y/n, default n): ') or 'n'
 
 # Check CFL criterion is satisfied for this discretisation:
@@ -76,6 +76,7 @@ t = T
 i = -1
 dumpn = ndump
 meshn = rm
+tic2 = clock()
 
 if stored == 'n':
     # Create adjoint variables:
@@ -88,7 +89,7 @@ if stored == 'n':
 
     # Interpolate adjoint final time conditions:
     lu_.interpolate(Expression([0, 0]))
-    le_.assign(f)
+    le_.assign(0)
 
     # Set up dependent variables of the adjoint problem:
     lam = Function(W)
@@ -104,7 +105,7 @@ if stored == 'n':
         chk.store(lu_P1)
         chk.store(le)
     lam_file = File('plots/goal-based_outputs/test_adjoint.pvd')
-    lam_file.write(lu, le, time=0)
+    lam_file.write(lu, le, time=T)
 
     # Establish test functions and midpoint averages:
     w, xi = TestFunctions(W)
@@ -125,9 +126,7 @@ if stored == 'n':
 
     print ''
     print 'Starting fixed resolution adjoint run...'
-    tic2 = clock()
-while t > 0.5 * dt:
-    print 'i = ', i
+while t > Ts + 0.5 * dt:
 
     # Increment counters:
     t -= dt
@@ -142,7 +141,48 @@ while t > 0.5 * dt:
     # Dump to vtu:
     if dumpn == 0:
         dumpn += ndump
-        lam_file.write(lu, le, time=T - t)
+        lam_file.write(lu, le, time=t)
+
+    # Dump to HDF5:
+    if meshn == 0:
+        meshn += rm
+        i -= 1
+        # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
+        if stored == 'n':
+            print 't = %1.1fs' % t
+            lu_P1.interpolate(lu)
+            with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
+                chk.store(lu_P1)
+                chk.store(le)
+
+if stored == 'n':
+    # Remove forcing term:          TODO: smoothen f in space and in time
+    lu, le = split(lam)
+    lu_, le_ = split(lam_)
+    luh = 0.5 * (lu + lu_)
+    leh = 0.5 * (le + le_)
+    La = ((le - le_) * xi - Dt * g * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
+    lam_prob = NonlinearVariationalProblem(La, lam)
+    lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
+    lu, le = lam.split()
+    lu_, le_ = lam_.split()
+
+while t > 0.5 * dt:
+
+    # Increment counters:
+    t -= dt
+    dumpn -= 1
+    meshn -= 1
+
+    # Solve the problem and update:
+    if stored == 'n':
+        lam_solv.solve()
+        lam_.assign(lam)
+
+    # Dump to vtu:
+    if dumpn == 0:
+        dumpn += ndump
+        lam_file.write(lu, le, time=t)
 
     # Dump to HDF5:
     if meshn == 0:
@@ -191,7 +231,6 @@ print ''
 print 'Starting mesh adaptive forward run...'
 while t < T - 0.5 * dt:
     tic2 = clock()
-    print 'i = ', i
     # Interpolate velocity in a P1 space:
     vel = Function(VectorFunctionSpace(mesh, 'CG', 1))
     vel.interpolate(u)
@@ -205,6 +244,7 @@ while t < T - 0.5 * dt:
 
         W = VectorFunctionSpace(mesh_, 'CG', 1) * FunctionSpace(mesh_, 'CG', 1)
 
+        # Read in saved data from .h5:
         with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_READ) as chk:
             lu_P1 = Function(W.sub(0), name='P1 adjoint velocity')
             le = Function(W.sub(1), name='Adjoint free surface')
@@ -212,15 +252,22 @@ while t < T - 0.5 * dt:
             chk.load(le)
 
         # Interpolate saved data onto new mesh:
-        if (i + int(T / (dt * ndump))) != 0:
+        if i != i0:
             print '    #### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/',\
                 len(range(max(i, int((Ts - T) / (dt * ndump))), 0))
             lu_P1, le = interp(mesh, lu_P1, le)
 
+        # Multiply fields together:
         ip.dat.data[:] = lu_P1.dat.data[:, 0] * vel.dat.data[:, 0] + lu_P1.dat.data[:, 1] * vel.dat.data[:, 1] \
                          + le.dat.data * eta.dat.data
-        if (j == 0) | (np.abs(assemble(ip * dx)) > np.abs(assemble(significance * dx))):
+
+        # Extract (pointwise) maximal values:
+        if j == 0:
             significance.dat.data[:] = ip.dat.data[:]
+        else:
+            for k in range(len(ip.dat.data)):
+                if np.abs(ip.dat.data[k]) > np.abs(significance.dat.data[k]):
+                    significance.dat.data[k] = ip.dat.data[k]
     sig_file.write(significance, time=t)
 
     # Adapt mesh to significant data and interpolate:

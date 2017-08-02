@@ -168,8 +168,6 @@ eta_.interpolate(0.01 * exp(- (pow(x - 15.5, 2) + pow(y - 25., 2)) / 10.))
 q = Function(W)
 q.assign(q_)
 u, eta = q.split()
-
-# Label variables:
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
@@ -217,6 +215,7 @@ while t < T - 0.5 * dt:
                          + le.dat.data * eta.dat.data
         if (j == 0) | (np.abs(assemble(ip * dx)) > np.abs(assemble(significance * dx))):
             significance.dat.data[:] = ip.dat.data[:]
+    sig_file.write(significance, time=t)
 
     # Adapt mesh to significant data and interpolate:
     V = TensorFunctionSpace(mesh, 'CG', 1)
@@ -228,7 +227,7 @@ while t < T - 0.5 * dt:
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
 
-    # Data analysis:
+    # Mesh resolution analysis:
     n = len(mesh.coordinates.dat.data)
     if n < N1:
         N1 = n
@@ -277,7 +276,5 @@ while t < T - 0.5 * dt:
             dumpn -= ndump
             i += 1
             q_file.write(u, eta, time=t)
-            sig_file.write(significance, time=t)
-
 toc1 = clock()
 print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)

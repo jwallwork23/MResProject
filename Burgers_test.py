@@ -8,10 +8,10 @@ from utils.interp import interp
 print ''
 print '******************************** BURGERS EQUATION TEST PROBLEM ********************************'
 print ''
-print 'Options...'
+print 'ANISOTROPIC mesh adaptive solver initially defined on a rectangular mesh with'
 
 # Define initial (uniform) mesh:
-n = int(raw_input('Mesh cells per m (default 16)?: ') or 16)            # Resolution of initial uniform mesh
+n = int(raw_input('number of mesh cells per m (default 16)?: ') or 16)  # Resolution of initial uniform mesh
 lx = 4                                                                  # Extent in x-direction (m)
 ly = 1                                                                  # Extent in y-direction (m)
 mesh = RectangleMesh(lx * n, ly * n, lx, ly)
@@ -21,6 +21,7 @@ N2 = N1                                                                 # Maximu
 print 'Initial number of nodes : ', N1
 
 # Choose function space degree:
+print 'Other options...'
 p = int(raw_input('Polynomial degree? (default 1): ') or 1)
 
 # Specify diffusion:
@@ -87,7 +88,7 @@ while t < T - 0.5 * dt:
     phi.rename('Concentration')
     toc2 = clock()
 
-    # Data analysis:
+    # Mesh resolution analysis:
     n = len(mesh.coordinates.dat.data)
     if n < N1:
         N1 = n

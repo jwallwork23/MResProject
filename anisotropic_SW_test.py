@@ -120,7 +120,7 @@ while t < T - 0.5 * dt:
     # Interpolate functions onto new mesh:
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
 
-    # Data analysis:
+    # Mesh resolution analysis:
     n = len(mesh.coordinates.dat.data)
     if n < N1:
         N1 = n

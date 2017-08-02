@@ -7,6 +7,7 @@ from utils.domain import domain_1d
 
 # Change backend to resolve framework problems:
 import matplotlib
+
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
@@ -22,21 +23,21 @@ tol = float(raw_input('Specify significance tolerance (default 0.05): ') or 0.05
 vid = raw_input('Show video output? (y/n, default n): ') or 'n'
 if vid not in ('y', 'n'):
     raise ValueError('Please try again, choosing y or n.')
-n = 1e-3        # Number of cells per km
-T = 4200.       # Simulation duration (s)
-ndump = 60      # Timesteps per data dump
-g = 9.81        # Gravitational acceleration (m s^{-2})
+n = 1e-3  # Number of cells per km
+T = 4200.  # Simulation duration (s)
+ndump = 60  # Timesteps per data dump
+g = 9.81  # Gravitational acceleration (m s^{-2})
 print ''
 
 # Check CFL criterion is satisfied for this discretisation:
-assert(dt < 1. / (n * np.sqrt(g * 4000.)))                                      # Maximal wavespeed sqrt(gb)
+assert (dt < 1. / (n * np.sqrt(g * 4000.)))  # Maximal wavespeed sqrt(gb)
 
 # Begin timing:
 tic1 = clock()
 
 # Establish problem domain and variables:
 mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b = domain_1d(n)
-nx = int(4e5 * n)                                                               # For data access purposes
+nx = int(4e5 * n)  # For data access purposes
 coords = mesh.coordinates.dat.data
 
 # Set up functions of the forward weak problem:
@@ -97,11 +98,11 @@ print '******************************** Forward solver *************************
 print ''
 while t < T - 0.5 * dt:
     t += dt
-    print 't = ', t, ' seconds'
     q_solv.solve()
     q_.assign(q)
     dumpn += 1
     if dumpn == ndump:
+        print 't = %ds' % t
         dumpn -= ndump
         i += 1
         mu_vals[i, :] = mu.at(coords, dont_raise=True)
@@ -111,14 +112,14 @@ while t < T - 0.5 * dt:
         for j in range(nx + 1):
             if (eta_vals[i, j] >= tol) | (eta_vals[i, j] <= - tol):
                 sig_eta[i, j] = 1
-                
+
         # Implement damage measures:
         m[i] = np.log2(max(eta_vals[i, 0], 0.5))
-        
+
         # Dump video data:
         if vid == 'y':
             eta_vid.append(Function(eta))
-            
+
     # Dump snapshot data:
     if t in snaps.values():
         eta_snapshots.append(Function(eta))
@@ -179,11 +180,11 @@ print '******************************** Adjoint solver *************************
 print ''
 while t > 0.5 * dt:
     t -= dt
-    print 't = ', t, ' seconds'
     lam_solv.solve()
     lam_.assign(lam)
     dumpn -= 1
     if dumpn == 0:
+        print 't = %ds' % t
         dumpn += ndump
         i -= 1
         lm_vals[i, :] = lm.at(coords, dont_raise=True)
@@ -206,7 +207,7 @@ while t > 0.5 * dt:
     # Dump snapshot data:
     if t in snaps.values():
         le_snapshots.append(Function(le))
-print '... adjoint problem solved... just need to plot results.'
+print '... adjoint problem solved... just need to plot results...'
 
 # Font formatting:
 rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
@@ -310,3 +311,4 @@ else:
     plt.ylabel(r'm (dimensionless)')
     plt.title(r'Damage measures')
     plt.savefig('plots/tsunami_outputs/screenshots/1Ddamage_measures.png')
+print '...done!'

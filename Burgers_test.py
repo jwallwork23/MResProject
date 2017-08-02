@@ -9,29 +9,26 @@ print ''
 print '******************************** BURGERS EQUATION TEST PROBLEM ********************************'
 print ''
 print 'ANISOTROPIC mesh adaptive solver initially defined on a rectangular mesh with'
+tic1 = clock()
 
 # Define initial (uniform) mesh:
-n = int(raw_input('number of mesh cells per m (default 16)?: ') or 16)  # Resolution of initial uniform mesh
+n = 16                                                                  # Resolution of initial uniform mesh
 lx = 4                                                                  # Extent in x-direction (m)
 ly = 1                                                                  # Extent in y-direction (m)
 mesh = RectangleMesh(lx * n, ly * n, lx, ly)
 x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
 N2 = N1                                                                 # Maximum number of nodes
-print 'Initial number of nodes : ', N1
+print '...... mesh loaded. Initial number of nodes : ', N1
+nodes = 0.85 * N1                                                       # Target number of vertices
 
 # Choose function space degree:
+print ''
 print 'Other options...'
 p = int(raw_input('Polynomial degree? (default 1): ') or 1)
-
-# Specify diffusion:
 nu = Constant(float(raw_input('Diffusion parameter (default 1e-3)?: ') or 1e-3))
-
-# Set up adaptivity parameters:
 hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
 hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
-rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
-nodes = float(raw_input('Target number of nodes (default 1000)?: ') or 1000.)
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
@@ -45,7 +42,8 @@ ndump = 1
 T = 0.2
 dt = 0.8 * hmin
 Dt = Constant(dt)
-print 'Using Courant number adjusted timestep dt = %1.4f' % timestep
+print 'Using Courant number adjusted timestep dt = %1.4f' % dt
+rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
 
 # Create function space and set initial conditions:
 W = FunctionSpace(mesh, 'CG', p)
@@ -62,7 +60,6 @@ phi_file = File('plots/anisotropic_outputs/Burgers_test.pvd')
 phi_file.write(phi, time=t)
 m_file = File('plots/anisotropic_outputs/Burgers_test_metric.pvd')
 h_file = File('plots/anisotropic_outputs/Burgers_test_hessian.pvd')
-tic1 = clock()
 
 print ''
 print 'Entering outer timeloop!'

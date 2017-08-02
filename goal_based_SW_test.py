@@ -21,6 +21,8 @@ x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                             # Minimum number of vertices
 N2 = N1                                                         # Maximum number of vertices
 print '...... mesh loaded. Initial number of nodes : ', N1
+print ''
+print 'Options...'
 bathy = raw_input('Flat bathymetry or shelf break (f/s, default f)?: ') or 'f'
 
 # Set up adaptivity parameters:
@@ -29,9 +31,6 @@ hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100) * 
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default f): ') or 'f'
-if mtype not in ('s', 'f', 'b'):
-    raise ValueError('Please try again, choosing s, f or b.')
 mat_out = raw_input('Output Hessian and metric? (y/n, default n): ') or 'n'
 if mat_out not in ('y', 'n'):
     raise ValueError('Please try again, choosing y or n.')
@@ -115,7 +114,7 @@ if stored == 'n':
     leh = 0.5 * (le + le_)
 
     # Set up the variational problem:
-    La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
+    La = ((le - le_) * xi - Dt * g * inner(luh, grad(xi)) - f * xi
           + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
     lam_prob = NonlinearVariationalProblem(La, lam)
     lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
@@ -175,6 +174,8 @@ eta.rename('Free surface displacement')
 q_file = File('plots/goal-based_outputs/test_forward.pvd')
 q_file.write(u, eta, time=0)
 sig_file = File('plots/goal-based_outputs/test_significance.pvd')
+m_file = File('plots/goal-based_outputs/SW_test_metric.pvd')
+h_file = File('plots/goal-based_outputs/SW_test_hessian.pvd')
 
 # Initialise counters:
 t = 0.
@@ -207,7 +208,7 @@ while t < T - 0.5 * dt:
 
         # Interpolate saved data onto new mesh:
         if (i + int(T / (dt * ndump))) != 0:
-            print '#### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/',\
+            print '    #### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/',\
                 len(range(max(i, int((Ts - T) / (dt * ndump))), 0))
             lu_P1, le = interp(mesh, lu_P1, le)
 
@@ -276,5 +277,8 @@ while t < T - 0.5 * dt:
             dumpn -= ndump
             i += 1
             q_file.write(u, eta, time=t)
+            h_file.write(H, time=t)
+            m_file.write(M, time=t)
+
 toc1 = clock()
 print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)

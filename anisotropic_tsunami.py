@@ -27,15 +27,12 @@ mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(coarseness)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
 print '...... mesh loaded. Initial number of vertices : ', N1
+nodes = 0.85 * N1                                                       # Target number of vertices
 
 # Set physical parameters:
 g = 9.81                        # Gravitational acceleration (m s^{-2})
 
 print 'More options...'
-# Simulation duration:
-T = float(raw_input('Simulation duration in hours (default 1)?: ') or 1.) * 3600.
-
-# Set up adaptivity parameters:
 hmin = float(raw_input('Minimum element size in km (default 1)?: ') or 1) * 1e3
 hmax = float(raw_input('Maximum element size in km (default 1000)?: ') or 1000.) * 1e3
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
@@ -44,12 +41,15 @@ if ntype not in ('lp', 'manual'):
 mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default b): ') or 'b'
 if mtype not in ('s', 'f', 'b'):
     raise ValueError('Please try again, choosing s, f or b.')
+mat_out = raw_input('Output Hessian and metric? (y/n, default n): ') or 'n'
+if mat_out not in ('y', 'n'):
+    raise ValueError('Please try again, choosing y or n.')
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = 0.85 * N1    # Target number of vertices
 
 # Courant number adjusted timestepping parameters:
+T = float(raw_input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
 cdt = hmin / np.sqrt(g * max(b.dat.data))
@@ -94,6 +94,7 @@ eta.rename('Free surface displacement')
 q_file = File('plots/anisotropic_outputs/tsunami.pvd')
 q_file.write(u, eta, time=t)
 m_file = File('plots/anisotropic_outputs/tsunami_metric.pvd')
+h_file = File('plots/anisotropic_outputs/tsunami_hessian.pvd')
 gauge_dat = [eta.at(gcoord)]
 if dm == 'y':
     damage_measure = [math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
@@ -111,14 +112,24 @@ while t < T - 0.5 * dt:
         spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
         spd.interpolate(sqrt(dot(u, u)))
         H = construct_hessian(mesh, V, spd, method=hess_meth)
+        if mat_out == 'y':
+            H.rename('Hessian')
+            h_file.write(H, time=t)
         M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
     if mtype != 's':
         H = construct_hessian(mesh, V, eta, method=hess_meth)
+        if (mtype != 'b') & (mat_out == 'y'):
+            H.rename('Hessian')
+            h_file.write(H, time=t)
         M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
         if mtype == 'b':
             M = metric_intersection(mesh, V, M, M2)
         else:
-            M = M2
+            M = Function(V)
+            M.assign(M2)
+    if mat_out == 'y':
+        M.rename('Metric field')
+        m_file.write(M, time=t)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
 
@@ -154,7 +165,6 @@ while t < T - 0.5 * dt:
     u, eta = q.split()
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
-    M.rename('Metric')
 
     # Inner timeloop:
     for j in range(rm):
@@ -173,7 +183,6 @@ while t < T - 0.5 * dt:
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, eta, time=t)
-            m_file.write(M, time=t)
     toc2 = clock()
 
     # Print to screen:

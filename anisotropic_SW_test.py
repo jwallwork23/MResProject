@@ -9,24 +9,22 @@ print ''
 print '******************************** SHALLOW WATER TEST PROBLEM ********************************'
 print ''
 print 'ANISOTROPIC mesh adaptive solver initially defined on a square mesh'
+tic1 = clock()
 
 # Define initial (uniform) mesh:
 n = 16                                                          # Resolution of initial uniform mesh
-lx = 30                                                         # Extent in x-direction (m)
-ly = 50                                                         # Extent in y-direction (m)
+lx = 3                                                          # Extent in x-direction (m)
+ly = 5                                                          # Extent in y-direction (m)
 mesh = RectangleMesh(3 * n, 5 * n, lx, ly)
 x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                             # Minimum number of vertices
 N2 = N1                                                         # Maximum number of vertices
 print '...... mesh loaded. Initial number of nodes : ', N1
+nodes = 0.25 * N1                                               # Target number of vertices
+
 print ''
 print 'Options...'
 bathy = raw_input('Flat bathymetry or shelf break (f/s, default f)?: ') or 'f'
-
-# Simulation duration:
-T = 4.
-
-# Set up adaptivity parameters:
 hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
 hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
@@ -41,57 +39,55 @@ if mat_out not in ('y', 'n'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = 0.85 * N1                # Target number of vertices
 
 # Courant number adjusted timestepping parameters:
 depth = 1.5             # Water depth for flat bathymetry case (m)
-ndump = 20              # Timesteps per data dump
+ndump = 5               # Timesteps per data dump
 T = 4.                  # Simulation duration (s)
 g = 9.81                # Gravitational acceleration (m s^{-2})
 dt = 0.005
 Dt = Constant(dt)
 rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
 
-# Define mixed Taylor-Hood function space and a function defined thereupon:
+# Define mixed Taylor-Hood function space and interpolate initial conditions:
 W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 q_ = Function(W)
 u_, eta_ = q_.split()
+u_.interpolate(Expression([0, 0]))
+eta_.interpolate(1e-3 * exp(- (pow(x - 1.55, 2) + pow(y - 2.5, 2)) / 0.05))
 
 # Establish bathymetry function:
 b = Function(W.sub(1), name='Bathymetry')
 if bathy == 'f':
-    b.assign(0.1)  # (Constant) tank water depth (m)
+    b.assign(0.15)                                              # Constant depth
 else:
-    b.interpolate(Expression('x[0] <= 3.75 ? 0.15 : 1.5'))  # Shelf break bathymetry
-
-# Interpolate initial conditions:
-u_.interpolate(Expression([0, 0]))
-eta_.interpolate(0.01 * exp(- (pow(x - 15.5, 2) + pow(y - 25., 2)) / 10.))
+    b.interpolate(Expression('x[0] <= 0.375 ? 0.015 : 0.15'))  # Shelf break bathymetry
 
 # Set up dependent variables of problem:
 q = Function(W)
 q.assign(q_)
 u, eta = q.split()
-
-# Initialise time, counters and files:
-t = 0.
-dumpn = 0
-mn = 0
 u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
+
+# Initialise files:
 q_file = File('plots/anisotropic_outputs/SW_test.pvd')
-q_file.write(u, eta, time=t)
+q_file.write(u, eta, time=0)
 m_file = File('plots/anisotropic_outputs/SW_test_metric.pvd')
 h_file = File('plots/anisotropic_outputs/SW_test_hessian.pvd')
 
+# Initialise counters:
+t = 0.
+dumpn = 0
+mn = 0
+
 print ''
 print 'Entering outer timeloop!'
-tic1 = clock()
 while t < T - 0.5 * dt:
     mn += 1
+    tic2 = clock()
 
     # Compute Hessian and metric:
-    tic2 = clock()
     V = TensorFunctionSpace(mesh, 'CG', 1)
     if mtype != 'f':
         spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
@@ -110,7 +106,8 @@ while t < T - 0.5 * dt:
         if mtype == 'b':
             M = metric_intersection(mesh, V, M, M2)
         else:
-            M = M2
+            M = Function(V)
+            M.assign(M2)
     if mat_out == 'y':
         M.rename('Metric field')
         m_file.write(M, time=t)

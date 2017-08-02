@@ -13,9 +13,8 @@ tic1 = clock()
 
 # Define initial (uniform) mesh:
 n = 16                                                          # Resolution of initial uniform mesh
-lx = 3                                                          # Extent in x-direction (m)
-ly = 5                                                          # Extent in y-direction (m)
-mesh = RectangleMesh(3 * n, 5 * n, lx, ly)
+lx = 4                                                          # Extent in x-direction (m)
+mesh = SquareMesh(lx * n, lx * n, lx, lx)
 x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                             # Minimum number of vertices
 N2 = N1                                                         # Maximum number of vertices
@@ -24,13 +23,13 @@ nodes = 0.25 * N1                                               # Target number 
 
 print ''
 print 'Options...'
-bathy = raw_input('Flat bathymetry or shelf break (f/s, default f)?: ') or 'f'
+bathy = raw_input('Flat bathymetry or shelf break (f/s, default s)?: ') or 's'
 hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
 hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default f): ') or 'f'
+mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default b): ') or 'b'
 if mtype not in ('s', 'f', 'b'):
     raise ValueError('Please try again, choosing s, f or b.')
 mat_out = raw_input('Output Hessian and metric? (y/n, default n): ') or 'n'
@@ -41,27 +40,30 @@ if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
 
 # Courant number adjusted timestepping parameters:
-depth = 1.5             # Water depth for flat bathymetry case (m)
-ndump = 5               # Timesteps per data dump
-T = 4.                  # Simulation duration (s)
+depth = 0.1             # Water depth for flat bathymetry case (m)
+ndump = 1               # Timesteps per data dump
+T = 2.5                 # Simulation duration (s)
 g = 9.81                # Gravitational acceleration (m s^{-2})
-dt = 0.005
+dt = 0.05
 Dt = Constant(dt)
 rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
+
+# Check CFL criterion is satisfied for this discretisation:
+assert(dt < 1. / (n * np.sqrt(g * depth)))
 
 # Define mixed Taylor-Hood function space and interpolate initial conditions:
 W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 q_ = Function(W)
 u_, eta_ = q_.split()
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(1e-3 * exp(- (pow(x - 1.55, 2) + pow(y - 2.5, 2)) / 0.05))
+eta_.interpolate(1e-3 * exp(- (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
 
 # Establish bathymetry function:
 b = Function(W.sub(1), name='Bathymetry')
 if bathy == 'f':
-    b.assign(0.15)                                              # Constant depth
+    b.assign(depth)                                             # Constant depth
 else:
-    b.interpolate(Expression('x[0] <= 0.375 ? 0.015 : 0.15'))  # Shelf break bathymetry
+    b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))       # Shelf break bathymetry
 
 # Set up dependent variables of problem:
 q = Function(W)

@@ -201,8 +201,7 @@ def Tohoku_domain(res=3, split='n'):
 
     # Assign initial surface and post-process the bathymetry to have a minimum depth of 30m:
     eta_.assign(eta0)
-    # le_.interpolate(Expression('(x[0] > 490e3) & (x[0] < 580e3) & (x[1] > 4130e3) & (x[1] < 4260e3) ? 20. : 0.'))
-    le_.interpolate(Expression('(x[0] > 490e3) & (x[0] < 510e3) & (x[1] > 4190e3) & (x[1] < 4210e3) ? 20. : 0.'))
+    le_.interpolate(Expression('(x[0] > 490e3) & (x[0] < 580e3) & (x[1] > 4130e3) & (x[1] < 4260e3) ? 20. : 0.'))
     b.assign(conditional(lt(30, b), b, 30))
 
     # Plot initial surface and bathymetry profiles:

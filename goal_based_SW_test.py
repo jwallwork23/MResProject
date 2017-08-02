@@ -13,9 +13,8 @@ tic1 = clock()
 
 # Define initial (uniform) mesh:
 n = 16
-lx = 30                                                         # Extent in x-direction (m)
-ly = 50                                                         # Extent in y-direction (m)
-mesh = RectangleMesh(3 * n, 5 * n, lx, ly)
+lx = 4                                                          # Extent in x-direction (m)
+mesh = SquareMesh(lx * n, lx * n, lx, lx)
 mesh_ = mesh
 x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                             # Minimum number of vertices
@@ -23,7 +22,7 @@ N2 = N1                                                         # Maximum number
 print '...... mesh loaded. Initial number of nodes : ', N1
 print ''
 print 'Options...'
-bathy = raw_input('Flat bathymetry or shelf break (f/s, default f)?: ') or 'f'
+bathy = raw_input('Flat bathymetry or shelf break (f/s, default s?): ') or 's'
 
 # Set up adaptivity parameters:
 hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
@@ -37,21 +36,21 @@ if mat_out not in ('y', 'n'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = 0.85 * N1                # Target number of vertices
+nodes = N1              # Target number of vertices
 
 # Specify parameters:
-depth = 1.5             # Water depth for flat bathymetry case (m)
-ndump = 20              # Timesteps per data dump
-T = 4.                  # Simulation duration (s)
-Ts = 1.                 # Time range lower limit (s), during which we can assume the wave won't reach the shore
+depth = 0.1             # Water depth for flat bathymetry case (m)
+ndump = 1               # Timesteps per data dump
+T = 2.5                 # Simulation duration (s)
+Ts = 0.5                # Time range lower limit (s), during which we can assume the wave won't reach the shore
 g = 9.81                # Gravitational acceleration (m s^{-2})
-dt = 0.005
+dt = 0.05
 Dt = Constant(dt)
-rm = int(raw_input('Timesteps per re-mesh (default 40)?: ') or 40)
-stored = raw_input('Adjoint already computed? (y/n, default y): ') or 'y'
+rm = int(raw_input('Timesteps per re-mesh (default 10)?: ') or 10)
+stored = raw_input('Adjoint already computed? (y/n, default n): ') or 'n'
 
-# # Check CFL criterion is satisfied for this discretisation:
-# assert(dt < 1. / (n * np.sqrt(g * b)))
+# Check CFL criterion is satisfied for this discretisation:
+assert(dt < 1. / (n * np.sqrt(g * depth)))
 
 # Specify solver parameters:
 params = {'mat_type': 'matfree',
@@ -70,12 +69,13 @@ b = Function(W.sub(1), name='Bathymetry')
 if bathy == 'f':
     b.interpolate(Expression(depth))
 else:
-    b.interpolate(Expression('x[0] <= 3.75 ? 0.15 : 1.5'))  # Shelf break bathymetry
+    b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))  # Shelf break bathymetry
 
 # Initalise counters:
 t = T
 i = -1
 dumpn = ndump
+meshn = rm
 
 if stored == 'n':
     # Create adjoint variables:
@@ -84,7 +84,7 @@ if stored == 'n':
 
     # Establish indicator function for adjoint equations:
     f = Function(W.sub(1), name='Forcing term')
-    f.interpolate(Expression('(x[0] >= 0.) & (x[0] < 2.5) & (x[1] > 23.) & (x[1] < 27.) ? 0.01 : 0.'))
+    f.interpolate(Expression('(x[0] >= 0.) & (x[0] < 0.25) & (x[1] > 1.8) & (x[1] < 2.2) ? 1e-3 : 0.'))
 
     # Interpolate adjoint final time conditions:
     lu_.interpolate(Expression([0, 0]))
@@ -127,10 +127,12 @@ if stored == 'n':
     print 'Starting fixed resolution adjoint run...'
     tic2 = clock()
 while t > 0.5 * dt:
+    print 'i = ', i
 
     # Increment counters:
     t -= dt
     dumpn -= 1
+    meshn -= 1
 
     # Solve the problem and update:
     if stored == 'n':
@@ -139,9 +141,13 @@ while t > 0.5 * dt:
 
     # Dump to vtu:
     if dumpn == 0:
-        i -= 1
         dumpn += ndump
+        lam_file.write(lu, le, time=T - t)
 
+    # Dump to HDF5:
+    if meshn == 0:
+        meshn += rm
+        i -= 1
         # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
         if stored == 'n':
             print 't = %1.1fs' % t
@@ -149,7 +155,6 @@ while t > 0.5 * dt:
             with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
                 chk.store(lu_P1)
                 chk.store(le)
-            lam_file.write(lu, le, time=T-t)
 if stored == 'n':
     print '... done!',
     toc2 = clock()
@@ -161,7 +166,7 @@ u_, eta_ = q_.split()
 
 # Interpolate forward initial conditions:
 u_.interpolate(Expression([0, 0]))
-eta_.interpolate(0.01 * exp(- (pow(x - 15.5, 2) + pow(y - 25., 2)) / 10.))
+eta_.interpolate(1e-3 * exp(- (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
 
 # Set up dependent variables of the forward problem:
 q = Function(W)
@@ -186,7 +191,7 @@ print ''
 print 'Starting mesh adaptive forward run...'
 while t < T - 0.5 * dt:
     tic2 = clock()
-
+    print 'i = ', i
     # Interpolate velocity in a P1 space:
     vel = Function(VectorFunctionSpace(mesh, 'CG', 1))
     vel.interpolate(u)
@@ -227,6 +232,7 @@ while t < T - 0.5 * dt:
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
+    i += 1
 
     # Mesh resolution analysis:
     n = len(mesh.coordinates.dat.data)
@@ -275,10 +281,11 @@ while t < T - 0.5 * dt:
         # Dump to vtu:
         if dumpn == ndump:
             dumpn -= ndump
-            i += 1
             q_file.write(u, eta, time=t)
+            H.rename('Hessian')
+            M.rename('Metric')
             h_file.write(H, time=t)
             m_file.write(M, time=t)
 
 toc1 = clock()
-print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
+print 'Elapsed time for adaptive solver: %1.1f minutes' % ((toc1 - tic1) / 60.)

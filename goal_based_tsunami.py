@@ -18,12 +18,12 @@ import matplotlib.pyplot as plt
 print ''
 print '******************************** GOAL-BASED ADAPTIVE TSUNAMI SIMULATION ********************************'
 print ''
-print 'GOAL-BASED, mesh adaptive solver initially defined on a mesh of'
+print 'GOAL-BASED, mesh adaptive solver initially defined on a mesh of',
 tic1 = clock()
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 coarseness = int(raw_input('coarseness (Integer in range 1-5, default 5): ') or 5)
-mesh, W, q_, u_, eta_, lam_, lm_, le_, b = Tohoku_domain(coarseness)
+mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(coarseness)
 mesh_ = mesh
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
@@ -33,7 +33,6 @@ print '...... mesh loaded. Initial number of vertices : ', N1
 print 'More options...'
 hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
 hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
-rm = int(raw_input('Timesteps per re-mesh (default 60)?: ') or 60)
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
@@ -47,12 +46,13 @@ nodes = 0.5 * N1                # Target number of vertices
 
 # Specify parameters:
 ndump = 30                      # Timesteps per data dump
-T = float(raw_input('Simulation duration in hours (default 0.415)?: ') or 0.415) * 3600.
-Ts = 300.                       # Time range lower limit (s), during which we can assume the wave won't reach the shore
+T = float(raw_input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.
+Ts = 5. * 60.                   # Time range lower limit (s), during which we can assume the wave won't reach the shore
 g = 9.81                        # Gravitational acceleration (m s^{-2})
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
-rm = 60                         # Timesteps per remesh
+rm = int(raw_input('Timesteps per re-mesh (default 60)?: ') or 60)
+stored = raw_input('Adjoint already computed? (y/n, default y): ') or 'y'
 
 # Specify solver parameters:
 params = {'mat_type': 'matfree',
@@ -63,55 +63,52 @@ params = {'mat_type': 'matfree',
           'snes_lag_preconditioner': -1,
           'snes_lag_preconditioner_persists': True}
 
-# Establish indicator function for adjoint equations:
-f = Function(W.sub(1), name='Forcing term')
-f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 580e3) & (x[1] > 4130e3) & (x[1] < 4260e3) ? 20. : 0.'))
-
-# Set up dependent variables of the adjoint problem:
-lam = Function(W)
-lam.assign(lam_)
-lu, le = lam.split()
-vel = Function(VectorFunctionSpace(mesh, 'CG', 1))          # For interpolating velocity field
-
-# Label variables:
-lu.rename('Adjoint velocity')
-le.rename('Adjoint free surface')
-
-# Initialise files:
-lam_file = File('plots/goal-based_outputs/tsunami_adjoint.pvd')
-lam_file.write(lu, le, time=0)
-
 # Initalise counters:
 t = T
-i = 0
+i = -1
 dumpn = ndump
 
-# Initialise tensor arrays for storage (with dimensions pre-allocated for speed):
-sol_dat = np.zeros((int(T / (dt * ndump)) + 1, N1, 3))
-significant_dat = np.zeros((int(T / (dt * ndump)) + 1, N1))
-vel.interpolate(lu)
-sol_dat[i, :, :2] = vel.dat.data
-sol_dat[i, :, 2] = le.dat.data
+if stored == 'n':
+    # Establish indicator function for adjoint equations:
+    f = Function(W.sub(1), name='Forcing term')
+    f.assign(le_)
 
-# Establish test functions and midpoint averages:
-w, xi = TestFunctions(W)
-lu, le = split(lam)
-lu_, le_ = split(lam_)
-luh = 0.5 * (lu + lu_)
-leh = 0.5 * (le + le_)
+    # Set up dependent variables of the adjoint problem:
+    lam = Function(W)
+    lam.assign(lam_)
+    lu, le = lam.split()
+    lu.rename('Adjoint velocity')
+    le.rename('Adjoint free surface')
 
-# Set up the variational problem:
-La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) + f * xi
-      + inner(lu - lu_, w) + Dt * (b * inner(grad(leh), w) + leh * inner(grad(b), w))) * dx
-lam_prob = NonlinearVariationalProblem(La, lam)
-lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
+    # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
+    lu_P1 = Function(VectorFunctionSpace(mesh, 'CG', 1), name='P1 adjoint velocity')
+    lu_P1.interpolate(lu)
+    with DumbCheckpoint('data_dumps/tsunami/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
+        chk.store(lu_P1)
+        chk.store(le)
+    lam_file = File('plots/goal-based_outputs/tsunami_adjoint.pvd')
+    lam_file.write(lu, le, time=0)
 
-# Split to access data and relabel functions:
-lu, le = lam.split()
-lu_, le_ = lam_.split()
+    # Establish test functions and midpoint averages:
+    w, xi = TestFunctions(W)
+    lu, le = split(lam)
+    lu_, le_ = split(lam_)
+    luh = 0.5 * (lu + lu_)
+    leh = 0.5 * (le + le_)
 
-print ''
-print 'Starting fixed resolution adjoint run...'
+    # Set up the variational problem:
+    La = ((le - le_) * xi - Dt * g * b * inner(luh, grad(xi)) - f * xi
+          + inner(lu - lu_, w) + Dt * (b * inner(grad(leh), w) + leh * inner(grad(b), w))) * dx
+    lam_prob = NonlinearVariationalProblem(La, lam)
+    lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
+
+    # Split to access data:
+    lu, le = lam.split()
+    lu_, le_ = lam_.split()
+
+    print ''
+    print 'Starting fixed resolution adjoint run...'
+    tic2 = clock()
 while t > 0.5 * dt:
 
     # Increment counters:
@@ -119,22 +116,27 @@ while t > 0.5 * dt:
     dumpn -= 1
 
     # Solve the problem and update:
-    lam_solv.solve()
-    lam_.assign(lam)
+    if stored == 'n':
+        lam_solv.solve()
+        lam_.assign(lam)
 
     # Dump to vtu:
     if dumpn == 0:
         i -= 1
         dumpn += ndump
 
-        # Save data:
-        vel.interpolate(lu)
-        sol_dat[i, :, :2] = vel.dat.data
-        sol_dat[i, :, 2] = le.dat.data
-
-        lam_file.write(lu, le, time=T-t)
-        print 't = %1.1f mins' % (t / 60.)
-print '... done!'
+        # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
+        if stored == 'n':
+            print 't = %1.1f mins' % (t / 60.)
+            lu_P1.interpolate(lu)
+            with DumbCheckpoint('data_dumps/tsunami/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
+                chk.store(lu_P1)
+                chk.store(le)
+            lam_file.write(lu, le, time=T - t)
+if stored == 'n':
+    print '... done!',
+    toc2 = clock()
+    print 'Elapsed time for adjoint solver: %1.2fs' % (toc2 - tic2)
 
 # Set up dependent variables of the forward problem:
 q = Function(W)
@@ -153,14 +155,15 @@ sig_file = File('plots/goal-based_outputs/tsunami_significance.pvd')
 # Initialise counters:
 t = 0.
 dumpn = 0
+i0 = i
 
 print ''
 print 'Starting mesh adaptive forward run...'
 while t < T - 0.5 * dt:
     tic2 = clock()
-    i += 1
 
     # Interpolate velocity in a P1 space:
+    vel = Function(VectorFunctionSpace(mesh, 'CG', 1))
     vel.interpolate(u)
 
     # Create functions to hold inner product and significance data:
@@ -170,19 +173,22 @@ while t < T - 0.5 * dt:
     # Take maximal L2 inner product as most significant:
     for j in range(max(i, int((Ts - T) / (dt * ndump))), 0):
 
-        sol_v = Function(VectorFunctionSpace(mesh_, 'CG', 1))
-        sol_e = Function(FunctionSpace(mesh_, 'CG', 1))
-        sol_v.dat.data[:, :] = sol_dat[j, :, :2]
-        sol_e.dat.data[:] = sol_dat[j, :, 2]
+        W = VectorFunctionSpace(mesh_, 'CG', 1) * FunctionSpace(mesh_, 'CG', 1)
+
+        with DumbCheckpoint('data_dumps/tsunami/adjoint_soln_{y}'.format(y=i), mode=FILE_READ) as chk:
+            lu_P1 = Function(W.sub(0), name='P1 adjoint velocity')
+            le = Function(W.sub(1), name='Adjoint free surface')
+            chk.load(lu_P1)
+            chk.load(le)
 
         # Interpolate saved data onto new mesh:
         if (i + int(T / (dt * ndump))) != 1:
             print '#### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/', \
                 len(range(max(i, int((Ts - T) / (dt * ndump))), 0))
-            sol_v, sol_e = interp(mesh, sol_v, sol_e)
+            lu_P1, le = interp(mesh, lu_P1, le)
 
-        ip.dat.data[:] = sol_v.dat.data[:, 0] * vel.dat.data[:, 0] + sol_v.dat.data[:, 1] * vel.dat.data[:, 1] \
-                         + sol_e.dat.data * eta.dat.data
+        ip.dat.data[:] = lu_P1.dat.data[:, 0] * vel.dat.data[:, 0] + lu_P1.dat.data[:, 1] * vel.dat.data[:, 1] \
+                         + le.dat.data * eta.dat.data
         if (j == 0) | (np.abs(assemble(ip * dx)) > np.abs(assemble(significance * dx))):
             significance.dat.data[:] = ip.dat.data[:]
 
@@ -207,7 +213,7 @@ while t < T - 0.5 * dt:
 
     # Print to screen:
     print ''
-    print '************ Adaption step %d **************' % (i + 40)
+    print '************ Adaption step %d **************' % (i + i0)
     print 'Time = %1.2f mins / %1.1f mins' % (t / 60., T / 60.)
     print 'Number of nodes after adaption', n
     print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)

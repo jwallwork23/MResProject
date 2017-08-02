@@ -29,7 +29,7 @@ hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100) * 
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, defualt f): ') or 'f'
+mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default f): ') or 'f'
 if mtype not in ('s', 'f', 'b'):
     raise ValueError('Please try again, choosing s, f or b.')
 mat_out = raw_input('Output Hessian and metric? (y/n, default n): ') or 'n'
@@ -120,7 +120,7 @@ if stored == 'n':
     lam_prob = NonlinearVariationalProblem(La, lam)
     lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
 
-    # Split to access data and relabel functions:
+    # Split to access data:
     lu, le = lam.split()
     lu_, le_ = lam_.split()
 

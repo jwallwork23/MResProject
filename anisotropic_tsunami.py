@@ -19,7 +19,7 @@ print ''
 print '******************************** ANISOTROPIC ADAPTIVE TSUNAMI SIMULATION ********************************'
 print ''
 print ''
-print 'GOAL-BASED, mesh adaptive solver initially defined on a mesh of'
+print 'GOAL-BASED, mesh adaptive solver initially defined on a mesh of',
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 coarseness = int(raw_input('coarseness (Integer in range 1-5, default 5): ') or 5)

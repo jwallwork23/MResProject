@@ -22,6 +22,29 @@ def gauge_timeseries(gauge, dat):
     outfile.close()
 
 
+def csv2table(gauge, setup):
+    """
+    Convert a .csv timeseries file to a table format.
+
+    :param gauge: gauge name string, from the set {'P02', 'P06', '801', '802', '803', '804', '806'}.
+    :param setup: equation form or mesh resolution used, e.g. 'xcoarse' or 'fine_rotational'.
+    :return: a vector x containing points in time and a vector y containing the associated gauge reading values.
+    """
+    
+    x = []
+    y = []
+    i = 0
+    infile = open('timeseries/{y1}_{y2}.csv'.format(y1=gauge, y2=setup), 'r')
+    for line in infile:
+        if i != 6:
+            i += 1
+        elif i == 6:
+            xy = line.split(',')
+            x.append(xy[0])
+            y.append(xy[1])
+    return x, y
+
+
 def plot_gauges(gauge, problem='comparison'):
     """
     Plot timeseries data on a single axis.
@@ -32,20 +55,18 @@ def plot_gauges(gauge, problem='comparison'):
     """
 
     if problem == 'comparison':
-        setup = {0: 'measured',
-                 1: 'xcoarse',                      # 3,126 vertices
-                 2: 'medium',                       # 25,976 vertices
-                 3: 'fine',                         # 97,343 vertices
+        setup = {0: 'measured_25mins',
+                 1: 'xcoarse_25mins',                       # 3,126 vertices
+                 2: 'medium_25mins',                        # 25,976 vertices
+                 3: 'fine_25mins',                          # 97,343 vertices
                  4: 'anisotropic_point85scaled_rm=30',
                  5: 'goal-based'}
         labels = {0: 'Gauge measurement',
-                  1: 'Fixed, coarse mesh',
-                  2: 'Fixed, intermediate mesh',
-                  3: 'Fixed, fine mesh',
-                  4: 'Anisotropic adapted mesh',
-                  5: 'Goal-based adapted mesh'}
-        # Temporary user specified input for incomplete plots:
-        progress = int(raw_input('How far have we got for this gauge? (1/2/3/4/5): ') or 4) + 1
+                  1: 'Mesh approach (i)',
+                  2: 'Mesh approach (ii)',
+                  3: 'Mesh approach (iii)',
+                  4: 'Mesh approach (iv)',
+                  5: 'Mesh approach (v)'}
     else:
         setup = {0: 'measured',
                  1: 'fine',
@@ -63,6 +84,9 @@ def plot_gauges(gauge, problem='comparison'):
     plt.rc('legend', fontsize='x-large')
     plt.clf()
 
+    # Temporary user specified input for incomplete plots:
+    progress = int(raw_input('How far have we got for this gauge? (1/2/3/4/5): ') or 4) + 1
+
     # Loop over mesh resolutions:
     for key in range(progress):
         val = []
@@ -76,31 +100,19 @@ def plot_gauges(gauge, problem='comparison'):
                     v0 = float(line)
                 val.append(float(line) - v0)
             infile.close()
-            if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational', 'anisotropic_point85scaled_rm=30'):
+            if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational', 'anisotropic_point85scaled_rm=30',
+                              'xcoarse_25mins', 'medium_25mins', 'fine_25mins', 'goal-based'):
                 plt.plot(np.linspace(0, 25, len(val)), val, label=labels[key], linestyle=styles[key])
             else:
                 plt.plot(np.linspace(0, 60, len(val)), val, label=labels[key], linestyle=styles[key])
         except:
-            X, Y = csv2table(gauge)
-            plt.plot(X, Y, label=labels[key], linestyle=styles[key])
+            x, y = csv2table(gauge, setup[key])
+            plt.plot(x, y, label=labels[key], linestyle=styles[key])
     plt.gcf()
-    plt.legend(bbox_to_anchor=(1.1, 1), loc=1, facecolor='white')       # 'upper right' == 1 and 'lower right' == 4
+    if problem == 'comparison':
+        plt.legend(bbox_to_anchor=(1.13, 1), loc=1, facecolor='white')  # 'upper right' == 1 and 'lower right' == 4
+    else:
+        plt.legend(bbox_to_anchor=(1.1, 1), loc=1, facecolor='white')
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
     plt.savefig('plots/tsunami_outputs/screenshots/full_gauge_timeseries_{y1}_{y2}.png'.format(y1=gauge, y2=problem))
-
-
-def csv2table(gauge):
-
-    X = []
-    Y = []
-    i = 0
-    infile = open('timeseries/{y}_measured.csv'.format(y=gauge), 'r')
-    for line in infile:
-        if i != 6:
-            i += 1
-        elif i == 6:
-            xy = line.split(',')
-            X.append(xy[0])
-            Y.append(xy[1])
-    return X, Y

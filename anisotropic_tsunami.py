@@ -61,7 +61,7 @@ ndump = int(60. / dt)
 rm = int(raw_input('Timesteps per re-mesh (default 30)?: ') or 30)
 
 # Convert gauge locations:
-glatlon = {'P02': (38.5, 142.5), 'P06': (38.7, 142.6),
+glatlon = {'P02': (38.5002, 142.5016), 'P06': (38.6340, 142.5838),
            '801': (38.2, 141.7), '802': (39.3, 142.1), '803': (38.9, 141.8), '804': (39.7, 142.2), '806': (37.0, 141.2)}
 gloc = {}
 for key in glatlon:

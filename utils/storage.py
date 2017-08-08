@@ -30,7 +30,7 @@ def csv2table(gauge, setup):
     :param setup: equation form or mesh resolution used, e.g. 'xcoarse' or 'fine_rotational'.
     :return: a vector x containing points in time and a vector y containing the associated gauge reading values.
     """
-    
+
     x = []
     y = []
     i = 0
@@ -45,16 +45,17 @@ def csv2table(gauge, setup):
     return x, y
 
 
-def plot_gauges(gauge, problem='comparison'):
+def plot_gauges(gauge, prob='comparison', log='n'):
     """
     Plot timeseries data on a single axis.
     
     :param gauge: gauge name string, from the set {'P02', 'P06', '801', '802', '803', '804', '806'}.
-    :param problem: problem type name string, corresponding to either 'verification' or 'comparison'.
+    :param prob: problem type name string, corresponding to either 'verification' or 'comparison'.
+    :param log: specify whether or not to use a logarithmic scale on the y-axis.
     :return: a matplotlib plot of the corresponding gauge timeseries data.
     """
 
-    if problem == 'comparison':
+    if prob== 'comparison':
         setup = {0: 'measured_25mins',
                  1: 'xcoarse_25mins',                       # 3,126 vertices
                  2: 'medium_25mins',                        # 25,976 vertices
@@ -78,7 +79,7 @@ def plot_gauges(gauge, problem='comparison'):
                   2: 'Linear, rotational equations',
                   3: 'Nonlinear, non-rotational equations',
                   4: 'Nonlinear, rotational equations'}
-    styles = {0: ':', 1: '--', 2: '-', 3: '-.', 4: ':', 5: '--'}
+    styles = {0: '-', 1: ':', 2: '--', 3: '-.', 4: '-', 5: '--'}
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
     plt.rc('legend', fontsize='x-large')
@@ -102,17 +103,27 @@ def plot_gauges(gauge, problem='comparison'):
             infile.close()
             if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational', 'anisotropic_point85scaled_rm=30',
                               'xcoarse_25mins', 'medium_25mins', 'fine_25mins', 'goal-based'):
-                plt.plot(np.linspace(0, 25, len(val)), val, label=labels[key], linestyle=styles[key])
+                if log == 'n':
+                    plt.plot(np.linspace(0, 25, len(val)), val, label=labels[key], linestyle=styles[key])
+                else:
+                    plt.semilogy(np.linspace(0, 25, len(val)), val, label=labels[key], linestyle=styles[key])
             else:
-                plt.plot(np.linspace(0, 60, len(val)), val, label=labels[key], linestyle=styles[key])
+                if log == 'n':
+                    plt.plot(np.linspace(0, 60, len(val)), val, label=labels[key], linestyle=styles[key])
+                else:
+                    plt.semilogy(np.linspace(0, 60, len(val)), val, label=labels[key], linestyle=styles[key])
         except:
             x, y = csv2table(gauge, setup[key])
             plt.plot(x, y, label=labels[key], linestyle=styles[key])
     plt.gcf()
-    if problem == 'comparison':
+    if prob == 'comparison':
         plt.legend(bbox_to_anchor=(1.13, 1), loc=1, facecolor='white')  # 'upper right' == 1 and 'lower right' == 4
     else:
         plt.legend(bbox_to_anchor=(1.1, 1), loc=1, facecolor='white')
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
-    plt.savefig('plots/tsunami_outputs/screenshots/full_gauge_timeseries_{y1}_{y2}.png'.format(y1=gauge, y2=problem))
+    if log == 'n':
+        plt.savefig('plots/tsunami_outputs/screenshots/full_gauge_timeseries_{y1}_{y2}.png'.format(y1=gauge, y2=prob))
+    else:
+        plt.ylim((10 ** -1, 10 ** 1))
+        plt.savefig('plots/tsunami_outputs/screenshots/log_gauge_timeseries_{y1}_{y2}.png'.format(y1=gauge, y2=prob))

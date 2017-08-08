@@ -55,7 +55,7 @@ if dt > cdt:
 ndump = int(60. / dt)
 timings = {}
 
-# Convert pressure gauge locations and save in a dictionary:
+# Convert gauge locations to UTM coordinates:
 glatlon = {'P02': (38.5002, 142.5016), 'P06': (38.6340, 142.5838),
            '801': (38.2, 141.7), '802': (39.3, 142.1), '803': (38.9, 141.8), '804': (39.7, 142.2), '806': (37.0, 141.2)}
 gloc = {}
@@ -138,8 +138,10 @@ for key in mode:
     gauge_dat = [eta.at(gcoord)]
 
     if dm == 'y':
-        damage_measure = [math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
-                                       eta.at(gloc['804']), eta.at(gloc['806']), 0.5))]
+        tide0 = {}
+        for gtide in ('801', '802', '803', '804', '806'):
+            tide0[gtide] = eta.at(gloc[gtide])
+        damage_measure = [-1]
 
     while t < T - 0.5 * dt:
         tic2 = clock()
@@ -156,8 +158,9 @@ for key in mode:
         # Store data:
         gauge_dat.append(eta.at(gcoord))
         if (key == 0) & (dm == 'y'):
-            damage_measure.append(math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
-                                               eta.at(gloc['804']), eta.at(gloc['806']), 0.5)))
+            damage_measure.append(math.log(max(eta.at(gloc['801']) - tide0['801'], eta.at(gloc['802']) - tide0['802'],
+                                               eta.at(gloc['803']) - tide0['803'], eta.at(gloc['804']) - tide0['804'],
+                                               eta.at(gloc['806']) - tide0['806'], 0.5), 2))
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, v, eta, time=t)
@@ -181,8 +184,6 @@ for key in mode:
     plt.rc('font', **font)
     plt.plot(np.linspace(0, 60, len(gauge_dat)), gauge_dat, label=mode[key])
     plt.gcf().subplots_adjust(bottom=0.15)
-    plt.ylim([-5, 5])
-    # plt.legend()
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
 print '\a'

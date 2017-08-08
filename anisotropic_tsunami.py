@@ -60,7 +60,7 @@ if dt > cdt:
 ndump = int(60. / dt)
 rm = int(raw_input('Timesteps per re-mesh (default 30)?: ') or 30)
 
-# Convert gauge locations:
+# Convert gauge locations to UTM coordinates:
 glatlon = {'P02': (38.5002, 142.5016), 'P06': (38.6340, 142.5838),
            '801': (38.2, 141.7), '802': (39.3, 142.1), '803': (38.9, 141.8), '804': (39.7, 142.2), '806': (37.0, 141.2)}
 gloc = {}
@@ -78,7 +78,6 @@ elif gtype == 't':
     gcoord = gloc[gauge]
 else:
     ValueError('Gauge type not recognised. Please choose p or t.')
-dm = raw_input('Evaluate damage measures? (y/n, default n): ') or 'n'
 
 # Set up functions of the weak problem:
 q = Function(W)
@@ -96,9 +95,6 @@ q_file.write(u, eta, time=t)
 m_file = File('plots/anisotropic_outputs/tsunami_metric.pvd')
 h_file = File('plots/anisotropic_outputs/tsunami_hessian.pvd')
 gauge_dat = [eta.at(gcoord)]
-if dm == 'y':
-    damage_measure = [math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
-                                   eta.at(gloc['804']), eta.at(gloc['806']), 0.5))]
 print ''
 print 'Entering outer timeloop!'
 tic1 = clock()
@@ -177,9 +173,6 @@ while t < T - 0.5 * dt:
 
         # Store data:
         gauge_dat.append(eta.at(gcoord))
-        if dm == 'y':
-            damage_measure.append(math.log(max(eta.at(gloc['801']), eta.at(gloc['802']), eta.at(gloc['803']),
-                                               eta.at(gloc['804']), eta.at(gloc['806']), 0.5)))
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, eta, time=t)
@@ -200,20 +193,3 @@ print 'Elapsed time for adaptive forward solver: %1.2fs' % (toc1 - tic1)
 
 # Store gauge timeseries data to file:
 gauge_timeseries(gauge, gauge_dat)
-
-# Plot damage measures time series:
-if dm == 'y':
-    plt.clf()
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-    plt.plot(np.linspace(0, 60, len(damage_measure)), damage_measure)
-    plt.gcf().subplots_adjust(bottom=0.15)
-    plt.axis([0, 60, -1.5, 3.5])
-    plt.axhline(-1, linestyle='--', color='blue')
-    plt.axhline(0, linestyle='--', color='green')
-    plt.axhline(1, linestyle='--', color='yellow')
-    plt.axhline(2, linestyle='--', color='orange')
-    plt.axhline(3, linestyle='--', color='red')
-    plt.xlabel(r'Time elapsed (mins)')
-    plt.ylabel(r'Maximal log free surface')
-    plt.savefig('plots/anisotropic_outputs/timeseries/damage_measure_timeseries.png')

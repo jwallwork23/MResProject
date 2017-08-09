@@ -36,7 +36,7 @@ if mat_out not in ('y', 'n'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = N1              # Target number of vertices
+nodes = 0.25 * N1              # Target number of vertices
 
 # Specify parameters:
 depth = 0.1             # Water depth for flat bathymetry case (m)
@@ -291,7 +291,7 @@ while t < T - 0.5 * dt:
 
     # Print to screen:
     print ''
-    print '************ Adaption step %d **************' % (i + i0)
+    print '************ Adaption step %d **************' % (i + i0 + 1)
     print 'Time = %1.2fs / %1.1fs' % (t, T)
     print 'Number of nodes after adaption', n
     print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)

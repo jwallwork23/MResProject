@@ -42,14 +42,34 @@ if hess_meth not in ('parts', 'dL2'):
 nodes = 0.5 * N1                # Target number of vertices
 
 # Specify parameters:
-ndump = 30                      # Timesteps per data dump
 T = float(raw_input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.
 Ts = 5. * 60.                   # Time range lower limit (s), during which we can assume the wave won't reach the shore
 g = 9.81                        # Gravitational acceleration (m s^{-2})
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
-rm = int(raw_input('Timesteps per re-mesh (default 30)?: ') or 30)
+ndump = int(60. / dt)           # Timesteps per data dump
+rm = int(raw_input('Timesteps per re-mesh (default 60)?: ') or 60)
 stored = raw_input('Adjoint already computed? (y/n, default n): ') or 'n'
+
+# Convert gauge locations to UTM coordinates:
+glatlon = {'P02': (38.5002, 142.5016), 'P06': (38.6340, 142.5838),
+           '801': (38.2, 141.7), '802': (39.3, 142.1), '803': (38.9, 141.8), '804': (39.7, 142.2), '806': (37.0, 141.2)}
+
+gloc = {}
+for key in glatlon:
+    east, north, zn, zl = from_latlon(glatlon[key][0], glatlon[key][1], force_zone_number=54)
+    gloc[key] = (east, north)
+
+# Set gauge arrays:
+gtype = raw_input('Pressure or tide gauge? (p/t, default p): ') or 'p'
+if gtype == 'p':
+    gauge = raw_input('Gauge P02 or P06? (default P02): ') or 'P02'
+    gcoord = gloc[gauge]
+elif gtype == 't':
+    gauge = raw_input('Gauge 801, 802, 803, 804 or 806? (default 801): ') or '801'
+    gcoord = gloc[gauge]
+else:
+    ValueError('Gauge type not recognised. Please choose p or t.')
 
 # Specify solver parameters:
 params = {'mat_type': 'matfree',
@@ -194,6 +214,7 @@ eta.rename('Free surface displacement')
 q_file = File('plots/goal-based_outputs/tsunami_forward.pvd')
 q_file.write(u, eta, time=0)
 sig_file = File('plots/goal-based_outputs/tsunami_significance.pvd')
+gauge_dat = [eta.at(gcoord)]
 
 # Initialise counters:
 t = 0.
@@ -266,7 +287,7 @@ while t < T - 0.5 * dt:
 
     # Print to screen:
     print ''
-    print '************ Adaption step %d **************' % (i + i0)
+    print '************ Adaption step %d **************' % (i + i0 + 1)
     print 'Time = %1.2f mins / %1.1f mins' % (t / 60., T / 60.)
     print 'Number of nodes after adaption', n
     print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
@@ -300,10 +321,14 @@ while t < T - 0.5 * dt:
         q_solv.solve()
         q_.assign(q)
 
-        # Dump to vtu:
+        # Store data:
+        gauge_dat.append(eta.at(gcoord))
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, eta, time=t)
-
+print '\a'
 toc1 = clock()
-print 'Elapsed time for adaptive solver: %1.2f mins' % ((toc1 - tic1) / 60.)
+print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
+
+# Store gauge timeseries data to file:
+gauge_timeseries(gauge, gauge_dat)

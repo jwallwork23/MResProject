@@ -57,7 +57,7 @@ if dt > cdt:
     print 'WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt
     if raw_input('Are you happy to proceed? (y/n)') == 'n':
         exit(23)
-ndump = int(60. / dt)
+ndump = int(60. / dt)           # Timesteps per data dump
 rm = int(raw_input('Timesteps per re-mesh (default 30)?: ') or 30)
 
 # Convert gauge locations to UTM coordinates:

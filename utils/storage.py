@@ -61,7 +61,7 @@ def plot_gauges(gauge, prob='comparison', log='n'):
                  2: 'medium_25mins',                        # 25,976 vertices
                  3: 'fine_25mins',                          # 97,343 vertices
                  4: 'anisotropic_point85scaled_rm=30',
-                 5: 'goal-based'}
+                 5: 'goal-based_res4_halfscaled'}
         labels = {0: 'Gauge measurement',
                   1: 'Mesh approach (i)',
                   2: 'Mesh approach (ii)',
@@ -85,11 +85,8 @@ def plot_gauges(gauge, prob='comparison', log='n'):
     plt.rc('legend', fontsize='x-large')
     plt.clf()
 
-    # Temporary user specified input for incomplete plots:
-    progress = int(raw_input('How far have we got for this gauge? (1/2/3/4/5): ') or 4) + 1
-
     # Loop over mesh resolutions:
-    for key in range(progress):
+    for key in range(len(setup)):
         val = []
         i = 0
         v0 = 0
@@ -102,24 +99,31 @@ def plot_gauges(gauge, prob='comparison', log='n'):
                 val.append(float(line) - v0)
             infile.close()
             if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational', 'anisotropic_point85scaled_rm=30',
-                              'xcoarse_25mins', 'medium_25mins', 'fine_25mins', 'goal-based'):
+                              'xcoarse_25mins', 'medium_25mins', 'fine_25mins', 'goal-based',
+                              'goal-based_res4_halfscaled'):
                 if log == 'n':
                     plt.plot(np.linspace(0, 25, len(val)), val, label=labels[key], linestyle=styles[key])
                 else:
                     plt.semilogy(np.linspace(0, 25, len(val)), val, label=labels[key], linestyle=styles[key])
+                plt.xlim([0, 25])
             else:
                 if log == 'n':
                     plt.plot(np.linspace(0, 60, len(val)), val, label=labels[key], linestyle=styles[key])
                 else:
                     plt.semilogy(np.linspace(0, 60, len(val)), val, label=labels[key], linestyle=styles[key])
+                plt.xlim([0, 60])
         except:
             x, y = csv2table(gauge, setup[key])
             plt.plot(x, y, label=labels[key], linestyle=styles[key])
     plt.gcf()
     if prob == 'comparison':
-        plt.legend(bbox_to_anchor=(1.13, 1), loc=1, facecolor='white')  # 'upper right' == 1 and 'lower right' == 4
+        plt.legend(bbox_to_anchor=(1.13, 1.1), loc=1, facecolor='white')  # 'upper right' == 1 and 'lower right' == 4
     else:
         plt.legend(bbox_to_anchor=(1.1, 1), loc=1, facecolor='white')
+    if gauge == 'P02':
+        plt.ylim([-2, 5])
+    else:
+        plt.ylim([-1, 5])
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
     if log == 'n':

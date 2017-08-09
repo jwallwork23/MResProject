@@ -22,7 +22,7 @@ print 'GOAL-BASED, mesh adaptive solver initially defined on a mesh of',
 tic1 = clock()
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
-coarseness = int(raw_input('coarseness (Integer in range 1-5, default 5): ') or 5)
+coarseness = int(raw_input('coarseness (Integer in range 1-5, default 4): ') or 4)
 mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(coarseness)
 mesh_ = mesh
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
@@ -91,9 +91,9 @@ switch = Constant(1.)
 switched = 'on'
 
 if stored == 'n':
-    # Establish indicator function for adjoint equations:
+    # Establish indicator function for adjoint equations:       TODO: smoothen f in space
     f = Function(W.sub(1), name='Forcing term')
-    f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 580e3) & (x[1] > 4130e3) & (x[1] < 4260e3) ? 1. : 0.'))
+    f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 640e3) & (x[1] > 4160e3) & (x[1] < 4360e3) ? 1. : 0.'))
 
     # Set up dependent variables of the adjoint problem:
     lam = Function(W)
@@ -131,17 +131,19 @@ if stored == 'n':
     print ''
     print 'Starting fixed resolution adjoint run...'
     tic2 = clock()
-while t > Ts + 0.5 * dt:
+while t > 0.5 * dt:
 
     # Increment counters:
     t -= dt
     dumpn -= 1
     meshn -= 1
 
-    # Remove forcing term:                          TODO: smoothen f in space and in time
-    if (t < Ts + 0.5 * dt) & (switched == 'on'):
+    # Modify forcing term:
+    if (t < Ts + 1.5 * dt) & (switched == 'on'):
+        switch.assign(0.5)
+    elif (t < Ts + 0.5 * dt) & (switched == 'on'):
         switched = 'off'
-        switch.assign(0)
+        switch.assign(0.)
 
     # Solve the problem and update:
     if stored == 'n':
@@ -296,7 +298,7 @@ while t < T - 0.5 * dt:
             q_file.write(u, eta, time=t)
 print '\a'
 toc1 = clock()
-print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
+print 'Elapsed time for adaptive solver: %1.1fs' % (toc1 - tic1)
 
 # Store gauge timeseries data to file:
 gauge_timeseries(gauge, gauge_dat)

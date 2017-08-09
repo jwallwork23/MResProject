@@ -137,10 +137,12 @@ while t > 0.5 * dt:
     dumpn -= 1
     meshn -= 1
 
-    # Remove forcing term:                          TODO: smoothen f in space and in time
+    # Modify forcing term:
+    if (t < Ts + 1.5 * dt) & (switched == 'on'):
+        switch.assign(0.5)
     if (t < Ts + 0.5 * dt) & (switched == 'on'):
         switched = 'off'
-        switch.assign(0)
+        switch.assign(0.)
 
     # Solve the problem and update:
     if stored == 'n':

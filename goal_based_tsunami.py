@@ -251,13 +251,14 @@ while t < T - 0.5 * dt:
     # Adapt mesh to significant data and interpolate:
     V = TensorFunctionSpace(mesh, 'CG', 1)
     H = construct_hessian(mesh, V, significance)
-    M = compute_steady_metric(mesh, V, H, significance, h_min=0.1, h_max=5)
+    M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
     vel = Function(VectorFunctionSpace(mesh, 'CG', 1))
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
+    i += 1
 
     # Mesh resolution analysis:
     n = len(mesh.coordinates.dat.data)
@@ -307,5 +308,6 @@ while t < T - 0.5 * dt:
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, eta, time=t)
+
 toc1 = clock()
 print 'Elapsed time for adaptive solver: %1.2f mins' % ((toc1 - tic1) / 60.)

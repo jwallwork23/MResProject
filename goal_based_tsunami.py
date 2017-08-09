@@ -36,9 +36,6 @@ hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default f): ') or 'f'
-if mtype not in ('s', 'f', 'b'):
-    raise ValueError('Please try again, choosing s, f or b.')
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
@@ -233,7 +230,6 @@ while t < T - 0.5 * dt:
             print '    #### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/', \
                 len(range(max(i, int((Ts - T) / (dt * ndump))), 0))
             lu_P1, le = interp(mesh, lu_P1, le)
-            print 'OK!'
 
         # Multiply fields together:
         ip.dat.data[:] = lu_P1.dat.data[:, 0] * vel.dat.data[:, 0] + lu_P1.dat.data[:, 1] * vel.dat.data[:, 1] \
@@ -250,8 +246,8 @@ while t < T - 0.5 * dt:
 
     # Adapt mesh to significant data and interpolate:
     V = TensorFunctionSpace(mesh, 'CG', 1)
-    H = construct_hessian(mesh, V, significance)
-    M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax)
+    H = construct_hessian(mesh, V, significance, method=hess_meth)
+    M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=nodes)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)

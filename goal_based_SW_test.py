@@ -138,22 +138,22 @@ while t > Ts + 0.5 * dt:
         lam_solv.solve()
         lam_.assign(lam)
 
-    # Dump to vtu:
-    if dumpn == 0:
-        dumpn += ndump
-        lam_file.write(lu, le, time=t)
+        # Dump to vtu:
+        if dumpn == 0:
+            dumpn += ndump
+            lam_file.write(lu, le, time=t)
 
-    # Dump to HDF5:
-    if meshn == 0:
-        meshn += rm
-        i -= 1
-        # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
-        if stored == 'n':
-            print 't = %1.1fs' % t
-            lu_P1.interpolate(lu)
-            with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
-                chk.store(lu_P1)
-                chk.store(le)
+        # Dump to HDF5:
+        if meshn == 0:
+            meshn += rm
+            i -= 1
+            # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
+            if stored == 'n':
+                print 't = %1.1fs' % t
+                lu_P1.interpolate(lu)
+                with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
+                    chk.store(lu_P1)
+                    chk.store(le)
 
 if stored == 'n':
     # Remove forcing term:          TODO: smoothen f in space and in time
@@ -272,8 +272,8 @@ while t < T - 0.5 * dt:
 
     # Adapt mesh to significant data and interpolate:
     V = TensorFunctionSpace(mesh, 'CG', 1)
-    H = construct_hessian(mesh, V, significance)
-    M = compute_steady_metric(mesh, V, H, significance, h_min=0.1, h_max=5)
+    H = construct_hessian(mesh, V, significance, method=hess_meth)
+    M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=nodes)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)

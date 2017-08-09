@@ -27,6 +27,7 @@ mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(coarseness)
 mesh_ = mesh
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
+SumN = N1                                                               # Sum over vertex counts
 print '...... mesh loaded. Initial number of vertices : ', N1
 
 # Set up adaptivity parameters:
@@ -39,7 +40,7 @@ if ntype not in ('lp', 'manual'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = 0.5 * N1                # Target number of vertices
+nodes = 0.25 * N1               # Target number of vertices
 
 # Specify parameters:
 T = float(raw_input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.
@@ -190,10 +191,12 @@ gauge_dat = [eta.at(gcoord)]
 t = 0.
 dumpn = 0
 i0 = i
+mn = 0
 
 print ''
 print 'Starting mesh adaptive forward run...'
 while t < T - 0.5 * dt:
+    mn += 1
     tic2 = clock()
 
     # Interpolate velocity in a P1 space:
@@ -249,20 +252,11 @@ while t < T - 0.5 * dt:
 
     # Mesh resolution analysis:
     n = len(mesh.coordinates.dat.data)
+    SumN += n
     if n < N1:
         N1 = n
     elif n > N2:
         N2 = n
-    toc2 = clock()
-
-    # Print to screen:
-    print ''
-    print '************ Adaption step %d **************' % (i + i0 + 1)
-    print 'Time = %1.2f mins / %1.1f mins' % (t / 60., T / 60.)
-    print 'Number of nodes after adaption', n
-    print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
-    print 'Total elapsed time for this step: %1.2fs' % (toc2 - tic2)
-    print ''
 
     # Establish test functions and midpoint averages:
     v, ze = TestFunctions(W)
@@ -296,6 +290,16 @@ while t < T - 0.5 * dt:
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, eta, time=t)
+    toc2 = clock()
+
+    print ''
+    print '************ Adaption step %d **************' % mn
+    print 'Time = %1.2f mins / %1.1f mins' % (t / 60., T / 60.)
+    print 'Number of nodes after adaption step %d: ' % mn, n
+    print 'Min/max vertex counts: %d, %d' % (N1, N2)
+    print 'Mean vertex count: %d' % (float(SumN) / mn)
+    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
+    print ''
 print '\a'
 toc1 = clock()
 print 'Elapsed time for adaptive solver: %1.1fs' % (toc1 - tic1)

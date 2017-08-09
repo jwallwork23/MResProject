@@ -19,13 +19,14 @@ print ''
 print '******************************** ANISOTROPIC ADAPTIVE TSUNAMI SIMULATION ********************************'
 print ''
 print ''
-print 'GOAL-BASED, mesh adaptive solver initially defined on a mesh of',
+print 'Mesh adaptive solver initially defined on a mesh of',
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 coarseness = int(raw_input('coarseness (Integer in range 1-5, default 5): ') or 5)
 mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(coarseness)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
+SumN = N1                                                               # Sum over vertex counts
 print '...... mesh loaded. Initial number of vertices : ', N1
 nodes = 0.85 * N1                                                       # Target number of vertices
 
@@ -134,6 +135,7 @@ while t < T - 0.5 * dt:
 
     # Mesh resolution analysis:
     n = len(mesh.coordinates.dat.data)
+    SumN += n
     if n < N1:
         N1 = n
     elif n > N2:
@@ -183,11 +185,11 @@ while t < T - 0.5 * dt:
     print '************ Adaption step %d **************' % mn
     print 'Time = %1.2f mins / %1.1f mins' % (t / 60., T /60.)
     print 'Number of nodes after adaption step %d: ' % mn, n
-    print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
+    print 'Min/max vertex counts: %d, %d' % (N1, N2)
+    print 'Mean vertex count: %d' % (float(SumN) / mn)
     print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
     print ''
 print '\a'
-# End timing and print:
 toc1 = clock()
 print 'Elapsed time for adaptive forward solver: %1.2fs' % (toc1 - tic1)
 

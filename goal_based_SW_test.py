@@ -78,6 +78,10 @@ dumpn = ndump
 meshn = rm
 tic2 = clock()
 
+# Forcing switch:
+switch = Constant(1.)
+switched = 'on'
+
 if stored == 'n':
     # Create adjoint variables:
     lam_ = Function(W)
@@ -115,7 +119,7 @@ if stored == 'n':
     leh = 0.5 * (le + le_)
 
     # Set up the variational problem:
-    La = ((le - le_) * xi - Dt * g * inner(luh, grad(xi)) - f * xi
+    La = ((le - le_) * xi - Dt * g * inner(luh, grad(xi)) - switch * f * xi
           + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
     lam_prob = NonlinearVariationalProblem(La, lam)
     lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
@@ -126,12 +130,17 @@ if stored == 'n':
 
     print ''
     print 'Starting fixed resolution adjoint run...'
-while t > Ts + 0.5 * dt:
+while t > 0.5 * dt:
 
     # Increment counters:
     t -= dt
     dumpn -= 1
     meshn -= 1
+
+    # Remove forcing term:                          TODO: smoothen f in space and in time
+    if (t < Ts + 0.5 * dt) & (switched == 'on'):
+        switched = 'off'
+        switch.assign(0)
 
     # Solve the problem and update:
     if stored == 'n':
@@ -154,47 +163,6 @@ while t > Ts + 0.5 * dt:
                 with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
                     chk.store(lu_P1)
                     chk.store(le)
-
-if stored == 'n':
-    # Remove forcing term:          TODO: smoothen f in space and in time
-    lu, le = split(lam)
-    lu_, le_ = split(lam_)
-    luh = 0.5 * (lu + lu_)
-    leh = 0.5 * (le + le_)
-    La = ((le - le_) * xi - Dt * g * inner(luh, grad(xi)) + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
-    lam_prob = NonlinearVariationalProblem(La, lam)
-    lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
-    lu, le = lam.split()
-    lu_, le_ = lam_.split()
-
-while t > 0.5 * dt:
-
-    # Increment counters:
-    t -= dt
-    dumpn -= 1
-    meshn -= 1
-
-    # Solve the problem and update:
-    if stored == 'n':
-        lam_solv.solve()
-        lam_.assign(lam)
-
-    # Dump to vtu:
-    if dumpn == 0:
-        dumpn += ndump
-        lam_file.write(lu, le, time=t)
-
-    # Dump to HDF5:
-    if meshn == 0:
-        meshn += rm
-        i -= 1
-        # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
-        if stored == 'n':
-            print 't = %1.1fs' % t
-            lu_P1.interpolate(lu)
-            with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
-                chk.store(lu_P1)
-                chk.store(le)
 if stored == 'n':
     print '... done!',
     toc2 = clock()

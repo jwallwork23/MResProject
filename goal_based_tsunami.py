@@ -40,7 +40,7 @@ if ntype not in ('lp', 'manual'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = 0.25 * N1               # Target number of vertices
+nodes = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.2): ') or 0.2) * N1
 
 # Specify parameters:
 T = float(raw_input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.

@@ -156,6 +156,43 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
     return M
 
 
+def metric_gradation(mesh, V, M):
+
+    # Specify growth parameter:
+    beta = 1.4
+    ln_beta = np.log(beta)
+
+    # Get vertices and edges of mesh:
+    plex = mesh._plex
+    vStart, vEnd = plex.getDepthStratum(0)
+    numVer = vEnd - vStart
+    eStart, eEnd = plex.getDepthStratum(1)
+    numEdg = eEnd - eStart
+    x, y = SpatialCoordinate(mesh)
+
+    # Create a list of tags for vertices:
+    verTag = np.zeros(numVer)
+    for v in range(numVer):
+        verTag[v] = 1
+    correction = True
+    i = 0
+
+    while correction & (i < 500):
+        i += 1
+        correction = False
+
+        for e in range(eStart, eEnd):
+            cone = plex.getCone(e)          # Get vertices associated with edge e
+            iVer1 = cone[0] - vStart
+            iVer2 = cone[1] - vStart
+            iMet1 = 4 * iVer1
+            iMet2 = 4 * iVer2
+
+            if (verTag[iVer1] < i) & (verTag[iVer2] < i): continue
+
+
+
+
 def metric_intersection(mesh, V, M1, M2):
     """
     Intersect two metric fields.

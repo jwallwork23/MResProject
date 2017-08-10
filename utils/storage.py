@@ -57,11 +57,11 @@ def plot_gauges(gauge, prob='comparison', log='n'):
 
     if prob== 'comparison':
         setup = {0: 'measured_25mins',
-                 1: 'xcoarse_25mins',                       # 3,126 vertices
-                 2: 'medium_25mins',                        # 25,976 vertices
-                 3: 'fine_25mins',                          # 97,343 vertices
-                 4: 'anisotropic_point85scaled_rm=30',
-                 5: 'goal-based_res4_quarterscaled'}
+                 1: 'xcoarse_25mins',                       # Fixed with 3,126 vertices
+                 2: 'medium_25mins',                        # Fixed with 25,976 vertices
+                 3: 'fine_25mins',                          # Fixed with 97,343 vertices
+                 4: 'anisotropic_point85scaled_rm=30',      # 'Simple adaptive': nodes = 0.85, rm=30, N1=3126
+                 5: 'goal-based_res4_fifthscaled'}          # Goal-based adaptive: nodes = 0.2, rm=60, N1=7194
         labels = {0: 'Gauge measurement',
                   1: 'Mesh approach (i)',
                   2: 'Mesh approach (ii)',
@@ -100,7 +100,8 @@ def plot_gauges(gauge, prob='comparison', log='n'):
             infile.close()
             if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational', 'anisotropic_point85scaled_rm=30',
                               'xcoarse_25mins', 'medium_25mins', 'fine_25mins', 'measured_25mins' 'goal-based',
-                              'goal-based_res4_halfscaled', 'goal-based_res4_quarterscaled'):
+                              'goal-based_res4_halfscaled', 'goal-based_res4_quarterscaled',
+                              'goal-based_res4_fifthscaled'):
                 if log == 'n':
                     plt.plot(np.linspace(0, 25, len(val)), val, label=labels[key], linestyle=styles[key])
                 else:

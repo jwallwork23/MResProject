@@ -28,14 +28,13 @@ N1 = len(mesh.coordinates.dat.data)                                     # Minimu
 N2 = N1                                                                 # Maximum number of vertices
 SumN = N1                                                               # Sum over vertex counts
 print '...... mesh loaded. Initial number of vertices : ', N1
-nodes = 0.85 * N1                                                       # Target number of vertices
 
 # Set physical parameters:
 g = 9.81                        # Gravitational acceleration (m s^{-2})
 
 print 'More options...'
-hmin = float(raw_input('Minimum element size in km (default 1)?: ') or 1) * 1e3
-hmax = float(raw_input('Maximum element size in km (default 1000)?: ') or 1000.) * 1e3
+hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
+hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
@@ -48,6 +47,7 @@ if mat_out not in ('y', 'n'):
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
+nodes = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.85): ') or 0.85) * N1
 
 # Courant number adjusted timestepping parameters:
 T = float(raw_input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.

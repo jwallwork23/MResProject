@@ -26,9 +26,11 @@ num = int(raw_input('Number of adaptations (default 4)?: ') or 4)
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'parts'
-if hess_meth not in ('parts', 'dL2'):
-    raise ValueError('Please try again, choosing parts or dL2.')
+iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
+if not iso:
+    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
+    if hess_meth not in ('parts', 'dL2'):
+        raise ValueError('Please try again, choosing parts or dL2.')
 print ''
 
 for i in range(1, 5):
@@ -57,9 +59,14 @@ for i in range(1, 5):
             f.interpolate(atan(0.1 / (sin(5 * y) - 2 * x)) + atan(0.5 / (sin(3 * y) - 7 * x)))
 
         # Set up output files:
-        f_file = File('plots/adapt_plots/sensor_test{y}.pvd'.format(y=i))
-        M_file = File('plots/adapt_plots/sensor_test_metric{y}.pvd'.format(y=i))
-        H_file = File('plots/adapt_plots/sensor_test_hessian{y}.pvd'.format(y=i))
+        if iso:
+            f_file = File('plots/isotropic_plots/sensor_test{y}.pvd'.format(y=i))
+            M_file = File('plots/isotropic_plots/sensor_test_metric{y}.pvd'.format(y=i))
+            H_file = File('plots/isotropic_plots/sensor_test_hessian{y}.pvd'.format(y=i))
+        else:
+            f_file = File('plots/anisotropic_plots/sensor_test{y}.pvd'.format(y=i))
+            M_file = File('plots/anisotropic_plots/sensor_test_metric{y}.pvd'.format(y=i))
+            H_file = File('plots/anisotropic_plots/sensor_test_hessian{y}.pvd'.format(y=i))
         f_file.write(f, time=0)
 
         for j in range(num):
@@ -67,7 +74,13 @@ for i in range(1, 5):
 
             # Compute Hessian and metric:
             V = TensorFunctionSpace(mesh, 'CG', 1)
-            H = construct_hessian(mesh, V, f, method=hess_meth)
+            H = Function(V)
+            if iso:
+                for i in range(len(H.dat.data)):
+                    H.dat.data[i][0, 0] = np.abs(f.dat.data[i])
+                    H.dat.data[i][1, 1] = np.abs(f.dat.data[i])
+            else:
+                H = construct_hessian(mesh, V, f, method=hess_meth)
             M = compute_steady_metric(mesh, V, H, f, h_min=hmin, a=ani, normalise=ntype)
 
             # Adapt mesh and interpolate functions:

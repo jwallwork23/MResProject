@@ -28,12 +28,12 @@ N1 = len(mesh.coordinates.dat.data)                                     # Minimu
 N2 = N1                                                                 # Maximum number of vertices
 SumN = N1                                                               # Sum over vertex counts
 print '...... mesh loaded. Initial number of vertices : ', N1
-numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.85): ') or 0.85) * N1
 
 # Set physical parameters:
 g = 9.81                        # Gravitational acceleration (m s^{-2})
 
 print 'More options...'
+numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.85): ') or 0.85) * N1
 hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
 hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
@@ -118,18 +118,18 @@ while t < T - 0.5 * dt:
         spd.interpolate(sqrt(dot(u, u)))
         if iso:
             for i in range(len(H.dat.data)):
-                H.dat.data[i][0, 0] = max(spd.dat.data[i], 1e-8)
-                H.dat.data[i][1, 1] = max(spd.dat.data[i], 1e-8)
+                H.dat.data[i][0, 0] = spd.dat.data[i]
+                H.dat.data[i][1, 1] = spd.dat.data[i]
         else:
             H = construct_hessian(mesh, V, spd, method=hess_meth)
         M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
     if mtype != 's':
         if iso:
             for i in range(len(H.dat.data)):
-                H.dat.data[i][0, 0] = max(spd.dat.data[i], 1e-8)
-                H.dat.data[i][1, 1] = max(spd.dat.data[i], 1e-8)
+                H.dat.data[i][0, 0] = np.abs(eta.dat.data[i])
+                H.dat.data[i][1, 1] = np.abs(eta.dat.data[i])
         else:
-            H = construct_hessian(mesh, V, spd, method=hess_meth)
+            H = construct_hessian(mesh, V, eta, method=hess_meth)
         M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
         if mtype == 'b':
             M = metric_intersection(mesh, V, M, M2)

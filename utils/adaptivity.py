@@ -3,7 +3,6 @@ import numpy as np
 from numpy import linalg as la
 from scipy import linalg as sla
 
-
 def construct_hessian(mesh, V, sol, method='dL2'):
     """
     Reconstructs the hessian of a scalar solution field with respect to the current mesh. The code for the integration 
@@ -172,7 +171,15 @@ def local_metric_intersection(M1, M2):
     return np.transpose(sla.sqrtm(M1)) * M * sla.sqrtm(M1)
 
 
-def metric_gradation(mesh, M):
+def metric_gradation(mesh, metric):
+    """
+    Perform anisotropic metric gradation in the method described in Alauzet 2010, using linear interpolation. Python
+    code based on Nicolas Barral's function ``DMPlexMetricGradation2d_Internal`` in ``plex-metGradation.c``, 2017.
+    
+    :param mesh: current mesh on which variables are defined.
+    :param metric: metric to be gradated.
+    :return: gradated ``metric``.
+    """
 
     # Specify growth parameter:
     beta = 1.4
@@ -183,16 +190,16 @@ def metric_gradation(mesh, M):
     vStart, vEnd = plex.getDepthStratum(0)
     numVer = vEnd - vStart
     eStart, eEnd = plex.getDepthStratum(1)
-    numEdg = eEnd - eStart
-    x, y = SpatialCoordinate(mesh)
+    xy = mesh.coordinates.dat.data
 
     # Establish arrays for storage:
     v12 = np.zeros(2)
     v21 = np.zeros(2)
-    met1 = np.zeros((3, 3))
+    met1 = np.zeros((3, 3))                 # We need only work with the upper triangular part
     met2 = np.zeros((3, 3))
     grownMet1 = np.zeros((3, 3))
     grownMet2 = np.zeros((3, 3))
+    M = metric.dat.data
 
     # Create a list of tags for vertices:
     verTag = np.zeros(numVer)
@@ -207,29 +214,27 @@ def metric_gradation(mesh, M):
 
         for e in range(eStart, eEnd):
             cone = plex.getCone(e)          # Get vertices associated with edge e
-            iVer1 = cone[0] - vStart
-            iVer2 = cone[1] - vStart
-            iMet1 = 4 * iVer1
-            iMet2 = 4 * iVer2
+            iVer1 = cone[0] - vStart        # Number in list of vertex 1
+            iVer2 = cone[1] - vStart        # Number in list of vertex 2
 
             if (verTag[iVer1] < i) & (verTag[iVer2] < i):
                 continue
 
-            # Assemble local metrics:                   TODO: need we use this reduced form?
-            met1[0] = M[iMet1]
-            met1[1] = M[iMet1 + 1]
-            met1[2] = M[iMet1 + 3]
-            met2[0] = M[iMet2]
-            met2[1] = M[iMet2 + 1]
-            met2[2] = M[iMet2 + 3]
+            # Assemble local metrics:
+            met1[0] = M[iVer1][0, 0]
+            met1[1] = M[iVer1][0, 1]
+            met1[2] = M[iVer1][1, 1]
+            met2[0] = M[iVer2][0, 0]
+            met2[1] = M[iVer2][0, 1]
+            met2[2] = M[iVer2][1, 1]
 
             # Calculate edge lengths and scale factor:
-            v12[0] = x[iVer2] - x[iVer1]
-            v12[1] = y[iVer2] - y[iVer1]
+            v12[0] = xy[iVer2][0] - xy[iVer1][0]
+            v12[1] = xy[iVer2][1] - xy[iVer1][1]
             v21[0] = - v12[0]
             v21[1] = - v12[1]
-            edgLen1 = np.sqrt(np.dot(v12, np.dot(met1, v12)))
-            edgLen2 = np.sqrt(np.dot(v21, np.dot(met2, v21)))
+            edgLen1 = symmetric_product(met1, v12)
+            edgLen2 = symmetric_product(met2, v21)
             eta2_12 = 1. / pow(1 + edgLen1 * ln_beta, 2)
             eta2_21 = 1. / pow(1 + edgLen2 * ln_beta, 2)
 
@@ -243,23 +248,25 @@ def metric_gradation(mesh, M):
             diff = np.abs(met1[0] - metNew1[0]) + np.abs(met1[1] - metNew1[1]) + np.abs(met1[2] - metNew1[2])
             diff /= (np.abs(met1[0]) + np.abs(met1[1]) + np.abs(met1[2]))
 
-            if diff > 1.e-3:
-                M[iMet1] = metNew1[0]
-                M[iMet1 + 1] = metNew1[1]
-                M[iMet1 + 2] = metNew1[1]
-                M[iMet1 + 3] = metNew1[2]
+            if diff > 1e-3:
+                M[iVer1][0, 0] = metNew1[0]
+                M[iVer1][0, 1] = metNew1[1]
+                M[iVer1][1, 0] = metNew1[1]
+                M[iVer1][1, 1] = metNew1[2]
                 verTag[iVer1] = i + 1
                 correction = True
 
             diff = np.abs(met2[0] - metNew2[0]) + np.abs(met2[1] - metNew2[1]) + np.abs(met2[2] - metNew2[2])
             diff /= (np.abs(met2[0]) + np.abs(met2[1]) + np.abs(met2[2]))
-            if diff > 1.e-3:
-                M[iMet2] = metNew2[0]
-                M[iMet2 + 1] = metNew2[1]
-                M[iMet2 + 2] = metNew2[1]
-                M[iMet2 + 3] = metNew2[2]
+            if diff > 1e-3:
+                M[iVer2][0, 0] = metNew2[0]
+                M[iVer2][0, 1] = metNew2[1]
+                M[iVer2][1, 0] = metNew2[1]
+                M[iVer2][1, 1] = metNew2[2]
                 verTag[iVer2] = i + 1
                 correction = True
+
+    metric.dat.data[:] = M
 
 
 def metric_intersection(mesh, V, M1, M2):
@@ -282,3 +289,11 @@ def metric_intersection(mesh, V, M1, M2):
         M12.dat.data[i] = np.transpose(sla.sqrtm(M)) * M12.dat.data[i] * sla.sqrtm(M)
 
     return M12
+
+def symmetric_product(A, b):
+    """
+    :param A: symmetric, 2x2 matrix.
+    :param b: 2-vector.
+    :return: product b^T * A * b.
+    """
+    return b[0] * A[0, 0] * b[0] + 2 * b[0] * A[0, 1] * b[1] + b[1] * A[1, 1] * b[1]

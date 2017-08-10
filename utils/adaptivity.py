@@ -170,6 +170,14 @@ def metric_gradation(mesh, V, M):
     numEdg = eEnd - eStart
     x, y = SpatialCoordinate(mesh)
 
+    # Establish arrays for storage:
+    v12 = np.zeros(2)
+    v21 = np.zeros(2)
+    met1 = np.zeros((3, 3))
+    met2 = np.zeros((3, 3))
+    grownMet1 = np.zeros((3, 3))
+    grownMet2 = np.zeros((3, 3))
+
     # Create a list of tags for vertices:
     verTag = np.zeros(numVer)
     for v in range(numVer):
@@ -188,9 +196,54 @@ def metric_gradation(mesh, V, M):
             iMet1 = 4 * iVer1
             iMet2 = 4 * iVer2
 
-            if (verTag[iVer1] < i) & (verTag[iVer2] < i): continue
+            if (verTag[iVer1] < i) & (verTag[iVer2] < i):
+                continue
 
+            # Assemble local metrics:                   TODO: need we use this reduced form?
+            met1[0] = M[iMet1]
+            met1[1] = M[iMet1 + 1]
+            met1[2] = M[iMet1 + 3]
+            met2[0] = M[iMet2]
+            met2[1] = M[iMet2 + 1]
+            met2[2] = M[iMet2 + 3]
 
+            # Calculate edge lengths and scale factor:
+            v12[0] = x[iVer2] - x[iVer1]
+            v12[1] = y[iVer2] - y[iVer1]
+            v21[0] = - v12[0]
+            v21[1] = - v12[1]
+            edgLen1 = np.sqrt(np.dot(v12, np.dot(met1, v12)))
+            edgLen2 = np.sqrt(np.dot(v21, np.dot(met2, v21)))
+            eta2_12 = 1. / pow(1 + edgLen1 * ln_beta, 2)
+            eta2_21 = 1. / pow(1 + edgLen2 * ln_beta, 2)
+
+            for j in range(3):
+                grownMet1[j] = eta2_12 * met1[j]
+                grownMet2[j] = eta2_21 * met2[j]
+
+            metNew1 = metric_intersection(mesh, V, met1, grownMet2)
+            metNew2 = metric_intersection(mesh, V, met2, grownMet1)
+
+            diff = np.abs(met1[0] - metNew1[0]) + np.abs(met1[1] - metNew1[1]) + np.abs(met1[2] - metNew1[2])
+            diff /= (np.abs(met1[0]) + np.abs(met1[1]) + np.abs(met1[2]))
+
+            if diff > 1.e-3:
+                M[iMet1] = metNew1[0]
+                M[iMet1 + 1] = metNew1[1]
+                M[iMet1 + 2] = metNew1[1]
+                M[iMet1 + 3] = metNew1[2]
+                verTag[iVer1] = i + 1
+                correction = True
+
+            diff = np.abs(met2[0] - metNew2[0]) + np.abs(met2[1] - metNew2[1]) + np.abs(met2[2] - metNew2[2])
+            diff /= (np.abs(met2[0]) + np.abs(met2[1]) + np.abs(met2[2]))
+            if diff > 1.e-3:
+                M[iMet2] = metNew2[0]
+                M[iMet2+1] = metNew2[1]
+                M[iMet2+2] = metNew2[1]
+                M[iMet2+3] = metNew2[2]
+                verTag[iVer2] = i + 1
+                correction = True
 
 
 def metric_intersection(mesh, V, M1, M2):

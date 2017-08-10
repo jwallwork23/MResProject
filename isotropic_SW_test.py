@@ -8,7 +8,7 @@ from utils.interp import interp, interp_Taylor_Hood
 print ''
 print '******************************** SHALLOW WATER TEST PROBLEM ********************************'
 print ''
-print 'ANISOTROPIC mesh adaptive solver initially defined on a square mesh'
+print 'ISOTROPIC mesh adaptive solver initially defined on a square mesh'
 tic1 = clock()
 
 # Define initial (uniform) mesh:
@@ -34,9 +34,6 @@ mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default b): 
 if mtype not in ('s', 'f', 'b'):
     raise ValueError('Please try again, choosing s, f or b.')
 mat_out = bool(raw_input('Hit any key to output Hessian and metric: ')) or False
-hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
-if hess_meth not in ('parts', 'dL2'):
-    raise ValueError('Please try again, choosing parts or dL2.')
 
 # Courant number adjusted timestepping parameters:
 depth = 0.1             # Water depth for flat bathymetry case (m)
@@ -72,11 +69,11 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Initialise files:
-q_file = File('plots/anisotropic_outputs/SW_test.pvd')
+q_file = File('plots/isotropic_outputs/SW_test.pvd')
 q_file.write(u, eta, time=0)
 if mat_out:
-    m_file = File('plots/anisotropic_outputs/SW_test_metric.pvd')
-    h_file = File('plots/anisotropic_outputs/SW_test_hessian.pvd')
+    m_file = File('plots/isotropic_outputs/SW_test_metric.pvd')
+    h_file = File('plots/isotropic_outputs/SW_test_hessian.pvd')
 
 # Initialise counters:
 t = 0.
@@ -91,13 +88,18 @@ while t < T - 0.5 * dt:
 
     # Compute Hessian and metric:
     V = TensorFunctionSpace(mesh, 'CG', 1)
+    H = Function(V)
     if mtype != 'f':
         spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
         spd.interpolate(sqrt(dot(u, u)))
-        H = construct_hessian(mesh, V, spd, method=hess_meth)
+        for i in range(len(H.dat.data)):
+            H.dat.data[i][0, 0] = max(spd.dat.data[i], 1e-8)
+            H.dat.data[i][1, 1] = max(spd.dat.data[i], 1e-8)
         M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
     if mtype != 's':
-        H = construct_hessian(mesh, V, eta, method=hess_meth)
+        for i in range(len(H.dat.data)):
+            H.dat.data[i][0, 0] = max(eta.dat.data[i], 1e-8)
+            H.dat.data[i][1, 1] = max(eta.dat.data[i], 1e-8)
         M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
         if mtype == 'b':
             M = metric_intersection(mesh, V, M, M2)
@@ -112,7 +114,7 @@ while t < T - 0.5 * dt:
 
     # Mesh resolution analysis:
     n = len(mesh.coordinates.dat.data)
-    SumN += 1
+    SumN += n
     if n < N1:
         N1 = n
     elif n > N2:

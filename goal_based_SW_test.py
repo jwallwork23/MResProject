@@ -19,7 +19,8 @@ mesh_ = mesh
 x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                             # Minimum number of vertices
 N2 = N1                                                         # Maximum number of vertices
-print '...... mesh loaded. Initial number of nodes : ', N1
+SumN = N1                                                       # Sum over vertex counts
+print '...... mesh loaded. Initial number of vertices : ', N1
 print ''
 print 'Options...'
 bathy = raw_input('Flat bathymetry or shelf break (f/s, default s?): ') or 's'
@@ -30,11 +31,11 @@ hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100) * 
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-mat_out = bool(raw_input('Hit any key to output Hessian and metric')) or False
+mat_out = bool(raw_input('Hit any key to output Hessian and metric: ')) or False
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = 0.25 * N1              # Target number of vertices
+numVer = 0.25 * N1              # Target number of vertices
 
 # Specify parameters:
 depth = 0.1             # Water depth for flat bathymetry case (m)
@@ -194,12 +195,14 @@ if mat_out:
 # Initialise counters:
 t = 0.
 dumpn = 0
-i0 = i
+mn = 0
 
 print ''
 print 'Starting mesh adaptive forward run...'
 while t < T - 0.5 * dt:
     tic2 = clock()
+    mn += 1
+
     # Interpolate velocity in a P1 space:
     vel = Function(VectorFunctionSpace(mesh, 'CG', 1))
     vel.interpolate(u)
@@ -242,7 +245,7 @@ while t < T - 0.5 * dt:
     # Adapt mesh to significant data and interpolate:
     V = TensorFunctionSpace(mesh, 'CG', 1)
     H = construct_hessian(mesh, V, significance, method=hess_meth)
-    M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=nodes)
+    M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
@@ -252,20 +255,12 @@ while t < T - 0.5 * dt:
 
     # Mesh resolution analysis:
     n = len(mesh.coordinates.dat.data)
+    SumN += n
     if n < N1:
         N1 = n
     elif n > N2:
         N2 = n
     toc2 = clock()
-
-    # Print to screen:
-    print ''
-    print '************ Adaption step %d **************' % (i + i0 + 1)
-    print 'Time = %1.2fs / %1.1fs' % (t, T)
-    print 'Number of nodes after adaption', n
-    print 'Min. nodes in mesh: %d... max. nodes in mesh: %d' % (N1, N2)
-    print 'Total elapsed time for this step: %1.2fs' % (toc2 - tic2)
-    print ''
 
     # Establish test functions and midpoint averages:
     v, ze = TestFunctions(W)
@@ -304,5 +299,15 @@ while t < T - 0.5 * dt:
                 h_file.write(H, time=t)
                 m_file.write(M, time=t)
 
+    # Print to screen:
+    print ''
+    print '************ Adaption step %d **************' % mn
+    print 'Time = %1.1fs / %1.1fs' % (t, T)
+    print 'Number of vertices after adaption step %d: ' % mn, n
+    print 'Min/max vertex counts: %d, %d' % (N1, N2)
+    print 'Mean vertex count: %d' % (float(SumN) / mn)
+    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
+    print ''
+print '\a'
 toc1 = clock()
-print 'Elapsed time for adaptive solver: %1.1f minutes' % ((toc1 - tic1) / 60.)
+print 'Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60)

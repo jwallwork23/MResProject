@@ -60,8 +60,8 @@ def plot_gauges(gauge, prob='comparison', log='n'):
                  1: 'xcoarse_25mins',                       # Fixed with 3,126 vertices
                  2: 'medium_25mins',                        # Fixed with 25,976 vertices
                  3: 'fine_25mins',                          # Fixed with 97,343 vertices
-                 4: 'anisotropic_point85scaled_rm=30',      # 'Simple adaptive': nodes = 0.85, rm=30, N1=3126
-                 5: 'goal-based_res4_fifthscaled'}          # Goal-based adaptive: nodes = 0.2, rm=60, N1=7194
+                 4: 'anisotropic_point85scaled_rm=30',      # 'Simple adaptive': numVer = 0.85, rm=30, N1=3126
+                 5: 'goal-based_res4_fifthscaled'}          # Goal-based adaptive: numVer = 0.2, rm=60, N1=7194
         labels = {0: 'Gauge measurement',
                   1: 'Mesh approach (i)',
                   2: 'Mesh approach (ii)',

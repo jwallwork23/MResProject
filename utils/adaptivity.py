@@ -70,7 +70,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
     :param a: maximum tolerated aspect ratio.
     :param normalise: mode of normalisation; either a manual rescaling ('manual') or an Lp approach ('Lp').
     :param p: norm order in the Lp normalisation approach, where ``p => 1`` and ``p = infty`` is an option.
-    :param num: target number of nodes, in the case of Lp normalisation.
+    :param num: target number of vertices, in the case of Lp normalisation.
     :param ieps: inverse of the target error, in the case of manual normalisation.
     :return: steady metric associated with Hessian H.
     """
@@ -82,7 +82,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
 
     if normalise == 'manual':
         for i in range(mesh.topology.num_vertices()):
-            sol_min = 0.001     # Minimum tolerated value for the solution field
+            sol_min = 1e-3          # Minimum tolerated value for the solution field
         
             # Generate local Hessian:
             H_loc = H.dat.data[i] * ieps / (max(np.sqrt(assemble(sol * sol * dx)), sol_min))  # To avoid round-off error

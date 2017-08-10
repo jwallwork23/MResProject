@@ -41,11 +41,11 @@ if ntype not in ('lp', 'manual'):
 mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default b): ') or 'b'
 if mtype not in ('s', 'f', 'b'):
     raise ValueError('Please try again, choosing s, f or b.')
-mat_out = bool(raw_input('Hit any key to output Hessian and metric')) or False
+mat_out = bool(raw_input('Hit any key to output Hessian and metric: ')) or False
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.85): ') or 0.85) * N1
+numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.85): ') or 0.85) * N1
 
 # Courant number adjusted timestepping parameters:
 T = float(raw_input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.
@@ -108,10 +108,10 @@ while t < T - 0.5 * dt:
         spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
         spd.interpolate(sqrt(dot(u, u)))
         H = construct_hessian(mesh, V, spd, method=hess_meth)
-        M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
+        M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
     if mtype != 's':
         H = construct_hessian(mesh, V, eta, method=hess_meth)
-        M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
+        M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
         if mtype == 'b':
             M = metric_intersection(mesh, V, M, M2)
         else:
@@ -179,14 +179,14 @@ while t < T - 0.5 * dt:
     print ''
     print '************ Adaption step %d **************' % mn
     print 'Time = %1.2f mins / %1.1f mins' % (t / 60., T / 60.)
-    print 'Number of nodes after adaption step %d: ' % mn, n
+    print 'Number of vertices after adaption step %d: ' % mn, n
     print 'Min/max vertex counts: %d, %d' % (N1, N2)
     print 'Mean vertex count: %d' % (float(SumN) / mn)
     print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
     print ''
 print '\a'
 toc1 = clock()
-print 'Elapsed time for adaptive forward solver: %1.2fs' % (toc1 - tic1)
+print 'Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60)
 
 # Store gauge timeseries data to file:
 gauge_timeseries(gauge, gauge_dat)

@@ -41,7 +41,7 @@ mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: '
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
-nodes = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.2): ') or 0.2) * N1
+numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.2): ') or 0.2) * N1
 
 # Specify parameters:
 T = float(raw_input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.
@@ -245,7 +245,7 @@ while t < T - 0.5 * dt:
     # Adapt mesh to significant data and interpolate:
     V = TensorFunctionSpace(mesh, 'CG', 1)
     H = construct_hessian(mesh, V, significance, method=hess_meth)
-    M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=nodes)
+    M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
     # metric_gradation(mesh, M)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
@@ -305,14 +305,14 @@ while t < T - 0.5 * dt:
     print ''
     print '************ Adaption step %d **************' % mn
     print 'Time = %1.2f mins / %1.1f mins' % (t / 60., T / 60.)
-    print 'Number of nodes after adaption step %d: ' % mn, n
+    print 'Number of vertices after adaption step %d: ' % mn, n
     print 'Min/max vertex counts: %d, %d' % (N1, N2)
     print 'Mean vertex count: %d' % (float(SumN) / mn)
     print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
     print ''
 print '\a'
 toc1 = clock()
-print 'Elapsed time for adaptive solver: %1.1fs' % (toc1 - tic1)
+print 'Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60)
 
 # Store gauge timeseries data to file:
 gauge_timeseries(gauge, gauge_dat)

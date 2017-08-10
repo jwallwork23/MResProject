@@ -20,7 +20,7 @@ N1 = len(mesh.coordinates.dat.data)                             # Minimum number
 N2 = N1                                                         # Maximum number of vertices
 SumN = N1                                                       # Sum over vertex counts
 print '...... mesh loaded. Initial number of vertices : ', N1
-numVer = 0.25 * N1                                              # Target number of vertices
+numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.2): ') or 0.2) * N1
 
 print ''
 print 'Options...'
@@ -33,10 +33,12 @@ if ntype not in ('lp', 'manual'):
 mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default b): ') or 'b'
 if mtype not in ('s', 'f', 'b'):
     raise ValueError('Please try again, choosing s, f or b.')
-mat_out = bool(raw_input('Hit any key to output Hessian and metric: ')) or False
-hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
-if hess_meth not in ('parts', 'dL2'):
-    raise ValueError('Please try again, choosing parts or dL2.')
+mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
+iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
+if not iso:
+    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
+    if hess_meth not in ('parts', 'dL2'):
+        raise ValueError('Please try again, choosing parts or dL2.')
 
 # Courant number adjusted timestepping parameters:
 depth = 0.1             # Water depth for flat bathymetry case (m)
@@ -72,11 +74,17 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Initialise files:
-q_file = File('plots/anisotropic_outputs/SW_test.pvd')
+if iso:
+    q_file = File('plots/isotropic_outputs/SW_test.pvd')
+    if mat_out:
+        m_file = File('plots/isotropic_outputs/SW_test_metric.pvd')
+        h_file = File('plots/isotropic_outputs/SW_test_hessian.pvd')
+else:
+    q_file = File('plots/anisotropic_outputs/SW_test.pvd')
+    if mat_out:
+        m_file = File('plots/anisotropic_outputs/SW_test_metric.pvd')
+        h_file = File('plots/anisotropic_outputs/SW_test_hessian.pvd')
 q_file.write(u, eta, time=0)
-if mat_out:
-    m_file = File('plots/anisotropic_outputs/SW_test_metric.pvd')
-    h_file = File('plots/anisotropic_outputs/SW_test_hessian.pvd')
 
 # Initialise counters:
 t = 0.
@@ -91,13 +99,24 @@ while t < T - 0.5 * dt:
 
     # Compute Hessian and metric:
     V = TensorFunctionSpace(mesh, 'CG', 1)
+    H = Function(V)
     if mtype != 'f':
         spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
         spd.interpolate(sqrt(dot(u, u)))
-        H = construct_hessian(mesh, V, spd, method=hess_meth)
+        if iso:
+            for i in range(len(H.dat.data)):
+                H.dat.data[i][0, 0] = max(spd.dat.data[i], 1e-8)
+                H.dat.data[i][1, 1] = max(spd.dat.data[i], 1e-8)
+        else:
+            H = construct_hessian(mesh, V, spd, method=hess_meth)
         M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
     if mtype != 's':
-        H = construct_hessian(mesh, V, eta, method=hess_meth)
+        if iso:
+            for i in range(len(H.dat.data)):
+                H.dat.data[i][0, 0] = max(eta.dat.data[i], 1e-8)
+                H.dat.data[i][1, 1] = max(eta.dat.data[i], 1e-8)
+        else:
+            H = construct_hessian(mesh, V, eta, method=hess_meth)
         M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
         if mtype == 'b':
             M = metric_intersection(mesh, V, M, M2)

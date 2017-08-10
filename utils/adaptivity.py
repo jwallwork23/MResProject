@@ -3,6 +3,7 @@ import numpy as np
 from numpy import linalg as la
 from scipy import linalg as sla
 
+
 def construct_hessian(mesh, V, sol, method='dL2'):
     """
     Reconstructs the hessian of a scalar solution field with respect to the current mesh. The code for the integration 

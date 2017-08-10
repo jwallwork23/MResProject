@@ -51,9 +51,14 @@ Ts = 5. * 60.                   # Time range lower limit (s), during which we ca
 g = 9.81                        # Gravitational acceleration (m s^{-2})
 dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
+cdt = hmin / np.sqrt(g * max(b.dat.data))
+if dt > cdt:
+    print 'WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt
+    if bool(raw_input('Hit anything except enter if happy to proceed.')) or False:
+        exit(23)
 ndump = int(60. / dt)           # Timesteps per data dump
 rm = int(raw_input('Timesteps per re-mesh (default 60)?: ') or 60)
-stored = raw_input('Adjoint already computed? (y/n, default n): ') or 'n'
+stored = bool(raw_input('Hit anything but enter if adjoint data is already stored: ')) or False
 
 # Convert gauge locations to UTM coordinates:
 glatlon = {'P02': (38.5002, 142.5016), 'P06': (38.6340, 142.5838),
@@ -91,10 +96,10 @@ dumpn = ndump
 meshn = rm
 
 # Forcing switch:
-switch = Constant(1.)
-switched = 'on'
+coeff = Constant(1.)
+switch = True
 
-if stored == 'n':
+if not stored:
     # Establish indicator function for adjoint equations:       TODO: smoothen f in space
     f = Function(W.sub(1), name='Forcing term')
     f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 640e3) & (x[1] > 4160e3) & (x[1] < 4360e3) ? 1. : 0.'))
@@ -123,7 +128,7 @@ if stored == 'n':
     leh = 0.5 * (le + le_)
 
     # Set up the variational problem:
-    La = ((le - le_) * xi - Dt * g * inner(luh, grad(xi)) - switch * f * xi
+    La = ((le - le_) * xi - Dt * g * inner(luh, grad(xi)) - coeff * f * xi
           + inner(lu - lu_, w) + Dt * (b * inner(grad(leh), w) + leh * inner(grad(b), w))) * dx
     lam_prob = NonlinearVariationalProblem(La, lam)
     lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
@@ -143,14 +148,14 @@ while t > 0.5 * dt:
     meshn -= 1
 
     # Modify forcing term:
-    if (t < Ts + 1.5 * dt) & (switched == 'on'):
-        switch.assign(0.5)
-    elif (t < Ts + 0.5 * dt) & (switched == 'on'):
-        switched = 'off'
-        switch.assign(0.)
+    if (t < Ts + 1.5 * dt) & switch:
+        coeff.assign(0.5)
+    elif (t < Ts + 0.5 * dt) & switch:
+        switch = False
+        coeff.assign(0.)
 
     # Solve the problem and update:
-    if stored == 'n':
+    if not stored:
         lam_solv.solve()
         lam_.assign(lam)
 
@@ -164,13 +169,13 @@ while t > 0.5 * dt:
             meshn += rm
             i -= 1
             # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
-            if stored == 'n':
+            if not stored:
                 print 't = %1.1fs' % t
                 lu_P1.interpolate(lu)
                 with DumbCheckpoint('data_dumps/tsunami/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
                     chk.store(lu_P1)
                     chk.store(le)
-if stored == 'n':
+if not stored:
     print '... done!',
     toc2 = clock()
     print 'Elapsed time for adjoint solver: %1.2fs' % (toc2 - tic2)

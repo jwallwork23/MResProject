@@ -31,7 +31,7 @@ hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100) * 
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-mat_out = bool(raw_input('Hit any key to output Hessian and metric: ')) or False
+mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
 iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
 if not iso:
     hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
@@ -47,7 +47,7 @@ g = 9.81                # Gravitational acceleration (m s^{-2})
 dt = 0.05
 Dt = Constant(dt)
 rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
-stored = raw_input('Adjoint already computed? (y/n, default n): ') or 'n'
+stored = bool(raw_input('Hit anything but enter if adjoint data is already stored: ')) or False
 
 # Check CFL criterion is satisfied for this discretisation:
 assert(dt < 1. / (n * np.sqrt(g * depth)))
@@ -79,10 +79,10 @@ meshn = rm
 tic2 = clock()
 
 # Forcing switch:
-switch = Constant(1.)
-switched = 'on'
+coeff = Constant(1.)
+switch = True
 
-if stored == 'n':
+if not stored:
     # Create adjoint variables:
     lam_ = Function(W)
     lu_, le_ = lam_.split()
@@ -119,7 +119,7 @@ if stored == 'n':
     leh = 0.5 * (le + le_)
 
     # Set up the variational problem:
-    La = ((le - le_) * xi - Dt * g * inner(luh, grad(xi)) - switch * f * xi
+    La = ((le - le_) * xi - Dt * g * inner(luh, grad(xi)) - coeff * f * xi
           + inner(lu - lu_, w) + Dt * b * inner(grad(leh), w)) * dx
     lam_prob = NonlinearVariationalProblem(La, lam)
     lam_solv = NonlinearVariationalSolver(lam_prob, solver_parameters=params)
@@ -138,14 +138,14 @@ while t > 0.5 * dt:
     meshn -= 1
 
     # Modify forcing term:
-    if (t < Ts + 1.5 * dt) & (switched == 'on'):
-        switch.assign(0.5)
-    if (t < Ts + 0.5 * dt) & (switched == 'on'):
-        switched = 'off'
-        switch.assign(0.)
+    if (t < Ts + 1.5 * dt) & switch:
+        coeff.assign(0.5)
+    if (t < Ts + 0.5 * dt) & switch:
+        switch = False
+        coeff.assign(0.)
 
     # Solve the problem and update:
-    if stored == 'n':
+    if not stored:
         lam_solv.solve()
         lam_.assign(lam)
 
@@ -159,13 +159,13 @@ while t > 0.5 * dt:
             meshn += rm
             i -= 1
             # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
-            if stored == 'n':
+            if not stored:
                 print 't = %1.1fs' % t
                 lu_P1.interpolate(lu)
                 with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
                     chk.store(lu_P1)
                     chk.store(le)
-if stored == 'n':
+if not stored:
     print '... done!',
     toc2 = clock()
     print 'Elapsed time for adjoint solver: %1.2fs' % (toc2 - tic2)
@@ -232,7 +232,7 @@ while t < T - 0.5 * dt:
             chk.load(le)
 
         # Interpolate saved data onto new mesh:
-        if i != i0:
+        if mn != 1:
             print '    #### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/',\
                 len(range(max(i, int((Ts - T) / (dt * ndump))), 0))
             lu_P1, le = interp(mesh, lu_P1, le)

@@ -1,4 +1,5 @@
 from firedrake import *
+import numpy as np
 from time import clock
 
 from utils.adaptivity import construct_hessian, compute_steady_metric
@@ -60,14 +61,13 @@ for i in range(1, 5):
 
         # Set up output files:
         if iso:
-            f_file = File('plots/isotropic_plots/sensor_test{y}.pvd'.format(y=i))
-            M_file = File('plots/isotropic_plots/sensor_test_metric{y}.pvd'.format(y=i))
-            H_file = File('plots/isotropic_plots/sensor_test_hessian{y}.pvd'.format(y=i))
+            f_file = File('plots/isotropic_outputs/sensor_test{y}.pvd'.format(y=i))
+            M_file = File('plots/isotropic_outputs/sensor_test_metric{y}.pvd'.format(y=i))
+            H_file = File('plots/isotropic_outputs/sensor_test_hessian{y}.pvd'.format(y=i))
         else:
-            f_file = File('plots/anisotropic_plots/sensor_test{y}.pvd'.format(y=i))
-            M_file = File('plots/anisotropic_plots/sensor_test_metric{y}.pvd'.format(y=i))
-            H_file = File('plots/anisotropic_plots/sensor_test_hessian{y}.pvd'.format(y=i))
-        f_file.write(f, time=0)
+            f_file = File('plots/anisotropic_outputs/sensor_test{y}.pvd'.format(y=i))
+            M_file = File('plots/anisotropic_outputssensor_test_metric{y}.pvd'.format(y=i))
+            H_file = File('plots/anisotropic_outputs/sensor_test_hessian{y}.pvd'.format(y=i))
 
         for j in range(num):
             tic1 = clock()
@@ -87,12 +87,13 @@ for i in range(1, 5):
             adaptor = AnisotropicAdaptation(mesh, M)
             mesh = adaptor.adapted_mesh
             fields = interp(mesh, f)
-            f = fields[0]
+
             W = FunctionSpace(mesh, 'CG', 1)
+            f = Function(W, name='Sensor {y}'.format(y=i))
+            f.dat.data[:] = fields[0].dat.data[:]
             toc1 = clock()
 
             # Relabel functions:
-            f.rename('Sensor {y}'.format(y=i))
             M.rename('Metric field {y}'.format(y=i))
             H.rename('Hessian {y}'.format(y=i))
 

@@ -156,7 +156,23 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
     return M
 
 
-def metric_gradation(mesh, V, M):
+def local_metric_intersection(M1, M2):
+    """
+    Intersect two metrics (i.e. two 2x2 matrices).
+
+    :param M1: first metric to be intersected.
+    :param M2: second metric to be intersected.
+    :return: intersection of metrics M1 and M2.
+    """
+    iM1 = la.inv(M1)
+    Mbar = np.transpose(sla.sqrtm(iM1)) * M2 * sla.sqrtm(iM1)
+    lam, v = la.eig(Mbar)
+    M = v * [[max(lam[0], 1), 0], [0, max(lam[1], 1)]] * np.transpose(v)
+
+    return np.transpose(sla.sqrtm(M1)) * M * sla.sqrtm(M1)
+
+
+def metric_gradation(mesh, M):
 
     # Specify growth parameter:
     beta = 1.4
@@ -221,8 +237,8 @@ def metric_gradation(mesh, V, M):
                 grownMet1[j] = eta2_12 * met1[j]
                 grownMet2[j] = eta2_21 * met2[j]
 
-            metNew1 = metric_intersection(mesh, V, met1, grownMet2)
-            metNew2 = metric_intersection(mesh, V, met2, grownMet1)
+            metNew1 = local_metric_intersection(met1, grownMet2)
+            metNew2 = local_metric_intersection(met2, grownMet1)
 
             diff = np.abs(met1[0] - metNew1[0]) + np.abs(met1[1] - metNew1[1]) + np.abs(met1[2] - metNew1[2])
             diff /= (np.abs(met1[0]) + np.abs(met1[1]) + np.abs(met1[2]))
@@ -239,9 +255,9 @@ def metric_gradation(mesh, V, M):
             diff /= (np.abs(met2[0]) + np.abs(met2[1]) + np.abs(met2[2]))
             if diff > 1.e-3:
                 M[iMet2] = metNew2[0]
-                M[iMet2+1] = metNew2[1]
-                M[iMet2+2] = metNew2[1]
-                M[iMet2+3] = metNew2[2]
+                M[iMet2 + 1] = metNew2[1]
+                M[iMet2 + 2] = metNew2[1]
+                M[iMet2 + 3] = metNew2[2]
                 verTag[iVer2] = i + 1
                 correction = True
 

@@ -4,7 +4,7 @@ from time import clock
 import math
 import sys
 
-from utils.adaptivity import compute_steady_metric, construct_hessian
+from utils.adaptivity import compute_steady_metric, construct_hessian, metric_gradation
 from utils.conversion import from_latlon
 from utils.domain import Tohoku_domain
 from utils.interp import interp, interp_Taylor_Hood
@@ -37,6 +37,7 @@ hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
+mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
@@ -182,9 +183,12 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Intialise files:
-q_file = File('plots/goal-based_outputs/tsunami_forward.pvd')
+q_file = File('plots/goal-based_outputs/ungradated_tsunami_forward.pvd')
 q_file.write(u, eta, time=0)
-sig_file = File('plots/goal-based_outputs/tsunami_significance.pvd')
+if mat_out:
+    m_file = File('plots/goal-based_outputs/ungradated_tsunami_metric.pvd')
+    h_file = File('plots/goal-based_outputs/ungradated_tsunami_hessian.pvd')
+sig_file = File('plots/goal-based_outputs/ungradated_tsunami_significance.pvd')
 gauge_dat = [eta.at(gcoord)]
 
 # Initialise counters:
@@ -242,6 +246,7 @@ while t < T - 0.5 * dt:
     V = TensorFunctionSpace(mesh, 'CG', 1)
     H = construct_hessian(mesh, V, significance, method=hess_meth)
     M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=nodes)
+    # metric_gradation(mesh, M)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
@@ -290,6 +295,11 @@ while t < T - 0.5 * dt:
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, eta, time=t)
+            if mat_out:
+                H.rename('Hessian')
+                M.rename('Metric')
+                h_file.write(H, time=t)
+                m_file.write(M, time=t)
     toc2 = clock()
 
     print ''

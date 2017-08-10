@@ -32,9 +32,7 @@ if ntype not in ('lp', 'manual'):
 mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default b): ') or 'b'
 if mtype not in ('s', 'f', 'b'):
     raise ValueError('Please try again, choosing s, f or b.')
-mat_out = raw_input('Output Hessian and metric? (y/n, default n): ') or 'n'
-if mat_out not in ('y', 'n'):
-    raise ValueError('Please try again, choosing y or n.')
+mat_out = bool(raw_input('Hit any key to output Hessian and metric')) or False
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
@@ -75,8 +73,9 @@ eta.rename('Free surface displacement')
 # Initialise files:
 q_file = File('plots/anisotropic_outputs/SW_test.pvd')
 q_file.write(u, eta, time=0)
-m_file = File('plots/anisotropic_outputs/SW_test_metric.pvd')
-h_file = File('plots/anisotropic_outputs/SW_test_hessian.pvd')
+if mat_out:
+    m_file = File('plots/anisotropic_outputs/SW_test_metric.pvd')
+    h_file = File('plots/anisotropic_outputs/SW_test_hessian.pvd')
 
 # Initialise counters:
 t = 0.
@@ -95,24 +94,15 @@ while t < T - 0.5 * dt:
         spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
         spd.interpolate(sqrt(dot(u, u)))
         H = construct_hessian(mesh, V, spd, method=hess_meth)
-        if mat_out == 'y':
-            H.rename('Hessian')
-            h_file.write(H, time=t)
         M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
     if mtype != 's':
         H = construct_hessian(mesh, V, eta, method=hess_meth)
-        if (mtype != 'b') & (mat_out == 'y'):
-            H.rename('Hessian')
-            h_file.write(H, time=t)
         M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
         if mtype == 'b':
             M = metric_intersection(mesh, V, M, M2)
         else:
             M = Function(V)
             M.assign(M2)
-    if mat_out == 'y':
-        M.rename('Metric field')
-        m_file.write(M, time=t)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
 
@@ -161,6 +151,11 @@ while t < T - 0.5 * dt:
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, eta, time=t)
+            if mat_out:
+                H.rename('Hessian')
+                M.rename('Metric')
+                h_file.write(H, time=t)
+                m_file.write(M, time=t)
     toc2 = clock()
 
     # Print to screen:

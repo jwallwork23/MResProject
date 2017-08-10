@@ -30,9 +30,7 @@ hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100) * 
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-mat_out = raw_input('Output Hessian and metric? (y/n, default n): ') or 'n'
-if mat_out not in ('y', 'n'):
-    raise ValueError('Please try again, choosing y or n.')
+mat_out = bool(raw_input('Hit any key to output Hessian and metric')) or False
 hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2): ') or 'dL2'
 if hess_meth not in ('parts', 'dL2'):
     raise ValueError('Please try again, choosing parts or dL2.')
@@ -189,8 +187,9 @@ eta.rename('Free surface displacement')
 q_file = File('plots/goal-based_outputs/test_forward.pvd')
 q_file.write(u, eta, time=0)
 sig_file = File('plots/goal-based_outputs/test_significance.pvd')
-m_file = File('plots/goal-based_outputs/SW_test_metric.pvd')
-h_file = File('plots/goal-based_outputs/SW_test_hessian.pvd')
+if mat_out:
+    m_file = File('plots/goal-based_outputs/SW_test_metric.pvd')
+    h_file = File('plots/goal-based_outputs/SW_test_hessian.pvd')
 
 # Initialise counters:
 t = 0.
@@ -299,10 +298,11 @@ while t < T - 0.5 * dt:
         if dumpn == ndump:
             dumpn -= ndump
             q_file.write(u, eta, time=t)
-            H.rename('Hessian')
-            M.rename('Metric')
-            h_file.write(H, time=t)
-            m_file.write(M, time=t)
+            if mat_out:
+                H.rename('Hessian')
+                M.rename('Metric')
+                h_file.write(H, time=t)
+                m_file.write(M, time=t)
 
 toc1 = clock()
 print 'Elapsed time for adaptive solver: %1.1f minutes' % ((toc1 - tic1) / 60.)

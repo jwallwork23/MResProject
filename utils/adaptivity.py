@@ -195,10 +195,10 @@ def metric_gradation(mesh, metric):
     # Establish arrays for storage:
     v12 = np.zeros(2)
     v21 = np.zeros(2)
-    met1 = np.zeros((3, 3))                 # We need only work with the upper triangular part
-    met2 = np.zeros((3, 3))
-    grownMet1 = np.zeros((3, 3))
-    grownMet2 = np.zeros((3, 3))
+    met1 = np.zeros((2, 2))                 # TODO: work only with the upper triangular part for speed
+    met2 = np.zeros((2, 2))
+    grownMet1 = np.zeros((2, 2))
+    grownMet2 = np.zeros((2, 2))
     M = metric.dat.data
 
     # Create a list of tags for vertices:
@@ -221,12 +221,14 @@ def metric_gradation(mesh, metric):
                 continue
 
             # Assemble local metrics:
-            met1[0] = M[iVer1][0, 0]
-            met1[1] = M[iVer1][0, 1]
-            met1[2] = M[iVer1][1, 1]
-            met2[0] = M[iVer2][0, 0]
-            met2[1] = M[iVer2][0, 1]
-            met2[2] = M[iVer2][1, 1]
+            met1[0, 0] = M[iVer1][0, 0]
+            met1[0, 1] = M[iVer1][0, 1]
+            met1[1, 0] = M[iVer1][1, 0]
+            met1[1, 1] = M[iVer1][1, 1]
+            met2[0, 0] = M[iVer2][0, 0]
+            met2[0, 1] = M[iVer2][0, 1]
+            met2[1, 0] = M[iVer2][1, 0]
+            met2[1, 1] = M[iVer2][1, 1]
 
             # Calculate edge lengths and scale factor:
             v12[0] = xy[iVer2][0] - xy[iVer1][0]
@@ -238,31 +240,35 @@ def metric_gradation(mesh, metric):
             eta2_12 = 1. / pow(1 + edgLen1 * ln_beta, 2)
             eta2_21 = 1. / pow(1 + edgLen2 * ln_beta, 2)
 
-            for j in range(3):
-                grownMet1[j] = eta2_12 * met1[j]
-                grownMet2[j] = eta2_21 * met2[j]
+            for j in range(2):
+                for k in range(2):
+                    grownMet1[j, k] = eta2_12 * met1[j, k]
+                    grownMet2[j, k] = eta2_21 * met2[j, k]
 
             metNew1 = local_metric_intersection(met1, grownMet2)
             metNew2 = local_metric_intersection(met2, grownMet1)
 
-            diff = np.abs(met1[0] - metNew1[0]) + np.abs(met1[1] - metNew1[1]) + np.abs(met1[2] - metNew1[2])
-            diff /= (np.abs(met1[0]) + np.abs(met1[1]) + np.abs(met1[2]))
+            diff = np.abs(met1[0, 0] - metNew1[0, 0]) + np.abs(met1[0, 1] - metNew1[0, 1]) \
+                   + np.abs(met1[1, 1] - metNew1[1, 1])
+            diff /= (np.abs(met1[0, 0]) + np.abs(met1[0, 1]) + np.abs(met1[1, 1]))
 
             if diff > 1e-3:
-                M[iVer1][0, 0] = metNew1[0]
-                M[iVer1][0, 1] = metNew1[1]
-                M[iVer1][1, 0] = metNew1[1]
-                M[iVer1][1, 1] = metNew1[2]
+                M[iVer1][0, 0] = metNew1[0, 0]
+                M[iVer1][0, 1] = metNew1[0, 1]
+                M[iVer1][1, 0] = metNew1[1, 0]
+                M[iVer1][1, 1] = metNew1[1, 1]
                 verTag[iVer1] = i + 1
                 correction = True
 
-            diff = np.abs(met2[0] - metNew2[0]) + np.abs(met2[1] - metNew2[1]) + np.abs(met2[2] - metNew2[2])
-            diff /= (np.abs(met2[0]) + np.abs(met2[1]) + np.abs(met2[2]))
+            diff = np.abs(met2[0, 0] - metNew2[0, 0]) + np.abs(met2[0, 1] - metNew2[0, 1]) \
+                   + np.abs(met2[1, 1] - metNew2[1, 1])
+            diff /= (np.abs(met2[0, 0]) + np.abs(met2[0, 1]) + np.abs(met2[1, 1]))
+
             if diff > 1e-3:
-                M[iVer2][0, 0] = metNew2[0]
-                M[iVer2][0, 1] = metNew2[1]
-                M[iVer2][1, 0] = metNew2[1]
-                M[iVer2][1, 1] = metNew2[2]
+                M[iVer2][0, 0] = metNew2[0, 0]
+                M[iVer2][0, 1] = metNew2[0, 1]
+                M[iVer2][1, 0] = metNew2[1, 0]
+                M[iVer2][1, 1] = metNew2[1, 1]
                 verTag[iVer2] = i + 1
                 correction = True
 

@@ -1,25 +1,10 @@
 import numpy as np
+import scipy.interpolate as si
 
 # Change backend to resolve framework problems:
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-
-
-def gauge_timeseries(gauge, dat):
-    """
-    Store timeseries data for a particular gauge.
-    
-    :param gauge: gauge name string, from the set {'P02', 'P06', '801', '802', '803', '804', '806'}.
-    :param dat: a list of data values of this gauge.
-    :return: a file containing the timeseries data.
-    """
-
-    name = raw_input('Enter a name for this time series (e.g. xcoarse): ')
-    outfile = open('timeseries/{y1}_{y2}.txt'.format(y1=gauge, y2=name), 'w+')
-    for i in range(len(dat)):
-        outfile.write(str(dat[i]) + '\n')
-    outfile.close()
 
 
 def csv2table(gauge, setup):
@@ -45,95 +30,128 @@ def csv2table(gauge, setup):
     return x, y
 
 
-def plot_gauges(gauge, prob='comparison', log='n'):
+def gauge_timeseries(gauge, dat):
+    """
+    Store timeseries data for a particular gauge.
+    
+    :param gauge: gauge name string, from the set {'P02', 'P06', '801', '802', '803', '804', '806'}.
+    :param dat: a list of data values of this gauge.
+    :return: a file containing the timeseries data.
+    """
+
+    name = raw_input('Enter a name for this time series (e.g. xcoarse): ')
+    outfile = open('timeseries/{y1}_{y2}.txt'.format(y1=gauge, y2=name), 'w+')
+    for i in range(len(dat)):
+        outfile.write(str(dat[i]) + '\n')
+    outfile.close()
+
+
+def plot_gauges(gauge, prob='comparison', log=False, error=False):
     """
     Plot timeseries data on a single axis.
     
     :param gauge: gauge name string, from the set {'P02', 'P06', '801', '802', '803', '804', '806'}.
     :param prob: problem type name string, corresponding to either 'verification' or 'comparison'.
     :param log: specify whether or not to use a logarithmic scale on the y-axis.
+    :param error: make an error plot.
     :return: a matplotlib plot of the corresponding gauge timeseries data.
     """
+    x = []
+    y = []
+    measuredfile = open('timeseries/{y}_measured_dat_25mins.txt'.format(y=gauge), 'r')
+    for line in measuredfile:
+        xy = line.split()
+        x.append(float(xy[0]))
+        y.append(float(xy[1]))
+    m = si.interp1d(x, y, kind=2)
 
     if prob== 'comparison':
-        setup = {0: 'measured_25mins',
-                 1: 'xcoarse_25mins',                       # Fixed with 3,126 vertices
+        setup = {1: 'xcoarse_25mins',                       # Fixed with 3,126 vertices
                  2: 'medium_25mins',                        # Fixed with 25,976 vertices
                  3: 'fine_25mins',                          # Fixed with 97,343 vertices
                  4: 'anisotropic_point85scaled_rm=30',      # 'Simple adaptive': numVer = 0.85, rm=30, N1=3126
                  5: 'goal-based_res4_fifthscaled'}          # Goal-based adaptive: numVer = 0.2, rm=60, N1=7194
-        labels = {0: 'Gauge measurement',
-                  1: 'Mesh approach (i)',
+        labels = {1: 'Mesh approach (i)',
                   2: 'Mesh approach (ii)',
                   3: 'Mesh approach (iii)',
                   4: 'Mesh approach (iv)',
                   5: 'Mesh approach (v)'}
     else:
-        setup = {0: 'measured',
-                 1: 'fine',
+        setup = {1: 'fine',
                  2: 'fine_rotational',
                  3: 'fine_nonlinear',
                  4: 'fine_nonlinear_rotational'}
-        labels = {0: 'Gauge measurement',
-                  1: 'Linear, non-rotational equations',
+        labels = {1: 'Linear, non-rotational equations',
                   2: 'Linear, rotational equations',
                   3: 'Nonlinear, non-rotational equations',
                   4: 'Nonlinear, rotational equations'}
-    styles = {0: '-', 1: ':', 2: '--', 3: '-.', 4: '-', 5: '--'}
+    styles = {1: ':', 2: '--', 3: '-.', 4: '-', 5: '--'}
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
     plt.rc('legend', fontsize='x-large')
     plt.clf()
 
-    # Loop over mesh resolutions:
-    for key in range(len(setup)):
+    x = np.linspace(0, 25, num=1501)
+    if not error:
+        if log:
+            plt.semilogy(x, m(x), label='Measured', linestyle='-')
+        else:
+            plt.plot(x, m(x), label='Measured', linestyle='-')
+    for key in setup:
         val = []
         i = 0
         v0 = 0
-        try:
-            infile = open('timeseries/{y1}_{y2}.txt'.format(y1=gauge, y2=setup[key]), 'r')
-            for line in infile:
-                if i == 0:
-                    i += 1
+        infile = open('timeseries/{y1}_{y2}.txt'.format(y1=gauge, y2=setup[key]), 'r')
+        for line in infile:
+            if i == 0:
+                if error:
+                    v0 = float(line) - float(m(x[i]))
+                else:
                     v0 = float(line)
+            if error:
+                val.append(float(line) - v0 - float(m(x[i])))
+            else:
                 val.append(float(line) - v0)
-            infile.close()
-            if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational', 'anisotropic_point85scaled_rm=30',
-                              'xcoarse_25mins', 'medium_25mins', 'fine_25mins', 'measured_25mins' 'goal-based',
-                              'goal-based_res4_halfscaled', 'goal-based_res4_quarterscaled',
-                              'goal-based_res4_fifthscaled'):
-                if log == 'n':
-                    plt.plot(np.linspace(0, 25, len(val)), val, label=labels[key], linestyle=styles[key])
-                else:
-                    plt.semilogy(np.linspace(0, 25, len(val)), val, label=labels[key], linestyle=styles[key])
-            else:
-                if log == 'n':
-                    plt.plot(np.linspace(0, 60, len(val)), val, label=labels[key], linestyle=styles[key])
-                else:
-                    plt.semilogy(np.linspace(0, 60, len(val)), val, label=labels[key], linestyle=styles[key])
+            i += 1
+        infile.close()
 
-            if prob == 'comparison':
-                plt.xlim([0, 25])
-            else:
-                plt.xlim([0, 60])
-        except:
-            x, y = csv2table(gauge, setup[key])
-            plt.plot(x, y, label=labels[key], linestyle=styles[key])
+        # Deal with special cases:
+        if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational',
+                          'xcoarse_25mins', 'medium_25mins', 'fine_25mins',
+                          'anisotropic_point85scaled_rm=30', 'goal-based_res4_fifthscaled'):
+            T = 25
+        else:
+            T = 60
+        if log:
+            plt.semilogy(np.linspace(0, T, len(val)), val, label=labels[key], linestyle=styles[key])
+        else:
+            plt.plot(np.linspace(0, T, len(val)), val, label=labels[key], linestyle=styles[key])
+
+        if prob == 'comparison':
+            plt.xlim([0, 25])
+        else:
+            plt.xlim([0, 60])
     plt.gcf()
     if prob == 'comparison':
         plt.legend(bbox_to_anchor=(1.13, 1.1), loc=1, facecolor='white')  # 'upper right' == 1 and 'lower right' == 4
     else:
         plt.legend(bbox_to_anchor=(1.1, 1), loc=1, facecolor='white')
-    if gauge == 'P02':
+    if log:
+        plt.ylim((10 ** -1, 10 ** 1))
+    elif gauge == 'P02':
         plt.ylim([-2, 5])
     else:
         plt.ylim([-1, 5])
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
-    if log == 'n':
-        plt.savefig('plots/tsunami_outputs/screenshots/full_gauge_timeseries_{y1}_{y2}.pdf'.format(y1=gauge, y2=prob),
-                    bbox_inches='tight')
+
+    # Set filename and save:
+    filename = 'plots/tsunami_outputs/screenshots/'
+    if log:
+        filename += 'log'
     else:
-        plt.ylim((10 ** -1, 10 ** 1))
-        plt.savefig('plots/tsunami_outputs/screenshots/log_gauge_timeseries_{y1}_{y2}.pdf'.format(y1=gauge, y2=prob),
-                    bbox_inches='tight')
+        filename += 'full'
+    filename += '_gauge_timeseries_{y1}_{y2}'.format(y1=gauge, y2=prob)
+    if error:
+        filename += '_error'
+    plt.savefig(filename + 'TEST.pdf', bbox_inches='tight')

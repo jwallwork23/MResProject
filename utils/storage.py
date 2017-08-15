@@ -65,7 +65,7 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
         y.append(float(xy[1]))
     m = si.interp1d(x, y, kind=2)
 
-    if prob== 'comparison':
+    if prob == 'comparison':
         setup = {1: 'xcoarse_25mins',                       # Fixed with 3,126 vertices
                  2: 'medium_25mins',                        # Fixed with 25,976 vertices
                  3: 'fine_25mins',                          # Fixed with 97,343 vertices
@@ -109,9 +109,9 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
                 else:
                     v0 = float(line)
             if error:
-                val.append(float(line) - v0 - float(m(x[i])))
+                val.append(np.abs(float(line) - v0 - float(m(x[i]))))
             else:
-                val.append(float(line) - v0)
+                val.append(np.abs(float(line) - v0))
             i += 1
         infile.close()
 
@@ -132,16 +132,25 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
         else:
             plt.xlim([0, 60])
     plt.gcf()
-    if prob == 'comparison':
-        plt.legend(bbox_to_anchor=(1.13, 1.1), loc=1, facecolor='white')  # 'upper right' == 1 and 'lower right' == 4
+    if error:
+        plt.legend(loc=2, facecolor='white') # 'upper right' == 1 and anticlockwise
     else:
-        plt.legend(bbox_to_anchor=(1.1, 1), loc=1, facecolor='white')
+        if prob == 'comparison':
+            plt.legend(bbox_to_anchor=(1.13, 1.1), loc=1, facecolor='white')
+        else:
+            plt.legend(bbox_to_anchor=(1.1, 1), loc=1, facecolor='white')
     if log:
-        plt.ylim((10 ** -1, 10 ** 1))
+        plt.ylim([10 ** -3, 10 ** 2])
     elif gauge == 'P02':
-        plt.ylim([-2, 5])
+        if error:
+            plt.ylim([0, 1])
+        else:
+            plt.ylim([-2, 5])
     else:
-        plt.ylim([-1, 5])
+        if error:
+            plt.ylim([0, 1])
+        else:
+            plt.ylim([-1, 5])
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
 

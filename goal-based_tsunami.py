@@ -100,9 +100,11 @@ coeff = Constant(1.)
 switch = True
 
 if not stored:
-    # Establish indicator function for adjoint equations:       TODO: smoothen f in space
+    # Establish smoothened indicator function for adjoint equations:
     f = Function(W.sub(1), name='Forcing term')
-    f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 640e3) & (x[1] > 4160e3) & (x[1] < 4360e3) ? 1. : 0.'))
+    f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 640e3) & (x[1] > 4160e3) & (x[1] < 4360e3) ? ' + \
+                             'exp(1. / (pow(x[0] - 565e3, 2) - pow(75e3, 2))) * ' + \
+                             'exp(1. / (pow(x[1] - 4260e3, 2) - pow(100e3, 2))) : 0.'))
 
     # Set up dependent variables of the adjoint problem:
     lam = Function(W)

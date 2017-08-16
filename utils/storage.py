@@ -56,15 +56,6 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
     :param error: make an error plot.
     :return: a matplotlib plot of the corresponding gauge timeseries data.
     """
-    x = []
-    y = []
-    measuredfile = open('timeseries/{y}_measured_dat_25mins.txt'.format(y=gauge), 'r')
-    for line in measuredfile:
-        xy = line.split()
-        x.append(float(xy[0]))
-        y.append(float(xy[1]))
-    m = si.interp1d(x, y, kind=1)                           # Linear interpolation, as in data
-
     if prob == 'comparison':
         setup = {1: 'xcoarse_25mins',                       # Fixed with 3,126 vertices
                  2: 'medium_25mins',                        # Fixed with 25,976 vertices
@@ -76,6 +67,8 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
                   3: 'Mesh approach (iii)',
                   4: 'Mesh approach (iv)',
                   5: 'Mesh approach (v)'}
+        measuredfile = open('timeseries/{y}_measured_dat_25mins.txt'.format(y=gauge), 'r')
+        p = np.linspace(0, 25, num=1501)
     else:
         setup = {1: 'fine',
                  2: 'fine_rotational',
@@ -85,18 +78,29 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
                   2: 'Linear, rotational equations',
                   3: 'Nonlinear, non-rotational equations',
                   4: 'Nonlinear, rotational equations'}
+        measuredfile = open('timeseries/{y}_measured_dat.txt'.format(y=gauge), 'r')
+        p = np.linspace(0, 60, num=3601)
     styles = {1: ':', 2: '--', 3: '-.', 4: '-', 5: '--'}
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
     plt.rc('legend', fontsize='x-large')
     plt.clf()
 
-    x = np.linspace(0, 25, num=1501)
+    # Interpolate data from the inversion analysis and plot:
+    x = []
+    y = []
+    for line in measuredfile:
+        xy = line.split()
+        x.append(float(xy[0]))
+        y.append(float(xy[1]))
+    m = si.interp1d(x, y, kind=1)
     if not error:
         if log:
-            plt.semilogy(x, m(x), label='Gauge measurement', linestyle='-')
+            plt.semilogy(p, m(p), label='Gauge measurement', linestyle='-')
         else:
-            plt.plot(x, m(x), label='Gauge measurement', linestyle='-')
+            plt.plot(p, m(p), label='Gauge measurement', linestyle='-')
+
+    # Plot simulations and calculate error norms:
     for key in setup:
         val = []
         i = 0
@@ -177,4 +181,4 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
     filename += '_gauge_timeseries_{y1}_{y2}'.format(y1=gauge, y2=prob)
     if error:
         filename += '_error'
-    plt.savefig(filename + '.pdf', bbox_inches='tight')
+    plt.savefig(filename + 'TEST.pdf', bbox_inches='tight')

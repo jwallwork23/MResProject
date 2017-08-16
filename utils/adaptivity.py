@@ -213,6 +213,7 @@ def metric_gradation(mesh, metric):
         i += 1
         correction = False
 
+        # Loop over edges of mesh:
         for e in range(eStart, eEnd):
             cone = plex.getCone(e)          # Get vertices associated with edge e
             iVer1 = cone[0] - vStart        # Number in list of vertex 1
@@ -241,35 +242,37 @@ def metric_gradation(mesh, metric):
             eta2_12 = 1. / pow(1 + edgLen1 * ln_beta, 2)
             eta2_21 = 1. / pow(1 + edgLen2 * ln_beta, 2)
 
+            # Scale metric to get 'grown' metric:
             for j in range(2):
                 for k in range(2):
                     grownMet1[j, k] = eta2_12 * met1[j, k]
                     grownMet2[j, k] = eta2_21 * met2[j, k]
 
-            metNew1 = local_metric_intersection(met1, grownMet2)
-            metNew2 = local_metric_intersection(met2, grownMet1)
+            # Intersect metric with grown metric to get reduced metric:
+            red1 = local_metric_intersection(met1, grownMet2)
+            red2 = local_metric_intersection(met2, grownMet1)
 
-            diff = np.abs(met1[0, 0] - metNew1[0, 0]) + np.abs(met1[0, 1] - metNew1[0, 1]) \
-                   + np.abs(met1[1, 1] - metNew1[1, 1])
+            # Calculate difference in order to ascertain whether the metric is modified:
+            diff = np.abs(met1[0, 0] - red1[0, 0]) + np.abs(met1[0, 1] - red1[0, 1]) \
+                   + np.abs(met1[1, 1] - red1[1, 1])
             diff /= (np.abs(met1[0, 0]) + np.abs(met1[0, 1]) + np.abs(met1[1, 1]))
-
             if diff > 1e-3:
-                M[iVer1][0, 0] = metNew1[0, 0]
-                M[iVer1][0, 1] = metNew1[0, 1]
-                M[iVer1][1, 0] = metNew1[1, 0]
-                M[iVer1][1, 1] = metNew1[1, 1]
+                M[iVer1][0, 0] = red1[0, 0]
+                M[iVer1][0, 1] = red1[0, 1]
+                M[iVer1][1, 0] = red1[1, 0]
+                M[iVer1][1, 1] = red1[1, 1]
                 verTag[iVer1] = i + 1
                 correction = True
 
-            diff = np.abs(met2[0, 0] - metNew2[0, 0]) + np.abs(met2[0, 1] - metNew2[0, 1]) \
-                   + np.abs(met2[1, 1] - metNew2[1, 1])
+            # Repeat above process:
+            diff = np.abs(met2[0, 0] - red2[0, 0]) + np.abs(met2[0, 1] - red2[0, 1]) \
+                   + np.abs(met2[1, 1] - red2[1, 1])
             diff /= (np.abs(met2[0, 0]) + np.abs(met2[0, 1]) + np.abs(met2[1, 1]))
-
             if diff > 1e-3:
-                M[iVer2][0, 0] = metNew2[0, 0]
-                M[iVer2][0, 1] = metNew2[0, 1]
-                M[iVer2][1, 0] = metNew2[1, 0]
-                M[iVer2][1, 1] = metNew2[1, 1]
+                M[iVer2][0, 0] = red2[0, 0]
+                M[iVer2][0, 1] = red2[0, 1]
+                M[iVer2][1, 0] = red2[1, 0]
+                M[iVer2][1, 1] = red2[1, 1]
                 verTag[iVer2] = i + 1
                 correction = True
 

@@ -63,7 +63,7 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
         xy = line.split()
         x.append(float(xy[0]))
         y.append(float(xy[1]))
-    m = si.interp1d(x, y, kind=2)
+    m = si.interp1d(x, y, kind=1)                           # Linear interpolation, as in data
 
     if prob == 'comparison':
         setup = {1: 'xcoarse_25mins',                       # Fixed with 3,126 vertices
@@ -94,13 +94,16 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
     x = np.linspace(0, 25, num=1501)
     if not error:
         if log:
-            plt.semilogy(x, m(x), label='Measured', linestyle='-')
+            plt.semilogy(x, m(x), label='Gauge measurement', linestyle='-')
         else:
-            plt.plot(x, m(x), label='Measured', linestyle='-')
+            plt.plot(x, m(x), label='Gauge measurement', linestyle='-')
     for key in setup:
         val = []
         i = 0
         v0 = 0
+        L1 = 0
+        L2 = 0
+        Linf = 0
         infile = open('timeseries/{y1}_{y2}.txt'.format(y1=gauge, y2=setup[key]), 'r')
         for line in infile:
             if i == 0:
@@ -110,10 +113,21 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
                     v0 = float(line)
             if error:
                 val.append(np.abs(float(line) - v0 - float(m(x[i]))))
+                L1 += val[-1]
+                L2 += val[-1] ** 2
+                if val[-1] > Linf:
+                    Linf = val[-1]
             else:
-                val.append(np.abs(float(line) - v0))
+                val.append(float(line) - v0)
             i += 1
         infile.close()
+
+        # Print norm values to screen:
+        if error:
+            print ''
+            print 'L1 norm for ', setup[key], ' : ', L1 / 1501
+            print 'L2 norm for ', setup[key], ' : ', np.sqrt(L2 / 1501)
+            print 'Linf norm for ', setup[key], ' : ', Linf
 
         # Deal with special cases:
         if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational',
@@ -163,4 +177,4 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
     filename += '_gauge_timeseries_{y1}_{y2}'.format(y1=gauge, y2=prob)
     if error:
         filename += '_error'
-    plt.savefig(filename + 'TEST.pdf', bbox_inches='tight')
+    plt.savefig(filename + '.pdf', bbox_inches='tight')

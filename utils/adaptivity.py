@@ -274,7 +274,7 @@ def metric_gradation(mesh, metric, beta=1.4, isotropic=False):
     metric.dat.data[:] = M
 
 
-def metric_intersection(mesh, V, M1, M2):
+def metric_intersection(mesh, V, M1, M2, bdy=False):
     """
     Intersect two metric fields.
     
@@ -282,10 +282,16 @@ def metric_intersection(mesh, V, M1, M2):
     :param V: TensorFunctionSpace defined on ``mesh``.
     :param M1: first metric to be intersected.
     :param M2: second metric to be intersected.
+    :param bdy: when True, intersection with M2 only contributes on the domain boundary.
     :return: intersection of metrics M1 and M2.
     """
     M12 = Function(V)
-    for i in range(mesh.topology.num_vertices()):
+    M12.assign(M1)
+    if bdy:
+        indexSet = DirichletBC(V, 0, 'on_boundary').nodes
+    else:
+        indexSet = range(mesh.topology.num_vertices())
+    for i in indexSet:
         M = M1.dat.data[i]
         iM = la.inv(M)
         Mbar = np.transpose(sla.sqrtm(iM)) * M2.dat.data[i] * sla.sqrtm(iM)

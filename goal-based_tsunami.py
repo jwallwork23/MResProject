@@ -266,6 +266,8 @@ while t < T - 0.5 * dt:
         H = construct_hessian(mesh, V, significance, method=hess_meth)
     M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
 
+    # TODO: intersect with initial mesh at boundaries
+
     # Gradate metric to account for boundary issues, adapt mesh and interpolate variables:
     metric_gradation(mesh, M, beta)
     adaptor = AnisotropicAdaptation(mesh, M)

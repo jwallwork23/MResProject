@@ -202,6 +202,15 @@ t = 0.
 dumpn = 0
 mn = 0
 
+# Get isotropic metric at boundaries of initial mesh:
+h = Function(W.sub(1))
+h.interpolate(CellSize(mesh_))
+M_ = Function(TensorFunctionSpace(mesh_, 'CG', 1))
+for i in DirichletBC(W, 0, 'on_boundary').nodes:
+    h2 = pow(h.dat.data[i], 2)
+    M_.dat.data[i][0, 0] = 1. / h2
+    M_.dat.data[i][1, 1] = 1. / h2
+
 print ''
 print 'Starting mesh adaptive forward run...'
 while t < T - 0.5 * dt:

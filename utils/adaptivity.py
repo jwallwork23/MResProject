@@ -301,6 +301,7 @@ def metric_intersection(mesh, V, M1, M2, bdy=False):
 
     return M12
 
+
 def symmetric_product(A, b):
     """
     :param A: symmetric, 2x2 matrix.

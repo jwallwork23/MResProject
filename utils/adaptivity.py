@@ -235,17 +235,23 @@ def metric_gradation(mesh, metric, beta=1.4, isotropic=False):
             eta2_12 = 1. / pow(1 + edgLen1 * ln_beta, 2)
             eta2_21 = 1. / pow(1 + edgLen2 * ln_beta, 2)
 
-            # Scale metric to get 'grown' metric:
-            for j in range(2):
-                for k in range(2):
-                    grownMet1[j, k] = eta2_12 * met1[j, k]
-                    grownMet2[j, k] = eta2_21 * met2[j, k]
+            # TODO: check isotropic implementation
 
-            # TODO: implement metric gradation in isotropic case
+            if isotropic:
+                for j in range(2):
+                    for k in range(2):
+                        redMet1[j, k] = eta2_12 * met2[j, k]
+                        redMet2[j, k] = eta2_21 * met1[j, k]
+            else:
+                # Scale metric to get 'grown' metric:
+                for j in range(2):
+                    for k in range(2):
+                        grownMet1[j, k] = eta2_12 * met1[j, k]
+                        grownMet2[j, k] = eta2_21 * met2[j, k]
 
-            # Intersect metric with grown metric to get reduced metric:
-            redMet1 = local_metric_intersection(met1, grownMet2)
-            redMet2 = local_metric_intersection(met2, grownMet1)
+                # Intersect metric with grown metric to get reduced metric:
+                redMet1 = local_metric_intersection(met1, grownMet2)
+                redMet2 = local_metric_intersection(met2, grownMet1)
 
             # Calculate difference in order to ascertain whether the metric is modified:
             diff = np.abs(met1[0, 0] - redMet1[0, 0]) + np.abs(met1[0, 1] - redMet1[0, 1]) \

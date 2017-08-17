@@ -32,6 +32,7 @@ ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
 beta = float(raw_input('Metric gradation scaling parameter (default 1.4): ') or 1.4)
 iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
+gradbdy = bool(raw_input('Hit anything but enter to gradation to initial boundaries: ')) or False
 if not iso:
     hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 
@@ -203,13 +204,14 @@ dumpn = 0
 mn = 0
 
 # Approximate isotropic metric at boundaries of initial mesh using circumradius:
-h = Function(W.sub(1))
-h.interpolate(CellSize(mesh_))
-M_ = Function(TensorFunctionSpace(mesh_, 'CG', 1))
-for j in DirichletBC(W.sub(1), 0, 'on_boundary').nodes:
-    h2 = pow(h.dat.data[j], 2)
-    M_.dat.data[j][0, 0] = 1. / h2
-    M_.dat.data[j][1, 1] = 1. / h2
+if gradbdy:
+    h = Function(W.sub(1))
+    h.interpolate(CellSize(mesh_))
+    M_ = Function(TensorFunctionSpace(mesh_, 'CG', 1))
+    for j in DirichletBC(W.sub(1), 0, 'on_boundary').nodes:
+        h2 = pow(h.dat.data[j], 2)
+        M_.dat.data[j][0, 0] = 1. / h2
+        M_.dat.data[j][1, 1] = 1. / h2
 
 print ''
 print 'Starting mesh adaptive forward run...'
@@ -267,19 +269,20 @@ while t < T - 0.5 * dt:
         H = construct_hessian(mesh, V, significance, method=hess_meth)
     M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
 
-    # Interpolate initial mesh size onto new mesh and build associated metric:
-    fields = interp(mesh, h)
-    W1 = FunctionSpace(mesh, 'CG', 1)
-    h = Function(W1)
-    h.dat.data[:] = fields[0].dat.data[:]
-    M_ = Function(V)
-    for j in DirichletBC(W1, 0, 'on_boundary').nodes:
-        h2 = pow(h.dat.data[j], 2)
-        M_.dat.data[j][0, 0] = 1. / h2
-        M_.dat.data[j][1, 1] = 1. / h2
+    if gradbdy:
+        # Interpolate initial mesh size onto new mesh and build associated metric:
+        fields = interp(mesh, h)
+        W1 = FunctionSpace(mesh, 'CG', 1)
+        h = Function(W1)
+        h.dat.data[:] = fields[0].dat.data[:]
+        M_ = Function(V)
+        for j in DirichletBC(W1, 0, 'on_boundary').nodes:
+            h2 = pow(h.dat.data[j], 2)
+            M_.dat.data[j][0, 0] = 1. / h2
+            M_.dat.data[j][1, 1] = 1. / h2
 
     # Gradate metric, adapt mesh and interpolate variables:
-    M = metric_intersection(mesh, V, M, M_, bdy=True)
+        M = metric_intersection(mesh, V, M, M_, bdy=True)
     metric_gradation(mesh, M, beta)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh

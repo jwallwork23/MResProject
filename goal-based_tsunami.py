@@ -284,6 +284,7 @@ while t < T - 0.5 * dt:
     for j in DirichletBC(W1, 0, 'on_boundary').nodes:
         h2 = pow(h.dat.data[j], 2)
         M_.dat.data[j][0, 0] = 1. / h2
+        M_.dat.data[j][1, 1] = 1. / h2
 
     # Gradate metric, adapt mesh and interpolate variables:
     M = metric_intersection(mesh, V, M, M_, bdy=True)

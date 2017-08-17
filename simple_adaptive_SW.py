@@ -25,8 +25,8 @@ print ''
 print 'Options...'
 bathy = raw_input('Flat bathymetry or shelf break (f/s, default s)?: ') or 's'
 numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.2): ') or 0.2) * N1
-hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
-hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
+hmin = float(raw_input('Minimum element size in mm (default 1)?: ') or 1.) * 1e-3
+hmax = float(raw_input('Maximum element size in mm (default 1000)?: ') or 1000.) * 1e-3
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
 mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default b): ') or 'b'
 if mtype not in ('s', 'f', 'b'):

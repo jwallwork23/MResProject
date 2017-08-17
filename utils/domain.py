@@ -50,7 +50,7 @@ def square_domain(n):
     :param n: number of elements per metre.
     :return: associated mesh, mixed function space forward and adjoint variables and bathymetry field.
     """
-    
+
     lx = 4                                      # Extent in x- and y-directions (m)
     mesh = SquareMesh(lx * n, lx * n, lx, lx)
     depth = 0.1                                 # Water depth for flat bathymetry case (m)

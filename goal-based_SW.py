@@ -2,7 +2,7 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils.adaptivity import compute_steady_metric, construct_hessian
+from utils.adaptivity import compute_steady_metric, construct_hessian, metric_gradation
 from utils.interp import interp, interp_Taylor_Hood
 
 print ''
@@ -25,11 +25,12 @@ print '...... mesh loaded. Initial number of vertices : ', N1
 print ''
 print 'Options...'
 bathy = raw_input('Flat bathymetry or shelf break (f/s, default s?): ') or 's'
-numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.25): ') or 0.25) * N1
-hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
-hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100) * 1e-3
+numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.1): ') or 0.1) * N1
+hmin = float(raw_input('Minimum element size in mm (default 1)?: ') or 1.) * 1e-3
+hmax = float(raw_input('Maximum element size in mm (default 1000)?: ') or 1000) * 1e-3
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
+beta = float(raw_input('Metric gradation scaling parameter (default 1.4): ') or 1.4)
 iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
 if not iso:
     hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
@@ -258,6 +259,7 @@ while t < T - 0.5 * dt:
     M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
 
     # Adapt mesh and interpolate variables:
+    metric_gradation(mesh, M, beta)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)

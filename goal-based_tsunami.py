@@ -37,6 +37,7 @@ hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 
 hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
+beta = float(raw_input('Metric gradation scaling parameter (default 1.4): ') or 1.4)
 iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
 if not iso:
     hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
@@ -266,7 +267,7 @@ while t < T - 0.5 * dt:
     M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
 
     # Gradate metric to account for boundary issues, adapt mesh and interpolate variables:
-    metric_gradation(mesh, M)
+    metric_gradation(mesh, M, beta)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)

@@ -174,19 +174,17 @@ def local_metric_intersection(M1, M2):
     return np.transpose(sla.sqrtm(M1)) * M * sla.sqrtm(M1)
 
 
-def metric_gradation(mesh, metric, isotropic=False):
+def metric_gradation(mesh, metric, beta=1.4, isotropic=False):
     """
     Perform anisotropic metric gradation in the method described in Alauzet 2010, using linear interpolation. Python
     code based on Nicolas Barral's function ``DMPlexMetricGradation2d_Internal`` in ``plex-metGradation.c``, 2017.
     
     :param mesh: current mesh on which variables are defined.
     :param metric: metric to be gradated.
+    :param beta: scale factor used.
+    :param isotropic: specify whether isotropic or anisotropic mesh adaptivity is being used.
     :return: gradated ``metric``.
     """
-
-    # Specify growth parameter:
-    beta = 1.4
-    ln_beta = np.log(beta)
 
     # Get vertices and edges of mesh:
     plex = mesh._plex
@@ -208,6 +206,7 @@ def metric_gradation(mesh, metric, isotropic=False):
         verTag[v] = 1
     correction = True
     i = 0
+    ln_beta = np.log(beta)
 
     while correction & (i < 500):
         i += 1

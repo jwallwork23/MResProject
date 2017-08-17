@@ -43,81 +43,51 @@ def domain_1d(n):
     return mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b
 
 
-def tank_domain(n, bath='n', waves='n', test2d='n', bcval=None):
+def square_domain(n):
     """
-    Set up a uniform mesh and associated functions for the tank test problem.
+    Set up a mesh, along with function spaces and functions, for a 4m x 4m domain.
     
-    :param n: number of cells per m in x- and y-directions.
-    :param bath: non-trivial bathymetry option.
-    :param waves: 'wave generator' option.
-    :param test2d: large scale option.
-    :param bcval: boundary condition value specification.
-    :return: mesh, mixed function space forward and adjoint variables, bathymetry field and boundary condtions 
-    associated with the 2D tank domain.
+    :param n: number of elements per metre.
+    :return: associated mesh, mixed function space forward and adjoint variables and bathymetry field.
     """
+    
+    lx = 4                                      # Extent in x- and y-directions (m)
+    mesh = SquareMesh(lx * n, lx * n, lx, lx)
+    depth = 0.1                                 # Water depth for flat bathymetry case (m)
 
-    # Define domain and mesh:
-    if test2d == 'n':
-        lx = 4
-        ly = 1
-        nx = int(lx * n)
-        ny = int(ly * n)
-        mesh = RectangleMesh(nx, ny, lx, ly)
-    else:
-        lx = 4e5
-        nx = int(lx * n)
-        mesh = SquareMesh(nx, nx, lx, lx)
-    x = SpatialCoordinate(mesh)
+    # Define mixed Taylor-Hood function space:
+    W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 
-    # Define Taylor-Hood mixed function space:
-    Vq = VectorFunctionSpace(mesh, 'CG', 1) * FunctionSpace(mesh, 'CG', 1)
+    # Repeat above setup:
+    q_ = Function(W)
+    lam_ = Function(W)
+    u_, eta_ = q_.split()
+    lu_, le_ = lam_.split()
 
-    # Construct a function to store our two variables at time n:
-    q_ = Function(Vq)                                                       # Forward solution tuple
-    lam_ = Function(Vq)                                                     # Adjoint solution tuple
-    u_, eta_ = q_.split()                                                   # \ Split means we can interpolate the
-    lu_, le_ = lam_.split()                                                 # / initial condition onto the components
-
-    # Establish bathymetry function:
-    b = Function(Vq.sub(1), name='Bathymetry')
-    if bath == 'y':
-        b.interpolate(0.1 + 0.04 * sin(2 * pi * x[0]) * sin(2 * pi * x[1]))
-        File('plots/screenshots/tank_bathymetry.pvd').write(b)
-    elif test2d == 'n':
-        # Construct a (constant) bathymetry function:
-        b.assign(0.1)                                                       # Tank water depth 10 cm
-    else:
-        b.interpolate(Expression('x[0] <= 50000. ? 200. : 4000.'))          # Shelf break bathymetry
-
-    # Interpolate forward and adjoint initial and boundary conditions:
+    # Interpolate initial conditions:
     u_.interpolate(Expression([0, 0]))
+    eta_.interpolate(1e-3 * exp(- (pow(x - 2., 2) + pow(y - 2., 2)) / 0.04))
     lu_.interpolate(Expression([0, 0]))
-    bcs = []
-    if waves == 'y':
-        eta_.interpolate(Expression(0))
-        bc1 = DirichletBC(Vq.sub(1), bcval, 1)
-        # Apply no-slip BC to eta on the right end of the domain:
-        bc2 = DirichletBC(Vq.sub(1), 0.0, 2)
-        bcs = [bc1, bc2]
-    elif test2d == 'n':
-        eta_.interpolate(-0.01 * cos(0.5 * pi * x[0]))
-    else:                                              # NOTE: higher magnitude wave used due to geometric spreading
-        eta_.interpolate(Expression('(x[0] >= 1e5) & (x[0] <= 1.5e5) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? \
-                                    4 * sin(pi*(x[0]-1e5) * 2e-5) * sin(pi*(x[1]-1.8e5) * 2.5e-5) : 0.'))
-        le_.interpolate(Expression('(x[0] >= 1e4) & (x[0] <= 2.5e4) & (x[1] >= 1.8e5) & (x[1] <= 2.2e5) ? 1. : 0.'))
+    le_.assign(0)
 
-    return mesh, Vq, q_, u_, eta_, lam_, lu_, le_, b, bcs
+    # Interpolate bathymetry:
+    b = Function(W.sub(1), name='Bathymetry')
+    if bathy == 'f':
+        b.interpolate(Expression(depth))
+    else:
+        b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))  # Shelf break bathymetry
+
+    return mesh, W, q_, u_, eta_, lam_, lu_, le_, b
 
 
-def Tohoku_domain(res=3, split='n'):
+def Tohoku_domain(res=3, split=False):
     """
-    Set up a mesh, along with function spaces and functions, for the ocean domain associated
-    for the Tohoku tsunami problem.
+    Set up a mesh, along with function spaces and functions, for the 2D ocean domain associated with the Tohoku tsunami 
+    problem.
     
     :param res: mesh resolution value, ranging from 'extra coarse' (1) to extra fine (5).
     :param split: choose whether to consider the velocity space as vector P2 or as a pair of scalar P2 spaces.
-    :return: mesh, mixed function space forward and adjoint variables and bathymetry field associated with the 2D 
-    ocean domain.
+    :return: associated mesh, mixed function space forward and adjoint variables and bathymetry field. 
     """
 
     # Define mesh and function spaces:
@@ -138,23 +108,7 @@ def Tohoku_domain(res=3, split='n'):
         raise ValueError('Please try again, choosing an integer in the range 1-5.')
     mesh_coords = mesh.coordinates.dat.data
 
-    if split == 'n':
-        # Define Taylor-Hood mixed function space:
-        W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
-
-        # Construct functions to store forward and adjoint variables, along with bathymetry:
-        q_ = Function(W)
-        lam_ = Function(W)
-        u_, eta_ = q_.split()
-        lu_, le_ = lam_.split()
-        eta0 = Function(W.sub(1), name='Initial surface')
-        b = Function(W.sub(1), name='Bathymetry')
-
-        # Specify zero initial fluid velocity:
-        u_.interpolate(Expression([0, 0]))
-        lu_.interpolate(Expression([0, 0]))
-
-    elif split == 'y':
+    if split:
         # Define Taylor-Hood mixed function space:
         W = FunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 
@@ -172,7 +126,21 @@ def Tohoku_domain(res=3, split='n'):
         lu_.interpolate(Expression(0))
         lv_.interpolate(Expression(0))
     else:
-        raise ValueError('Please try again, split equalling y or n.')
+        # Define Taylor-Hood mixed function space:
+        W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
+
+        # Construct functions to store forward and adjoint variables, along with bathymetry:
+        q_ = Function(W)
+        lam_ = Function(W)
+        u_, eta_ = q_.split()
+        lu_, le_ = lam_.split()
+        eta0 = Function(W.sub(1), name='Initial surface')
+        b = Function(W.sub(1), name='Bathymetry')
+
+        # Specify zero initial fluid velocity:
+        u_.interpolate(Expression([0, 0]))
+        lu_.interpolate(Expression([0, 0]))
+
 
     # Read and interpolate initial surface data (courtesy of Saito):
     nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap=False)
@@ -208,7 +176,7 @@ def Tohoku_domain(res=3, split='n'):
     File('plots/tsunami_outputs/init_surf.pvd').write(eta0)
     File('plots/tsunami_outputs/tsunami_bathy.pvd').write(b)
 
-    if split == 'n':
-        return mesh, W, q_, u_, eta_, lam_, lu_, le_, b
-    else:
+    if split:
         return mesh, W, q_, u_, v_, eta_, lam_, lu_, lv_, b
+    else:
+        return mesh, W, q_, u_, eta_, lam_, lu_, le_, b

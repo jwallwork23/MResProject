@@ -2,6 +2,8 @@ import math
 from error import OutOfRangeError
 import numpy as np
 
+
+# Top matter courtesy of Tobias Bieniek, 2012.
 __all__ = ['to_latlon', 'from_latlon', 'vectorlonlat2utm', 'get_latitude']
 
 K0 = 0.9996

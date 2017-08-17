@@ -49,6 +49,8 @@ def construct_hessian(mesh, V, sol, method='dL2'):
         Lh = (inner(tau, H) + inner(div(tau), g)) * dx
         Lh -= (tau[0, 1] * nhat[1] * g[0] + tau[1, 0] * nhat[0] * g[1]) * ds
         Lh -= (tau[0, 0] * nhat[1] * g[0] + tau[1, 1] * nhat[0] * g[1]) * ds
+    else:
+        raise ValueError('Hessian reconstruction method ``%s`` not recognised' % method)
 
     H_prob = NonlinearVariationalProblem(Lh, H)
     H_solv = NonlinearVariationalSolver(H_prob, solver_parameters=params)
@@ -151,7 +153,7 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
             M.dat.data[i][1, 1] = lam1 * v1[1] * v1[1] + lam2 * v2[1] * v2[1]
 
     else:
-        raise ValueError('Normalisation selection not recognised, choose `manual` or `lp`.')
+        raise ValueError('Normalisation method ``%s`` not recognised.' % normalise)
 
     return M
 
@@ -172,7 +174,7 @@ def local_metric_intersection(M1, M2):
     return np.transpose(sla.sqrtm(M1)) * M * sla.sqrtm(M1)
 
 
-def metric_gradation(mesh, metric):
+def metric_gradation(mesh, metric, isotropic=False):
     """
     Perform anisotropic metric gradation in the method described in Alauzet 2010, using linear interpolation. Python
     code based on Nicolas Barral's function ``DMPlexMetricGradation2d_Internal`` in ``plex-metGradation.c``, 2017.
@@ -196,9 +198,7 @@ def metric_gradation(mesh, metric):
     # Establish arrays for storage:
     v12 = np.zeros(2)
     v21 = np.zeros(2)
-    met1 = np.zeros((2, 2))                 # TODO: work only with the upper triangular part for speed
-    met2 = np.zeros((2, 2))
-    grownMet1 = np.zeros((2, 2))
+    grownMet1 = np.zeros((2, 2))            # TODO: work only with the upper triangular part for speed
     grownMet2 = np.zeros((2, 2))
     M = metric.dat.data
 
@@ -216,21 +216,15 @@ def metric_gradation(mesh, metric):
         # Loop over edges of mesh:
         for e in range(eStart, eEnd):
             cone = plex.getCone(e)          # Get vertices associated with edge e
-            iVer1 = cone[0] - vStart        # Number in list of vertex 1
-            iVer2 = cone[1] - vStart        # Number in list of vertex 2
+            iVer1 = cone[0] - vStart        # Vertex 1 index
+            iVer2 = cone[1] - vStart        # Vertex 2 index
 
             if (verTag[iVer1] < i) & (verTag[iVer2] < i):
                 continue
 
             # Assemble local metrics:
-            met1[0, 0] = M[iVer1][0, 0]
-            met1[0, 1] = M[iVer1][0, 1]
-            met1[1, 0] = M[iVer1][1, 0]
-            met1[1, 1] = M[iVer1][1, 1]
-            met2[0, 0] = M[iVer2][0, 0]
-            met2[0, 1] = M[iVer2][0, 1]
-            met2[1, 0] = M[iVer2][1, 0]
-            met2[1, 1] = M[iVer2][1, 1]
+            met1 = M[iVer1]
+            met2 = M[iVer2]
 
             # Calculate edge lengths and scale factor:
             v12[0] = xy[iVer2][0] - xy[iVer1][0]
@@ -248,31 +242,33 @@ def metric_gradation(mesh, metric):
                     grownMet1[j, k] = eta2_12 * met1[j, k]
                     grownMet2[j, k] = eta2_21 * met2[j, k]
 
+            # TODO: implement metric gradation in isotropic case
+
             # Intersect metric with grown metric to get reduced metric:
-            red1 = local_metric_intersection(met1, grownMet2)
-            red2 = local_metric_intersection(met2, grownMet1)
+            redMet1 = local_metric_intersection(met1, grownMet2)
+            redMet2 = local_metric_intersection(met2, grownMet1)
 
             # Calculate difference in order to ascertain whether the metric is modified:
-            diff = np.abs(met1[0, 0] - red1[0, 0]) + np.abs(met1[0, 1] - red1[0, 1]) \
-                   + np.abs(met1[1, 1] - red1[1, 1])
+            diff = np.abs(met1[0, 0] - redMet1[0, 0]) + np.abs(met1[0, 1] - redMet1[0, 1]) \
+                   + np.abs(met1[1, 1] - redMet1[1, 1])
             diff /= (np.abs(met1[0, 0]) + np.abs(met1[0, 1]) + np.abs(met1[1, 1]))
             if diff > 1e-3:
-                M[iVer1][0, 0] = red1[0, 0]
-                M[iVer1][0, 1] = red1[0, 1]
-                M[iVer1][1, 0] = red1[1, 0]
-                M[iVer1][1, 1] = red1[1, 1]
+                M[iVer1][0, 0] = redMet1[0, 0]
+                M[iVer1][0, 1] = redMet1[0, 1]
+                M[iVer1][1, 0] = redMet1[1, 0]
+                M[iVer1][1, 1] = redMet1[1, 1]
                 verTag[iVer1] = i + 1
                 correction = True
 
             # Repeat above process:
-            diff = np.abs(met2[0, 0] - red2[0, 0]) + np.abs(met2[0, 1] - red2[0, 1]) \
-                   + np.abs(met2[1, 1] - red2[1, 1])
+            diff = np.abs(met2[0, 0] - redMet2[0, 0]) + np.abs(met2[0, 1] - redMet2[0, 1]) \
+                   + np.abs(met2[1, 1] - redMet2[1, 1])
             diff /= (np.abs(met2[0, 0]) + np.abs(met2[0, 1]) + np.abs(met2[1, 1]))
             if diff > 1e-3:
-                M[iVer2][0, 0] = red2[0, 0]
-                M[iVer2][0, 1] = red2[0, 1]
-                M[iVer2][1, 0] = red2[1, 0]
-                M[iVer2][1, 1] = red2[1, 1]
+                M[iVer2][0, 0] = redMet2[0, 0]
+                M[iVer2][0, 1] = redMet2[0, 1]
+                M[iVer2][1, 0] = redMet2[1, 0]
+                M[iVer2][1, 1] = redMet2[1, 1]
                 verTag[iVer2] = i + 1
                 correction = True
 

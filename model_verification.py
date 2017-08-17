@@ -31,7 +31,7 @@ if choices in (0, 1, 2, 3):
 coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5, default 3): ') or 3)
 
 # Define mesh, mixed function space and variables:
-mesh, W, q_, u_, v_, eta_, lam_, lu_, lv_, b = Tohoku_domain(res=coarseness, split='y')
+mesh, W, q_, u_, v_, eta_, lam_, lu_, lv_, b = Tohoku_domain(res=coarseness, split=True)
 eta0 = Function(W.sub(2), name='Initial free surface')
 eta0.assign(eta_)
 coords = mesh.coordinates.dat.data

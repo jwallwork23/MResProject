@@ -29,14 +29,10 @@ numVer = float(raw_input('Target vertex count as a proportion of the initial num
 hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
 hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100) * 1e-3
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-if ntype not in ('lp', 'manual'):
-    raise ValueError('Please try again, choosing lp or manual.')
 mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
 iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
 if not iso:
     hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
-    if hess_meth not in ('parts', 'dL2'):
-        raise ValueError('Please try again, choosing parts or dL2.')
 
 # Specify parameters:
 depth = 0.1             # Water depth for flat bathymetry case (m)
@@ -49,18 +45,6 @@ Dt = Constant(dt)
 rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
 stored = bool(raw_input('Hit anything but enter if adjoint data is already stored: ')) or False
 
-# Check CFL criterion is satisfied for this discretisation:
-assert(dt < 1. / (n * np.sqrt(g * depth)))
-
-# Specify solver parameters:
-params = {'mat_type': 'matfree',
-          'snes_type': 'ksponly',
-          'pc_type': 'python',
-          'pc_python_type': 'firedrake.AssembledPC',
-          'assembled_pc_type': 'lu',
-          'snes_lag_preconditioner': -1,
-          'snes_lag_preconditioner_persists': True}
-
 # Define mixed Taylor-Hood function space:
 W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
 
@@ -70,6 +54,18 @@ if bathy == 'f':
     b.interpolate(Expression(depth))
 else:
     b.interpolate(Expression('x[0] <= 0.5 ? 0.01 : 0.1'))  # Shelf break bathymetry
+
+# Check CFL criterion is satisfied for this discretisation:
+assert(dt < 1. / (n * np.sqrt(g * max(b.dat.data))))
+
+# Specify solver parameters:
+params = {'mat_type': 'matfree',
+          'snes_type': 'ksponly',
+          'pc_type': 'python',
+          'pc_python_type': 'firedrake.AssembledPC',
+          'assembled_pc_type': 'lu',
+          'snes_lag_preconditioner': -1,
+          'snes_lag_preconditioner_persists': True}
 
 # Initalise counters:
 t = T
@@ -250,7 +246,7 @@ while t < T - 0.5 * dt:
                     significance.dat.data[k] = ip.dat.data[k]
     sig_file.write(significance, time=t)
 
-    # Adapt mesh to significant data and interpolate:
+    # Generate Hessian associated with significant data:
     V = TensorFunctionSpace(mesh, 'CG', 1)
     H = Function(V)
     if iso:
@@ -260,6 +256,8 @@ while t < T - 0.5 * dt:
     else:
         H = construct_hessian(mesh, V, significance, method=hess_meth)
     M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
+
+    # Adapt mesh and interpolate variables:
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)

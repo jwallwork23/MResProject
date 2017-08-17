@@ -15,7 +15,6 @@ def csv2table(gauge, setup):
     :param setup: equation form or mesh resolution used, e.g. 'xcoarse' or 'fine_rotational'.
     :return: a vector x containing points in time and a vector y containing the associated gauge reading values.
     """
-
     x = []
     y = []
     i = 0
@@ -38,7 +37,6 @@ def gauge_timeseries(gauge, dat):
     :param dat: a list of data values of this gauge.
     :return: a file containing the timeseries data.
     """
-
     name = raw_input('Enter a name for this time series (e.g. xcoarse): ')
     outfile = open('timeseries/{y1}_{y2}.txt'.format(y1=gauge, y2=name), 'w+')
     for i in range(len(dat)):

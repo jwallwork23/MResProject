@@ -36,14 +36,10 @@ numVer = float(raw_input('Target vertex count as a proportion of the initial num
 hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
 hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-if ntype not in ('lp', 'manual'):
-    raise ValueError('Please try again, choosing lp or manual.')
 mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
 iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
 if not iso:
     hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
-    if hess_meth not in ('parts', 'dL2'):
-        raise ValueError('Please try again, choosing parts or dL2.')
 
 # Specify parameters:
 T = float(raw_input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.
@@ -102,8 +98,8 @@ switch = True
 if not stored:
     # Establish smoothened indicator function for adjoint equations:
     f = Function(W.sub(1), name='Forcing term')
-    f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 640e3) & (x[1] > 4160e3) & (x[1] < 4360e3) ? ' + \
-                             'exp(1. / (pow(x[0] - 565e3, 2) - pow(75e3, 2))) * ' + \
+    f.interpolate(Expression('(x[0] > 490e3) & (x[0] < 640e3) & (x[1] > 4160e3) & (x[1] < 4360e3) ? ' +
+                             'exp(1. / (pow(x[0] - 565e3, 2) - pow(75e3, 2))) * ' +
                              'exp(1. / (pow(x[1] - 4260e3, 2) - pow(100e3, 2))) : 0.'))
 
     # Set up dependent variables of the adjoint problem:
@@ -192,7 +188,6 @@ u.rename('Fluid velocity')
 eta.rename('Free surface displacement')
 
 # Intialise files:
-# Intialise files:
 if iso:
     q_file = File('plots/goal-based_outputs/tsunami_forward_iso.pvd')
     sig_file = File('plots/goal-based_outputs/tsunami_significance_iso.pvd')
@@ -259,7 +254,7 @@ while t < T - 0.5 * dt:
                     significance.dat.data[k] = ip.dat.data[k]
     sig_file.write(significance, time=t)
 
-    # Adapt mesh to significant data and interpolate:
+    # Generate Hessian associated with significant data:
     V = TensorFunctionSpace(mesh, 'CG', 1)
     H = Function(V)
     if iso:
@@ -269,11 +264,12 @@ while t < T - 0.5 * dt:
     else:
         H = construct_hessian(mesh, V, significance, method=hess_meth)
     M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
+
+    # Gradate metric to account for boundary issues, adapt mesh and interpolate variables:
     metric_gradation(mesh, M)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
-    vel = Function(VectorFunctionSpace(mesh, 'CG', 1))
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
     i += 1

@@ -4,7 +4,7 @@ from time import clock
 import math
 import sys
 
-from utils.adaptivity import compute_steady_metric, construct_hessian, metric_gradation
+from utils.adaptivity import compute_steady_metric, construct_hessian, metric_intersection, metric_gradation
 from utils.conversion import from_latlon
 from utils.domain import Tohoku_domain
 from utils.interp import interp, interp_Taylor_Hood
@@ -210,6 +210,15 @@ dumpn = 0
 i0 = i
 mn = 0
 
+# Approximate isotropic metric at boundaries of initial mesh using circumradius:
+h = Function(W.sub(1))
+h.interpolate(CellSize(mesh_))
+M_ = Function(TensorFunctionSpace(mesh_, 'CG', 1))
+for j in DirichletBC(W.sub(1), 0, 'on_boundary').nodes:
+    h2 = pow(h.dat.data[j], 2)
+    M_.dat.data[j][0, 0] = 1. / h2
+    M_.dat.data[j][1, 1] = 1. / h2
+
 print ''
 print 'Starting mesh adaptive forward run...'
 while t < T - 0.5 * dt:
@@ -266,9 +275,18 @@ while t < T - 0.5 * dt:
         H = construct_hessian(mesh, V, significance, method=hess_meth)
     M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
 
-    # TODO: intersect with initial mesh at boundaries
+    # Interpolate initial mesh size onto new mesh and build associated metric:
+    fields = interp(mesh, h)
+    W1 = FunctionSpace(mesh, 'CG', 1)
+    h = Function(W1)
+    h.dat.data[:] = fields[0].dat.data[:]
+    M_ = Function(V)
+    for j in DirichletBC(W1, 0, 'on_boundary').nodes:
+        h2 = pow(h.dat.data[j], 2)
+        M_.dat.data[j][0, 0] = 1. / h2
 
-    # Gradate metric to account for boundary issues, adapt mesh and interpolate variables:
+    # Gradate metric, adapt mesh and interpolate variables:
+    M = metric_intersection(mesh, V, M, M_, bdy=True)
     metric_gradation(mesh, M, beta)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh

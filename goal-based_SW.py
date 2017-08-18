@@ -283,7 +283,7 @@ while t < T - 0.5 * dt:
 
     # Gradate metric, adapt mesh and interpolate variables:
         M = metric_intersection(mesh, V, M, M_, bdy=True)
-    metric_gradation(mesh, M, beta)
+    metric_gradation(mesh, M, beta, isotropic=iso)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)

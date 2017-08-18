@@ -238,10 +238,11 @@ def metric_gradation(mesh, metric, beta=1.4, isotropic=False):
             # TODO: check isotropic implementation
 
             if isotropic:
+                redMet1 = np.zeros((2, 2))
+                redMet2 = np.zeros((2, 2))
                 for j in range(2):
-                    for k in range(2):
-                        redMet1[j, k] = eta2_12 * met2[j, k]
-                        redMet2[j, k] = eta2_21 * met1[j, k]
+                    redMet1[j, j] = eta2_12 * met2[j, j]
+                    redMet2[j, j] = eta2_21 * met1[j, j]
             else:
                 # Scale metric to get 'grown' metric:
                 for j in range(2):

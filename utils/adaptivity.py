@@ -244,7 +244,7 @@ def metric_gradation(mesh, metric, beta=1.4, isotropic=False):
                     redMet1[j, j] = eta2_12 * met2[j, j]
                     redMet2[j, j] = eta2_21 * met1[j, j]
             else:
-                # Scale metric to get 'grown' metric:
+                # Scale to get 'grown' metric:
                 for j in range(2):
                     for k in range(2):
                         grownMet1[j, k] = eta2_12 * met1[j, k]

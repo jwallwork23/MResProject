@@ -53,7 +53,7 @@ if dt > cdt:
     print 'WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt
     if bool(raw_input('Hit anything except enter if happy to proceed.')) or False:
         exit(23)
-ndump = int(60. / dt)           # Timesteps per data dump
+ndump = int(15. / dt)           # Timesteps per data dump
 rm = int(raw_input('Timesteps per re-mesh (default 60)?: ') or 60)
 stored = bool(raw_input('Hit anything but enter if adjoint data is already stored: ')) or False
 
@@ -232,6 +232,7 @@ while t < T - 0.5 * dt:
     # Create functions to hold inner product and significance data:
     ip = Function(W.sub(1), name='Inner product')
     significance = Function(W.sub(1), name='Significant regions')
+    significance_ = Function(W.sub(1))  # Previously significant regions
 
     # Take maximal L2 inner product as most significant:
     for j in range(max(i, int((Ts - T) / (dt * ndump))), 0):
@@ -264,27 +265,24 @@ while t < T - 0.5 * dt:
                     significance.dat.data[k] = ip.dat.data[k]
     sig_file.write(significance, time=t)
 
-    # Generate Hessian associated with significant data:
+    # Interpolate initial mesh size onto new mesh and build associated metric:
+    h, significance_ = interp(mesh, h, significance_)
     V = TensorFunctionSpace(mesh, 'CG', 1)
+    M_ = Function(V)
+    for j in DirichletBC(W1, 0, 'on_boundary').nodes:
+        h2 = pow(h.dat.data[j], 2)
+        M_.dat.data[j][0, 0] = 1. / h2
+        M_.dat.data[j][1, 1] = 1. / h2
+
+    # Generate Hessian associated with significant data:
     H = Function(V)
     if iso:
         for i in range(len(H.dat.data)):
             H.dat.data[i][0, 0] = np.abs(significance.dat.data[i])
             H.dat.data[i][1, 1] = np.abs(significance.dat.data[i])
     else:
-        H = construct_hessian(mesh, V, significance, method=hess_meth)
-    M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
-
-    # Interpolate initial mesh size onto new mesh and build associated metric:
-    fields = interp(mesh, h)
-    W1 = FunctionSpace(mesh, 'CG', 1)
-    h = Function(W1)
-    h.dat.data[:] = fields[0].dat.data[:]
-    M_ = Function(V)
-    for j in DirichletBC(W1, 0, 'on_boundary').nodes:
-        h2 = pow(h.dat.data[j], 2)
-        M_.dat.data[j][0, 0] = 1. / h2
-        M_.dat.data[j][1, 1] = 1. / h2
+        H = construct_hessian(mesh, V, significance - significance_, method=hess_meth)
+    M = compute_steady_metric(mesh, V, H, significance - significance_, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
 
     # Gradate metric, adapt mesh and interpolate variables:
     M = metric_intersection(mesh, V, M, M_, bdy=True)
@@ -295,6 +293,9 @@ while t < T - 0.5 * dt:
     u.rename('Fluid velocity')
     eta.rename('Free surface displacement')
     i += 1
+
+    # Update previous significance:
+    significance_.dat.data[:] = significance.dat.data[:]
 
     # Mesh resolution analysis:
     n = len(mesh.coordinates.dat.data)

@@ -269,7 +269,7 @@ while t < T - 0.5 * dt:
     h, significance_ = interp(mesh, h, significance_)
     V = TensorFunctionSpace(mesh, 'CG', 1)
     M_ = Function(V)
-    for j in DirichletBC(W1, 0, 'on_boundary').nodes:
+    for j in DirichletBC(V, 0, 'on_boundary').nodes:
         h2 = pow(h.dat.data[j], 2)
         M_.dat.data[j][0, 0] = 1. / h2
         M_.dat.data[j][1, 1] = 1. / h2

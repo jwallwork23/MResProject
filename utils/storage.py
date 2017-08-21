@@ -59,7 +59,8 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
                  2: 'medium_25mins',                        # Fixed with 25,976 vertices
                  3: 'fine_25mins',                          # Fixed with 97,343 vertices
                  4: 'anisotropic_point85scaled_rm=30',      # 'Simple adaptive': numVer = 0.85, rm=30, N1=3126
-                 5: 'goal-based_res4_fifthscaled'}          # Goal-based adaptive: numVer = 0.2, rm=60, N1=7194
+                 # 5: 'goal-based_res4_fifthscaled'}          # Goal-based adaptive: numVer = 0.2, rm=60, N1=7194
+                 5: 'goal-based_alternative_error'}
         labels = {1: 'Mesh approach (i)',
                   2: 'Mesh approach (ii)',
                   3: 'Mesh approach (iii)',
@@ -99,6 +100,7 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
             plt.plot(p, m(p), label='Gauge measurement', linestyle='-')
 
     # Plot simulations and calculate error norms:
+    x = np.linspace(0, 25, num=1501)
     for key in setup:
         val = []
         i = 0
@@ -134,7 +136,7 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
         # Deal with special cases:
         if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational',
                           'xcoarse_25mins', 'medium_25mins', 'fine_25mins',
-                          'anisotropic_point85scaled_rm=30', 'goal-based_res4_fifthscaled'):
+                          'anisotropic_point85scaled_rm=30', 'goal-based_res4_fifthscaled', 'goal-based_alternative_error'):
             T = 25
         else:
             T = 60

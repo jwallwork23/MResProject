@@ -28,6 +28,8 @@ bathy = raw_input('Flat bathymetry or shelf break (f/s, default s?): ') or 's'
 numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.1): ') or 0.1) * N1
 hmin = float(raw_input('Minimum element size in mm (default 1)?: ') or 1.) * 1e-3
 hmax = float(raw_input('Maximum element size in mm (default 1000)?: ') or 1000) * 1e-3
+hmin2 = pow(hmin, 2)      # Square minimal side-length
+hmax2 = pow(hmax, 2)      # Square maximal side-length
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
 iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
@@ -275,10 +277,10 @@ while t < T - 0.5 * dt:
     # Generate Hessian associated with significant data:
     if iso:
         M = Function(V)
-        for i in range(len(M.dat.data)):
-            isig2 = 1. / max(pow(significance.dat.data[i], 2), 1e-3)
-            M.dat.data[i][0, 0] = isig2
-            M.dat.data[i][1, 1] = isig2
+        for j in range(len(M.dat.data)):
+            isig2 = 1. / max(hmin2, min(pow(significance.dat.data[j], 2), hmax2))
+            M.dat.data[j][0, 0] = isig2
+            M.dat.data[j][1, 1] = isig2
     else:
         H = Function(V)
         H = construct_hessian(mesh, V, significance, method=hess_meth)

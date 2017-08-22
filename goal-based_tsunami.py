@@ -35,6 +35,8 @@ print 'More options...'
 numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.2): ') or 0.2) * N1
 hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
 hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
+hmin2 = pow(hmin, 2)      # Square minimal side-length
+hmax2 = pow(hmax, 2)      # Square maximal side-length
 ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
 mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
 beta = float(raw_input('Metric gradation scaling parameter (default 1.4): ') or 1.4)
@@ -279,10 +281,10 @@ while t < T - 0.5 * dt:
     # Generate Hessian associated with significant data:
     if iso:
         M = Function(V)
-        for i in range(len(M.dat.data)):
-            isig2 = 1. / max(pow(significance.dat.data[i], 2), 1e-3)
-            M.dat.data[i][0, 0] = isig2
-            M.dat.data[i][1, 1] = isig2
+        for j in range(len(M.dat.data)):
+            isig2 = 1. / max(hmin2, min(pow(significance.dat.data[j], 2), hmax2))
+            M.dat.data[j][0, 0] = isig2
+            M.dat.data[j][1, 1] = isig2
     else:
         H = Function(V)
         H = construct_hessian(mesh, V, significance, method=hess_meth)

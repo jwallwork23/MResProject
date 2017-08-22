@@ -36,6 +36,8 @@ print 'More options...'
 numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.85): ') or 0.85) * N1
 hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
 hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
+hmin2 = pow(hmin, 2)      # Square minimal side-length
+hmax2 = pow(hmax, 2)      # Square maximal side-length
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
 mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default b): ') or 'b'
 if mtype not in ('s', 'f', 'b'):
@@ -114,12 +116,12 @@ while t < T - 0.5 * dt:
             spd2 = Function(FunctionSpace(mesh, 'CG', 1))
             spd2.interpolate(dot(u, u))
             for i in range(len(M.dat.data)):
-                ispd2 = 1. / max(spd2.dat.data[i], 1e-3)
+                ispd2 = 1. / max(hmin2, min(spd2.dat.data[i], hmax2))
                 M.dat.data[i][0, 0] = ispd2
                 M.dat.data[i][1, 1] = ispd2
         elif mtype == 'f':
             for i in range(len(M.dat.data)):
-                ieta2 = 1. / max(pow(eta.dat.data[i], 2), 1e-3)
+                ieta2 = 1. / max(hmin2, min(pow(eta.dat.data[i], 2), hmax2))
                 M.dat.data[i][0, 0] = ieta2
                 M.dat.data[i][1, 1] = ieta2
         else:

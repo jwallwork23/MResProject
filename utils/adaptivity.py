@@ -78,9 +78,9 @@ def compute_steady_metric(mesh, V, H, sol, h_min=0.005, h_max=0.1, a=100., norma
     :return: steady metric associated with Hessian H.
     """
 
-    ia2 = 1. / (a ** 2)             # Inverse square aspect ratio
-    ihmin2 = 1. / (h_min ** 2)      # Inverse square minimal side-length
-    ihmax2 = 1. / (h_max ** 2)      # Inverse square maximal side-length
+    ia2 = 1. / pow(a, 2)             # Inverse square aspect ratio
+    ihmin2 = 1. / pow(h_min, 2)      # Inverse square minimal side-length
+    ihmax2 = 1. / pow(h_max, 2)      # Inverse square maximal side-length
     M = Function(V)
 
     if normalise == 'manual':

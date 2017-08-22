@@ -1,0 +1,33 @@
+# File types to be ignored:
+
+*.DS_Store
+*.log
+*.msh
+*.pyc
+*.pvd
+*.pvtu
+*.vtu
+
+# Directories to be ignored:
+
+data_dumps/
+initial_experiments/
+misc/
+plots/
+resources/Barral_files/
+resources/meshes/unused/
+resources/Okada_files/
+resources/Warder_files/
+resources/demos/
+testing/
+utils/.idea/
+
+# Files to be ignored:
+
+resources/meshes/CoarseMesh.shp
+resources/meshes/FineMesh.shp
+resources/meshes/MediumMesh.shp
+resources/meshes/XCoarseMesh.shp
+resources/meshes/XFineMesh.shp
+tank_master.py
+utils/unused.py

@@ -104,38 +104,45 @@ print 'Entering outer timeloop!'
 tic1 = clock()
 while t < T - 0.5 * dt:
     mn += 1
+    tic2 = clock()
 
     # Compute Hessian and metric:
-    tic2 = clock()
     V = TensorFunctionSpace(mesh, 'CG', 1)
-    H = Function(V)
-    if mtype != 'f':
-        spd = Function(FunctionSpace(mesh, 'CG', 1))        # Fluid speed
-        spd.interpolate(sqrt(dot(u, u)))
-        if iso:
-            for i in range(len(H.dat.data)):
-                H.dat.data[i][0, 0] = spd.dat.data[i]
-                H.dat.data[i][1, 1] = spd.dat.data[i]
+    if iso:
+        M = Function(V)
+        if mtype == 's':
+            spd2 = Function(FunctionSpace(mesh, 'CG', 1))
+            spd2.interpolate(dot(u, u))
+            for i in range(len(M.dat.data)):
+                ispd2 = 1. / max(spd2.dat.data[i], 1e-3)
+                M.dat.data[i][0, 0] = ispd2
+                M.dat.data[i][1, 1] = ispd2
+        elif mtype == 'f':
+            for i in range(len(M.dat.data)):
+                ieta2 = 1. / max(pow(eta.dat.data[i], 2), 1e-3)
+                M.dat.data[i][0, 0] = ieta2
+                M.dat.data[i][1, 1] = ieta2
         else:
+            raise NotImplementedError('Cannot currently interpret isotropic adaption with respect to two fields.')
+    else:
+        H = Function(V)
+        if mtype != 'f':
+            spd = Function(FunctionSpace(mesh, 'CG', 1))
+            spd.interpolate(sqrt(dot(u, u)))
             H = construct_hessian(mesh, V, spd, method=hess_meth)
-        M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
-    if mtype != 's':
-        if iso:
-            for i in range(len(H.dat.data)):
-                H.dat.data[i][0, 0] = np.abs(eta.dat.data[i])
-                H.dat.data[i][1, 1] = np.abs(eta.dat.data[i])
-        else:
+            M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
+        if mtype != 's':
             H = construct_hessian(mesh, V, eta, method=hess_meth)
-        M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
+            M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
         if mtype == 'b':
             M = metric_intersection(mesh, V, M, M2)
         else:
             M = Function(V)
             M.assign(M2)
+
+    # Adapt mesh with respect to computed metric field and interpolate functions onto new mesh:
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
-
-    # Interpolate functions onto new mesh:
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
 
     # Mesh resolution analysis:
@@ -173,10 +180,8 @@ while t < T - 0.5 * dt:
     for j in range(rm):
         t += dt
         dumpn += 1
-
-        # Solve the problem and update:
-        q_solv.solve()
-        q_.assign(q)
+        q_solv.solve()  # Solve problem
+        q_.assign(q)    # Update variables
 
         # Store data:
         gauge_dat.append(eta.at(gcoord))

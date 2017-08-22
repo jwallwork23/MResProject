@@ -238,11 +238,9 @@ def metric_gradation(mesh, metric, beta=1.4, isotropic=False):
                 ih21 = 1. / met2[0, 0]
                 eta2_12 = 1. / pow(1 + np.dot(v12) * ih12 * ln_beta, 2)
                 eta2_21 = 1. / pow(1 + np.dot(v21) * ih21 * ln_beta, 2)
-
                 for j in range(2):
                     redMet1[j, j] = eta2_12 * met2[j, j]
                     redMet2[j, j] = eta2_21 * met1[j, j]
-
             else:
                 edgLen1 = symmetric_product(met1, v12)
                 edgLen2 = symmetric_product(met2, v21)

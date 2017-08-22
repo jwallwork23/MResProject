@@ -95,54 +95,41 @@ while t < T - 0.5 * dt:
 
     # Compute Hessian and metric:
     V = TensorFunctionSpace(mesh, 'CG', 1)
-
     if iso:
         M = Function(V)
-
-        # Isotropic adaption with respect to fluid speed:
         if mtype == 's':
-            spd = Function(FunctionSpace(mesh, 'CG', 1))
-            spd.interpolate(sqrt(dot(u, u)))
+            spd2 = Function(FunctionSpace(mesh, 'CG', 1))
+            spd2.interpolate(dot(u, u))
             for i in range(len(M.dat.data)):
-                ispd = 1. / pow(max(np.abs(spd.dat.data[i]), 1e-2), 2)
-                M.dat.data[i][0, 0] = ispd
-                M.dat.data[i][1, 1] = ispd
-
-        # Isotropic adaption with respect to free surface displacement:
+                ispd2 = 1. / max(spd2.dat.data[i], 1e-3)
+                M.dat.data[i][0, 0] = ispd2
+                M.dat.data[i][1, 1] = ispd2
         elif mtype == 'f':
             for i in range(len(M.dat.data)):
-                ieta = 1. / pow(max(np.abs(eta.dat.data[i]), 1e-2), 2)
-                M.dat.data[i][0, 0] = ieta
-                M.dat.data[i][1, 1] = ieta
+                ieta2 = 1. / max(pow(eta.dat.data[i], 2), 1e-3)
+                M.dat.data[i][0, 0] = ieta2
+                M.dat.data[i][1, 1] = ieta2
         else:
             raise NotImplementedError('Cannot currently interpret isotropic adaption with respect to two fields.')
     else:
         H = Function(V)
-
-        # Anisotropic adaption with respect to fluid speed and possibly also free surface displacement:
         if mtype != 'f':
             spd = Function(FunctionSpace(mesh, 'CG', 1))
             spd.interpolate(sqrt(dot(u, u)))
             H = construct_hessian(mesh, V, spd, method=hess_meth)
             M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
-
-        # Anisotropic adaption with respect to free surface displacement and possibly also fluid speed:
         if mtype != 's':
             H = construct_hessian(mesh, V, eta, method=hess_meth)
             M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
-
-        # Anisotropic adaption with respect to both free surface displacement and fluid speed:
         if mtype == 'b':
             M = metric_intersection(mesh, V, M, M2)
         else:
             M = Function(V)
             M.assign(M2)
 
-    # Adapt mesh with respect to computed metric field:
+    # Adapt mesh with respect to computed metric field and interpolate functions onto new mesh:
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
-
-    # Interpolate functions onto new mesh:
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
 
     # Mesh resolution analysis:
@@ -180,10 +167,8 @@ while t < T - 0.5 * dt:
     for j in range(rm):
         t += dt
         dumpn += 1
-
-        # Solve the problem and update:
-        q_solv.solve()
-        q_.assign(q)
+        q_solv.solve()  # Solve problem
+        q_.assign(q)  # Update variables
 
         if dumpn == ndump:
             dumpn -= ndump

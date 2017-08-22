@@ -258,20 +258,10 @@ while t < T - 0.5 * dt:
                 if np.abs(ip.dat.data[k]) > np.abs(significance.dat.data[k]):
                     significance.dat.data[k] = ip.dat.data[k]
     sig_file.write(significance, time=t)
-
-    # Generate Hessian associated with significant data:
     V = TensorFunctionSpace(mesh, 'CG', 1)
-    H = Function(V)
-    if iso:
-        for i in range(len(H.dat.data)):
-            H.dat.data[i][0, 0] = np.abs(significance.dat.data[i])
-            H.dat.data[i][1, 1] = np.abs(significance.dat.data[i])
-    else:
-        H = construct_hessian(mesh, V, significance, method=hess_meth)
-    M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
 
+    # Interpolate initial mesh size onto new mesh and build associated metric:
     if gradbdy:
-        # Interpolate initial mesh size onto new mesh and build associated metric:
         fields = interp(mesh, h)
         W1 = FunctionSpace(mesh, 'CG', 1)
         h = Function(W1)
@@ -282,14 +272,24 @@ while t < T - 0.5 * dt:
             M_.dat.data[j][0, 0] = 1. / h2
             M_.dat.data[j][1, 1] = 1. / h2
 
+    # Generate Hessian associated with significant data:
+    if iso:
+        M = Function(V)
+        for i in range(len(M.dat.data)):
+            isig2 = 1. / max(pow(significance.dat.data[i], 2), 1e-3)
+            M.dat.data[i][0, 0] = isig2
+            M.dat.data[i][1, 1] = isig2
+    else:
+        H = Function(V)
+        H = construct_hessian(mesh, V, significance, method=hess_meth)
+        M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
+
     # Gradate metric, adapt mesh and interpolate variables:
         M = metric_intersection(mesh, V, M, M_, bdy=True)
         metric_gradation(mesh, M, beta, isotropic=iso)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
     u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
-    u.rename('Fluid velocity')
-    eta.rename('Free surface displacement')
     i += 1
 
     # Mesh resolution analysis:
@@ -299,7 +299,6 @@ while t < T - 0.5 * dt:
         N1 = n
     elif n > N2:
         N2 = n
-    toc2 = clock()
 
     # Establish test functions and midpoint averages:
     v, ze = TestFunctions(W)
@@ -337,6 +336,7 @@ while t < T - 0.5 * dt:
                 M.rename('Metric')
                 h_file.write(H, time=t)
                 m_file.write(M, time=t)
+    toc2 = clock()
 
     # Print to screen:
     print ''

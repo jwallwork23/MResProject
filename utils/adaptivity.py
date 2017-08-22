@@ -230,20 +230,25 @@ def metric_gradation(mesh, metric, beta=1.4, isotropic=False):
             v12[1] = xy[iVer2][1] - xy[iVer1][1]
             v21[0] = - v12[0]
             v21[1] = - v12[1]
-            edgLen1 = symmetric_product(met1, v12)
-            edgLen2 = symmetric_product(met2, v21)
-            eta2_12 = 1. / pow(1 + edgLen1 * ln_beta, 2)
-            eta2_21 = 1. / pow(1 + edgLen2 * ln_beta, 2)
-
-            # TODO: check isotropic implementation
 
             if isotropic:
                 redMet1 = np.zeros((2, 2))
                 redMet2 = np.zeros((2, 2))
+                ih12 = 1. / met1[0, 0]
+                ih21 = 1. / met2[0, 0]
+                eta2_12 = 1. / pow(1 + np.dot(v12) * ih12 * ln_beta, 2)
+                eta2_21 = 1. / pow(1 + np.dot(v21) * ih21 * ln_beta, 2)
+
                 for j in range(2):
                     redMet1[j, j] = eta2_12 * met2[j, j]
                     redMet2[j, j] = eta2_21 * met1[j, j]
+
             else:
+                edgLen1 = symmetric_product(met1, v12)
+                edgLen2 = symmetric_product(met2, v21)
+                eta2_12 = 1. / pow(1 + edgLen1 * ln_beta, 2)
+                eta2_21 = 1. / pow(1 + edgLen2 * ln_beta, 2)
+
                 # Scale to get 'grown' metric:
                 for j in range(2):
                     for k in range(2):

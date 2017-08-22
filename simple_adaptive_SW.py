@@ -95,6 +95,8 @@ while t < T - 0.5 * dt:
     mn += 1
     tic2 = clock()
 
+    # TODO: implement goal-based adaptivity properly by scaling the metric over the domain.
+
     # Compute Hessian and metric:
     V = TensorFunctionSpace(mesh, 'CG', 1)
     if iso:

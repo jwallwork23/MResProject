@@ -282,11 +282,17 @@ while t < T - 0.5 * dt:
             M.dat.data[j][0, 0] = isig2
             M.dat.data[j][1, 1] = isig2
     else:
+
+        # TODO: include speed option
+
         H = Function(V)
-        H = construct_hessian(mesh, V, significance, method=hess_meth)
-        M = compute_steady_metric(mesh, V, H, significance, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
+        H = construct_hessian(mesh, V, eta, method=hess_meth)
+        for k in range(mesh.topology.num_vertices()):
+            H.dat.data[k] *= significance.dat.data[k]
+        M = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
 
     # Gradate metric, adapt mesh and interpolate variables:
+    if gradbdy:
         M = metric_intersection(mesh, V, M, M_, bdy=True)
         metric_gradation(mesh, M, beta, isotropic=iso)
     adaptor = AnisotropicAdaptation(mesh, M)

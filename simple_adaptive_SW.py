@@ -30,9 +30,9 @@ hmax = float(raw_input('Maximum element size in mm (default 1000)?: ') or 1000.)
 hmin2 = pow(hmin, 2)      # Square minimal side-length
 hmax2 = pow(hmax, 2)      # Square maximal side-length
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
-mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default b): ') or 'b'
+mtype = raw_input('Adapt with respect to speed, free surface or both? (s/f/b, default b): ') or 'b'
 if mtype not in ('s', 'f', 'b'):
-    raise ValueError('Please try again, choosing s, f or b.')
+    raise ValueError('Field selection not recognised. Please try again, choosing s, f or b.')
 mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
 iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
 if not iso:

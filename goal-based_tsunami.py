@@ -24,10 +24,11 @@ tic1 = clock()
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 coarseness = int(raw_input('coarseness (Integer in range 1-5, default 4): ') or 4)
 mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(coarseness)
-mesh_ = mesh
-N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
-N2 = N1                                                                 # Maximum number of vertices
-SumN = N1                                                               # Sum over vertex counts
+mesh0 = mesh
+W0 = VectorFunctionSpace(mesh0, 'CG', 1) * FunctionSpace(mesh0, 'CG', 1)    # P1-P1 space for interpolating velocity
+N1 = len(mesh.coordinates.dat.data)                                         # Minimum number of vertices
+N2 = N1                                                                     # Maximum number of vertices
+SumN = N1                                                                   # Sum over vertex counts
 print '...... mesh loaded. Initial number of vertices : ', N1
 
 # Set up adaptivity parameters:
@@ -43,6 +44,9 @@ beta = float(raw_input('Metric gradation scaling parameter (default 1.4): ') or 
 iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
 if not iso:
     hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
+    mtype = raw_input('Adapt with respect to speed, free surface or both? (s/f/b, default f): ') or 'f'
+    if mtype not in ('s', 'f', 'b'):
+        raise ValueError('Field selection not recognised. Please try again, choosing s, f or b.')
 
 # Specify parameters:
 T = float(raw_input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.
@@ -209,13 +213,12 @@ gauge_dat = [eta.at(gcoord)]
 # Initialise counters:
 t = 0.
 dumpn = 0
-i0 = i
 mn = 0
 
 # Approximate isotropic metric at boundaries of initial mesh using circumradius:
 h = Function(W.sub(1))
-h.interpolate(CellSize(mesh_))
-M_ = Function(TensorFunctionSpace(mesh_, 'CG', 1))
+h.interpolate(CellSize(mesh0))
+M_ = Function(TensorFunctionSpace(mesh0, 'CG', 1))
 for j in DirichletBC(W.sub(1), 0, 'on_boundary').nodes:
     h2 = pow(h.dat.data[j], 2)
     M_.dat.data[j][0, 0] = 1. / h2
@@ -226,6 +229,9 @@ print 'Starting mesh adaptive forward run...'
 while t < T - 0.5 * dt:
     mn += 1
     tic2 = clock()
+
+    # Compute Hessian:
+    V = TensorFunctionSpace(mesh, 'CG', 1)
 
     # Interpolate velocity in a P1 space:
     vel = Function(VectorFunctionSpace(mesh, 'CG', 1))
@@ -238,17 +244,15 @@ while t < T - 0.5 * dt:
     # Take maximal L2 inner product as most significant:
     for j in range(max(i, int((Ts - T) / (dt * ndump))), 0):
 
-        W = VectorFunctionSpace(mesh_, 'CG', 1) * FunctionSpace(mesh_, 'CG', 1)
-
         # Read in saved data from .h5:
         with DumbCheckpoint('data_dumps/tsunami/adjoint_soln_{y}'.format(y=i), mode=FILE_READ) as chk:
-            lu_P1 = Function(W.sub(0), name='P1 adjoint velocity')
-            le = Function(W.sub(1), name='Adjoint free surface')
+            lu_P1 = Function(W0.sub(0), name='P1 adjoint velocity')
+            le = Function(W0.sub(1), name='Adjoint free surface')
             chk.load(lu_P1)
             chk.load(le)
 
         # Interpolate saved data onto new mesh:
-        if i != i0:
+        if mn != 1:
             print '    #### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/', \
                 len(range(max(i, int((Ts - T) / (dt * ndump))), 0))
             lu_P1, le = interp(mesh, lu_P1, le)
@@ -265,20 +269,18 @@ while t < T - 0.5 * dt:
                 if np.abs(ip.dat.data[k]) > np.abs(significance.dat.data[k]):
                     significance.dat.data[k] = ip.dat.data[k]
     sig_file.write(significance, time=t)
-    V = TensorFunctionSpace(mesh, 'CG', 1)
 
     # Interpolate initial mesh size onto new mesh and build associated metric:
     fields = interp(mesh, h)
-    W1 = FunctionSpace(mesh, 'CG', 1)
-    h = Function(W1)
+    h = Function(W.sub(1))
     h.dat.data[:] = fields[0].dat.data[:]
     M_ = Function(V)
-    for j in DirichletBC(W1, 0, 'on_boundary').nodes:
+    for j in DirichletBC(W.sub(1), 0, 'on_boundary').nodes:
         h2 = pow(h.dat.data[j], 2)
         M_.dat.data[j][0, 0] = 1. / h2
         M_.dat.data[j][1, 1] = 1. / h2
 
-    # Generate Hessian associated with significant data:
+    # Generate metric associated with significant data:
     if iso:
         M = Function(V)
         for j in range(len(M.dat.data)):
@@ -286,11 +288,15 @@ while t < T - 0.5 * dt:
             M.dat.data[j][0, 0] = isig2
             M.dat.data[j][1, 1] = isig2
     else:
-
-        # TODO: include speed option
-
         H = Function(V)
-        H = construct_hessian(mesh, V, eta, method=hess_meth)
+        if mtype == 's':
+            spd = Function(W.sub(1))
+            spd.interpolate(sqrt(dot(u, u)))
+            H = construct_hessian(mesh, V, spd, method=hess_meth)
+        elif mtype == 'f':
+            H = construct_hessian(mesh, V, eta, method=hess_meth)
+        else:
+            raise NotImplementedError('Cannot currently perform goal-based adaption with respect to two fields.')
         for k in range(mesh.topology.num_vertices()):
             H.dat.data[k] *= significance.dat.data[k]
         M = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)

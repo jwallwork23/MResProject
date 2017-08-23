@@ -39,9 +39,9 @@ hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000
 hmin2 = pow(hmin, 2)      # Square minimal side-length
 hmax2 = pow(hmax, 2)      # Square maximal side-length
 ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
-mtype = raw_input('Mesh w.r.t. speed, free surface or both? (s/f/b, default b): ') or 'b'
+mtype = raw_input('Adapt with respect to speed, free surface or both? (s/f/b, default b): ') or 'b'
 if mtype not in ('s', 'f', 'b'):
-    raise ValueError('Please try again, choosing s, f or b.')
+    raise ValueError('Field selection not recognised. lease try again, choosing s, f or b.')
 mat_out = bool(raw_input('Hit any key to output Hessian and metric: ')) or False
 iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
 if not iso:
@@ -129,7 +129,7 @@ while t < T - 0.5 * dt:
     else:
         H = Function(V)
         if mtype != 'f':
-            spd = Function(FunctionSpace(mesh, 'CG', 1))
+            spd = Function(W.sub(1))
             spd.interpolate(sqrt(dot(u, u)))
             H = construct_hessian(mesh, V, spd, method=hess_meth)
             M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)

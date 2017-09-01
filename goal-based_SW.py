@@ -5,10 +5,8 @@ from time import clock
 from utils.adaptivity import compute_steady_metric, construct_hessian, metric_intersection, metric_gradation
 from utils.interp import interp, interp_Taylor_Hood
 
-print ''
-print '******************************** SHALLOW WATER TEST PROBLEM ********************************'
-print ''
-print 'GOAL-BASED, mesh adaptive solver initially defined on a rectangular mesh'
+print('\n******************************** SHALLOW WATER TEST PROBLEM ********************************\n')
+print('GOAL-BASED, mesh adaptive solver initially defined on a rectangular mesh')
 tic1 = clock()
 
 # Define initial (uniform) mesh:
@@ -20,10 +18,8 @@ x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                             # Minimum number of vertices
 N2 = N1                                                         # Maximum number of vertices
 SumN = N1                                                       # Sum over vertex counts
-print '...... mesh loaded. Initial number of vertices : ', N1
+print('...... mesh loaded. Initial number of vertices : ', N1, '\nOptions...')
 
-print ''
-print 'Options...'
 bathy = raw_input('Flat bathymetry or shelf break (f/s, default s?): ') or 's'
 numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.1): ') or 0.1) * N1
 hmin = float(raw_input('Minimum element size in mm (default 1)?: ') or 1.) * 1e-3
@@ -129,8 +125,7 @@ if not stored:
     lu, le = lam.split()
     lu_, le_ = lam_.split()
 
-    print ''
-    print 'Starting fixed resolution adjoint run...'
+    print('\nStarting fixed resolution adjoint run...')
 while t > 0.5 * dt:
 
     # Increment counters:
@@ -161,15 +156,14 @@ while t > 0.5 * dt:
             i -= 1
             # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
             if not stored:
-                print 't = %1.1fs' % t
+                print('t = %1.1fs' % t)
                 lu_P1.interpolate(lu)
                 with DumbCheckpoint('data_dumps/tests/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
                     chk.store(lu_P1)
                     chk.store(le)
 if not stored:
-    print '... done!',
     toc2 = clock()
-    print 'Elapsed time for adjoint solver: %1.2fs' % (toc2 - tic2)
+    print('... done!\nElapsed time for adjoint solver: %1.2fs' % (toc2 - tic2))
 
 # Repeat above setup:
 q_ = Function(W)
@@ -216,8 +210,7 @@ if gradbdy:
         M_.dat.data[j][0, 0] = 1. / h2
         M_.dat.data[j][1, 1] = 1. / h2
 
-print ''
-print 'Starting mesh adaptive forward run...'
+print('Starting mesh adaptive forward run...')
 while t < T - 0.5 * dt:
     tic2 = clock()
     mn += 1
@@ -244,8 +237,8 @@ while t < T - 0.5 * dt:
 
         # Interpolate saved data onto new mesh:
         if mn != 1:
-            print '    #### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/',\
-                len(range(max(i, int((Ts - T) / (dt * ndump))), 0))
+            print('    #### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/',\
+                len(range(max(i, int((Ts - T) / (dt * ndump))), 0)))
             lu_P1, le = interp(mesh, lu_P1, le)
 
         # Multiply fields together:
@@ -347,14 +340,12 @@ while t < T - 0.5 * dt:
     toc2 = clock()
 
     # Print to screen:
-    print ''
-    print '************ Adaption step %d **************' % mn
-    print 'Time = %1.1fs / %1.1fs' % (t, T)
-    print 'Number of vertices after adaption step %d: ' % mn, n
-    print 'Min/max vertex counts: %d, %d' % (N1, N2)
-    print 'Mean vertex count: %d' % (float(SumN) / mn)
-    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
-    print ''
-print '\a'
+    print('\n************ Adaption step %d **************' % mn)
+    print('Time = %1.1fs / %1.1fs' % (t, T))
+    print('Number of vertices after adaption step %d: ' % mn, n)
+    print('Min/max vertex counts: %d, %d' % (N1, N2))
+    print('Mean vertex count: %d' % (float(SumN) / mn))
+    print('Elapsed time for this step: %1.2fs' % (toc2 - tic2), '\n')
+print('\a')
 toc1 = clock()
-print 'Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60)
+print('Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60))

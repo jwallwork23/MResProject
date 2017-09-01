@@ -15,11 +15,8 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-print ''
-print '******************************** ANISOTROPIC ADAPTIVE TSUNAMI SIMULATION ********************************'
-print ''
-print ''
-print 'Mesh adaptive solver initially defined on a mesh of',
+print('******************************** ANISOTROPIC ADAPTIVE TSUNAMI SIMULATION ********************************\n')
+print('Mesh adaptive solver initially defined on a mesh of',)
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 coarseness = int(raw_input('coarseness (Integer in range 1-5, default 5): ') or 5)
@@ -27,12 +24,11 @@ mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(coarseness)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
 SumN = N1                                                               # Sum over vertex counts
-print '...... mesh loaded. Initial number of vertices : ', N1
+print('...... mesh loaded. Initial number of vertices : ', N1, 'More options...')
 
 # Set physical parameters:
 g = 9.81                        # Gravitational acceleration (m s^{-2})
 
-print 'More options...'
 numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.85): ') or 0.85) * N1
 hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
 hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
@@ -53,7 +49,7 @@ dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
 cdt = hmin / np.sqrt(g * max(b.dat.data))
 if dt > cdt:
-    print 'WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt
+    print ('WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt)
     if bool(raw_input('Hit anything except enter if happy to proceed.')) or False:
         exit(23)
 ndump = int(15. / dt)           # Timesteps per data dump
@@ -101,8 +97,7 @@ else:
         h_file = File('plots/anisotropic_outputs/tsunami_hessian.pvd')
 q_file.write(u, eta, time=0)
 gauge_dat = [eta.at(gcoord)]
-print ''
-print 'Entering outer timeloop!'
+print('\nEntering outer timeloop!')
 tic1 = clock()
 while t < T - 0.5 * dt:
     mn += 1
@@ -198,17 +193,15 @@ while t < T - 0.5 * dt:
     toc2 = clock()
 
     # Print to screen:
-    print ''
-    print '************ Adaption step %d **************' % mn
-    print 'Time = %1.2f mins / %1.1f mins' % (t / 60., T / 60.)
-    print 'Number of vertices after adaption step %d: ' % mn, n
-    print 'Min/max vertex counts: %d, %d' % (N1, N2)
-    print 'Mean vertex count: %d' % (float(SumN) / mn)
-    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
-    print ''
-print '\a'
+    print('\n************ Adaption step %d **************' % mn)
+    print('Time = %1.2f mins / %1.1f mins' % (t / 60., T / 60.))
+    print('Number of vertices after adaption step %d: ' % mn, n)
+    print('Min/max vertex counts: %d, %d' % (N1, N2))
+    print('Mean vertex count: %d' % (float(SumN) / mn))
+    print('Elapsed time for this step: %1.2fs' % (toc2 - tic2), '\n')
+print('\a')
 toc1 = clock()
-print 'Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60)
+print('Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60))
 
 # Store gauge timeseries data to file:
 gauge_timeseries(gauge, gauge_dat)

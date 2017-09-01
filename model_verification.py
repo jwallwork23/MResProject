@@ -14,17 +14,14 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-print ''
-print '******************************** MODEL VERIFICATION ********************************'
-print ''
-print 'Options...'
+print('\n******************************** MODEL VERIFICATION ********************************\nOptions...')
 
 # Establish cases:
 mode = {0: 'Linear, non-rotational', 1: 'Linear, rotational',
         2: 'Nonlinear, non-rotational', 3: 'Nonlinear, rotational'}
 for key in mode:
-    print key, ' : ', mode[key]
-print ''
+    print(key, ' : ', mode[key])
+print('\n')
 choices = int(raw_input('Choose mode (0/1/2/3 or 4 to try all): ') or 4)
 if choices in (0, 1, 2, 3):
     mode = {choices: mode[choices]}
@@ -35,7 +32,7 @@ mesh, W, q_, u_, v_, eta_, lam_, lu_, lv_, b = Tohoku_domain(res=coarseness, spl
 eta0 = Function(W.sub(2), name='Initial free surface')
 eta0.assign(eta_)
 coords = mesh.coordinates.dat.data
-print '........ mesh loaded. Number of vertices : ', len(mesh.coordinates.dat.data)
+print('........ mesh loaded. Number of vertices : ', len(mesh.coordinates.dat.data))
 
 # Set physical parameters:
 Om = 7.291e-5                   # Rotation rate of Earth (rad s^{-1})
@@ -49,7 +46,7 @@ dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
 cdt = 5e2 / np.sqrt(g * max(b.dat.data))
 if dt > cdt:
-    print 'WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt
+    print('WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt)
     if raw_input('Are you happy to proceed? (y/n)') == 'n':
         exit(23)
 ndump = int(60. / dt)
@@ -89,9 +86,7 @@ if mode not in (0, 2):
     File('plots/tsunami_outputs/Coriolis_parameter.pvd').write(f)
 
 for key in mode:
-    print ''
-    print '****************', mode[key], ' case (', key, ') ****************'
-    print ''
+    print('\n****************', mode[key], ' case (', key, ') ****************\n')
 
     # Assign initial surface and post-process the bathymetry to have a minimum depth of 30m:
     u_.interpolate(Expression(0))
@@ -149,7 +144,7 @@ for key in mode:
         # Increment counters:
         t += dt
         dumpn += 1
-        print 't = %1.1f mins' % (t / 60.),
+        print('t = %1.1f mins' % (t / 60.))
 
         # Solve problem:
         q_solv.solve()
@@ -167,11 +162,11 @@ for key in mode:
         toc2 = clock()
         duration = toc2 - tic2
         if duration < 60:
-            print '[Real time this timestep:', duration, 'seconds]'
+            print('[Real time this timestep:', duration, 'seconds]')
         elif duration < 3600:
-            print '[Real time this timestep:', (duration / 60.), 'minutes]'
+            print('[Real time this timestep:', (duration / 60.), 'minutes]')
         else:
-            print '[Real time this timestep:', (duration / 3600.), 'hours]'
+            print('[Real time this timestep:', (duration / 3600.), 'hours]')
 
     # End timing and print:
     toc1 = clock()
@@ -186,7 +181,7 @@ for key in mode:
     plt.gcf().subplots_adjust(bottom=0.15)
     plt.xlabel(r'Time elapsed (mins)')
     plt.ylabel(r'Free surface (m)')
-print '\a'
+print('\a')
 plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries_{y1}_res{y2}.png'.format(y1=gauge, y2=coarseness))
 
 # Store gauge timeseries data to file:
@@ -210,4 +205,4 @@ if dm == 'y':
     plt.savefig('plots/tsunami_outputs/screenshots/damage_measure_timeseries.png')
 
 for key in mode:
-    print mode[key], 'case time =  %1.1fs' % timings[key]
+    print(mode[key], 'case time =  %1.1fs' % timings[key])

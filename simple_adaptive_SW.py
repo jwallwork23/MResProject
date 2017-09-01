@@ -5,10 +5,8 @@ from time import clock
 from utils.adaptivity import construct_hessian, compute_steady_metric, metric_intersection
 from utils.interp import interp, interp_Taylor_Hood
 
-print ''
-print '******************************** SHALLOW WATER TEST PROBLEM ********************************'
-print ''
-print 'Mesh adaptive solver initially defined on a square mesh'
+print('\n******************************** SHALLOW WATER TEST PROBLEM ********************************\n')
+print('Mesh adaptive solver initially defined on a square mesh')
 tic1 = clock()
 
 # Define initial (uniform) mesh:
@@ -19,10 +17,8 @@ x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                             # Minimum number of vertices
 N2 = N1                                                         # Maximum number of vertices
 SumN = N1                                                       # Sum over vertex counts
-print '...... mesh loaded. Initial number of vertices : ', N1
+print('...... mesh loaded. Initial number of vertices : ', N1, '\nOptions...')
 
-print ''
-print 'Options...'
 bathy = raw_input('Flat bathymetry or shelf break (f/s, default s)?: ') or 's'
 numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.2): ') or 0.2) * N1
 hmin = float(raw_input('Minimum element size in mm (default 1)?: ') or 1.) * 1e-3
@@ -89,13 +85,10 @@ t = 0.
 dumpn = 0
 mn = 0
 
-print ''
-print 'Entering outer timeloop!'
+print('\nEntering outer timeloop!')
 while t < T - 0.5 * dt:
     mn += 1
     tic2 = clock()
-
-    # TODO: implement goal-based adaptivity properly by scaling the metric over the domain.
 
     # Compute Hessian and metric:
     V = TensorFunctionSpace(mesh, 'CG', 1)
@@ -185,14 +178,12 @@ while t < T - 0.5 * dt:
     toc2 = clock()
 
     # Print to screen:
-    print ''
-    print '************ Adaption step %d **************' % mn
-    print 'Time = %1.1fs / %1.1fs' % (t, T)
-    print 'Number of vertices after adaption step %d: ' % mn, n
-    print 'Min/max vertex counts: %d, %d' % (N1, N2)
-    print 'Mean vertex count: %d' % (float(SumN) / mn)
-    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
-    print ''
-print '\a'
+    print('\n************ Adaption step %d **************' % mn)
+    print('Time = %1.1fs / %1.1fs' % (t, T))
+    print('Number of vertices after adaption step %d: ' % mn, n)
+    print('Min/max vertex counts: %d, %d' % (N1, N2))
+    print('Mean vertex count: %d' % (float(SumN) / mn))
+    print('Elapsed time for this step: %1.2fs' % (toc2 - tic2), '\n')
+print('\a')
 toc1 = clock()
-print 'Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60)
+print('Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60))

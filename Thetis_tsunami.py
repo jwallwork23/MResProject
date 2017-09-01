@@ -6,10 +6,7 @@ from scipy.io.netcdf import NetCDFFile
 
 from utils import Tohoku_domain, vectorlonlat2utm
 
-print ''
-print '******************************** THETIS TSUNAMI SIMULATION ********************************'
-print ''
-print 'Options...'
+print('\n******************************** THETIS TSUNAMI SIMULATION ********************************\nOptions...')
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 try:
@@ -21,7 +18,7 @@ except:
 dt = float(raw_input('Specify timestep (s) (default 1):') or 1)
 ndump = 60      # Inverse data dump frequency
 T = 3600        # Simulation time period (s) of 1 hour
-print ''
+print('\n')
 
 # Construct solver:
 solver_obj = solver2d.FlowSolver2d(mesh, b)

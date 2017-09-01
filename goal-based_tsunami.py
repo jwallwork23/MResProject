@@ -15,10 +15,8 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-print ''
-print '******************************** GOAL-BASED ADAPTIVE TSUNAMI SIMULATION ********************************'
-print ''
-print 'GOAL-BASED, mesh adaptive solver initially defined on a mesh of',
+print('\n******************************** GOAL-BASED ADAPTIVE TSUNAMI SIMULATION ********************************\n')
+print('GOAL-BASED, mesh adaptive solver initially defined on a mesh of')
 tic1 = clock()
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
@@ -29,10 +27,9 @@ W0 = VectorFunctionSpace(mesh0, 'CG', 1) * FunctionSpace(mesh0, 'CG', 1)    # P1
 N1 = len(mesh.coordinates.dat.data)                                         # Minimum number of vertices
 N2 = N1                                                                     # Maximum number of vertices
 SumN = N1                                                                   # Sum over vertex counts
-print '...... mesh loaded. Initial number of vertices : ', N1
+print('...... mesh loaded. Initial number of vertices : ', N1, '\nMore options...')
 
 # Set up adaptivity parameters:
-print 'More options...'
 numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.2): ') or 0.2) * N1
 hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
 hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
@@ -56,7 +53,7 @@ dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
 cdt = hmin / np.sqrt(g * max(b.dat.data))
 if dt > cdt:
-    print 'WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt
+    print('WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt)
     if bool(raw_input('Hit anything except enter if happy to proceed.')) or False:
         exit(23)
 ndump = int(15. / dt)           # Timesteps per data dump
@@ -142,8 +139,7 @@ if not stored:
     lu, le = lam.split()
     lu_, le_ = lam_.split()
 
-    print ''
-    print 'Starting fixed resolution adjoint run...'
+    print('\nStarting fixed resolution adjoint run...')
     tic2 = clock()
 while t > 0.5 * dt:
 
@@ -175,15 +171,14 @@ while t > 0.5 * dt:
             i -= 1
             # Interpolate velocity onto P1 space and store final time data to HDF5 and PVD:
             if not stored:
-                print 't = %1.1fs' % t
+                print('t = %1.1fs' % t)
                 lu_P1.interpolate(lu)
                 with DumbCheckpoint('data_dumps/tsunami/adjoint_soln_{y}'.format(y=i), mode=FILE_CREATE) as chk:
                     chk.store(lu_P1)
                     chk.store(le)
 if not stored:
-    print '... done!',
     toc2 = clock()
-    print 'Elapsed time for adjoint solver: %1.2fs' % (toc2 - tic2)
+    print('... done! Elapsed time for adjoint solver: %1.2fs' % (toc2 - tic2))
 
 # Set up dependent variables of the forward problem:
 q = Function(W)
@@ -224,8 +219,7 @@ for j in DirichletBC(W.sub(1), 0, 'on_boundary').nodes:
     M_.dat.data[j][0, 0] = 1. / h2
     M_.dat.data[j][1, 1] = 1. / h2
 
-print ''
-print 'Starting mesh adaptive forward run...'
+print('\nStarting mesh adaptive forward run...')
 while t < T - 0.5 * dt:
     mn += 1
     tic2 = clock()
@@ -253,8 +247,8 @@ while t < T - 0.5 * dt:
 
         # Interpolate saved data onto new mesh:
         if mn != 1:
-            print '    #### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/', \
-                len(range(max(i, int((Ts - T) / (dt * ndump))), 0))
+            print('    #### Interpolation step', j - max(i, int((Ts - T) / (dt * ndump))) + 1, '/', \
+                len(range(max(i, int((Ts - T) / (dt * ndump))), 0)))
             lu_P1, le = interp(mesh, lu_P1, le)
 
         # Multiply fields together:
@@ -356,17 +350,15 @@ while t < T - 0.5 * dt:
                 m_file.write(M, time=t)
     toc2 = clock()
 
-    print ''
-    print '************ Adaption step %d **************' % mn
-    print 'Time = %1.2f mins / %1.1f mins' % (t / 60., T / 60.)
-    print 'Number of vertices after adaption step %d: ' % mn, n
-    print 'Min/max vertex counts: %d, %d' % (N1, N2)
-    print 'Mean vertex count: %d' % (float(SumN) / mn)
-    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
-    print ''
-print '\a'
+    print('\n************ Adaption step %d **************' % mn)
+    print('Time = %1.2f mins / %1.1f mins' % (t / 60., T / 60.))
+    print('Number of vertices after adaption step %d: ' % mn, n)
+    print('Min/max vertex counts: %d, %d' % (N1, N2))
+    print('Mean vertex count: %d' % (float(SumN) / mn))
+    print('Elapsed time for this step: %1.2fs' % (toc2 - tic2), '\n')
+print('\a')
 toc1 = clock()
-print 'Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60)
+print('Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60))
 
 # Store gauge timeseries data to file:
 gauge_timeseries(gauge, gauge_dat)

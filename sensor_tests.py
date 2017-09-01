@@ -5,19 +5,12 @@ from time import clock
 from utils.adaptivity import construct_hessian, compute_steady_metric
 from utils.interp import interp
 
-print ''
-print '******************************** SENSOR ADAPTIVITY TESTS ********************************'
-print ''
-print 'Options...'
-print 'f1(x,y) = x^2 + y^2'
-print ''
-print 'f2(x,y) = / 0.01 * sin(50(x-1)(y-1))     if      abs((x-1)(y-1)) >= pi/25,'
-print '          \ sin(50(x-1)(y-1))            else'
-print ''
-print 'f3(x,y) = 0.1 * sin(50x) + atan(0.1 / (sin(5y) - 2x))'
-print ''
-print 'f4(x,y) = atan(0.1 / (sin(5y) - 2x)) + atan(0.5 / (sin(3y) - 7x))'
-print ''
+print('\n******************************** SENSOR ADAPTIVITY TESTS ********************************\nOptions...')
+print('f1(x,y) = x^2 + y^2\n')
+print('f2(x,y) = / 0.01 * sin(50(x-1)(y-1))     if      abs((x-1)(y-1)) >= pi/25,')
+print('          \ sin(50(x-1)(y-1))            else\n')
+print('f3(x,y) = 0.1 * sin(50x) + atan(0.1 / (sin(5y) - 2x))\n')
+print('f4(x,y) = atan(0.1 / (sin(5y) - 2x)) + atan(0.5 / (sin(3y) - 7x))\n')
 
 # Specify problem parameters:
 choices = int(raw_input('Choose sensor (1/2/3/4 or 0 to try all): ') or 0)
@@ -32,19 +25,18 @@ if not iso:
     hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
     if hess_meth not in ('parts', 'dL2'):
         raise ValueError('Please try again, choosing parts or dL2.')
-print ''
+print('\n')
 
 for i in range(1, 5):
     if choices in (i, 0):
-        print '******************************** Sensor %d ********************************' % i
-        print ''
+        print('******************************** Sensor %d ********************************' % i, '\n')
 
         # Define uniform mesh, with a metric function space:
         mesh = SquareMesh(200, 200, 2, 2)
         x, y = SpatialCoordinate(mesh)
         x = x - 1
         y = y - 1
-        print 'Initial number of nodes : ', len(mesh.coordinates.dat.data)
+        print('Initial number of nodes : ', len(mesh.coordinates.dat.data))
 
         # Interpolate sensor field:
         W = FunctionSpace(mesh, 'CG', 1)
@@ -98,10 +90,8 @@ for i in range(1, 5):
             H.rename('Hessian {y}'.format(y=i))
 
             # Print to screen:
-            print ''
-            print 'Number of nodes after adaption %d : %d ' % (j + 1, len(mesh.coordinates.dat.data))
-            print 'Elapsed time for this step: %1.2es' % (toc1 - tic1)
-            print ''
+            print('\nNumber of nodes after adaption %d : %d ' % (j + 1, len(mesh.coordinates.dat.data)))
+            print('Elapsed time for this step: %1.2es' % (toc1 - tic1), '\n')
 
             # Plot results:
             f_file.write(f, time=j)

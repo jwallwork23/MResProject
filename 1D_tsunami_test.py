@@ -11,10 +11,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-print ''
-print '******************************** 1D TSUNAMI TEST PROBLEM ********************************'
-print ''
-print 'Options...'
+print('\n******************************** 1D TSUNAMI TEST PROBLEM ********************************\n\nOptions...')
 
 # Specify problem parameters:
 dt = float(raw_input('Specify timestep (default 1): ') or 1.)
@@ -27,7 +24,7 @@ n = 1e-3  # Number of cells per km
 T = 4200.  # Simulation duration (s)
 ndump = 60  # Timesteps per data dump
 g = 9.81  # Gravitational acceleration (m s^{-2})
-print ''
+print('\n')
 
 # Check CFL criterion is satisfied for this discretisation:
 assert (dt < 1. / (n * np.sqrt(g * 4000.)))  # Maximal wavespeed sqrt(gb)
@@ -94,15 +91,14 @@ for j in range(nx + 1):
         sig_eta[i, j] = 1
 
 # Enter the forward timeloop:
-print '******************************** Forward solver ********************************'
-print ''
+print('******************************** Forward solver ********************************\n')
 while t < T - 0.5 * dt:
     t += dt
     q_solv.solve()
     q_.assign(q)
     dumpn += 1
     if dumpn == ndump:
-        print 't = %ds' % t
+        print('t = %ds' % t)
         dumpn -= ndump
         i += 1
         mu_vals[i, :] = mu.at(coords, dont_raise=True)
@@ -124,8 +120,7 @@ while t < T - 0.5 * dt:
     if t in snaps.values():
         eta_snapshots.append(Function(eta))
 
-print '... forward problem solved...'
-print ''
+print('... forward problem solved...\n')
 
 # Set up functions of the adjoint weak problem:
 lam = Function(Vq)
@@ -176,15 +171,14 @@ for j in range(nx + 1):
         q_dot_lam[i, j] = 0
 
 # Enter the backward timeloop:
-print '******************************** Adjoint solver ********************************'
-print ''
+print('******************************** Adjoint solver ********************************\n')
 while t > 0.5 * dt:
     t -= dt
     lam_solv.solve()
     lam_.assign(lam)
     dumpn -= 1
     if dumpn == 0:
-        print 't = %ds' % t
+        print('t = %ds' % t)
         dumpn += ndump
         i -= 1
         lm_vals[i, :] = lm.at(coords, dont_raise=True)
@@ -207,7 +201,7 @@ while t > 0.5 * dt:
     # Dump snapshot data:
     if t in snaps.values():
         le_snapshots.append(Function(le))
-print '... adjoint problem solved... just need to plot results...'
+print('... adjoint problem solved... just need to plot results...')
 
 # Font formatting:
 rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
@@ -311,4 +305,4 @@ else:
     plt.ylabel(r'm (dimensionless)')
     plt.title(r'Damage measures')
     plt.savefig('plots/tsunami_outputs/screenshots/1Ddamage_measures.png')
-print '...done!'
+print('...done!')

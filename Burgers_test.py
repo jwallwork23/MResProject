@@ -5,10 +5,8 @@ from time import clock
 from utils.adaptivity import construct_hessian, compute_steady_metric
 from utils.interp import interp
 
-print ''
-print '******************************** BURGERS EQUATION TEST PROBLEM ********************************'
-print ''
-print 'Mesh adaptive solver initially defined on a rectangular mesh'
+print('\n******************************** BURGERS EQUATION TEST PROBLEM ********************************\n')
+print('Mesh adaptive solver initially defined on a rectangular mesh')
 tic1 = clock()
 
 # Define initial (uniform) mesh:
@@ -20,11 +18,10 @@ x, y = SpatialCoordinate(mesh)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of nodes
 N2 = N1                                                                 # Maximum number of nodes
 SumN = N1                                                               # Sum over vertex counts
-print '...... mesh loaded. Initial number of nodes : ', N1
+print('...... mesh loaded. Initial number of nodes : ', N1)
 
 # Choose function space degree:
-print ''
-print 'Options...'
+print('\nOptions...')
 numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.85): ') or 0.85) * N1
 p = int(raw_input('Polynomial degree? (default 1): ') or 1)
 nu = Constant(float(raw_input('Diffusion parameter (default 1e-3)?: ') or 1e-3))
@@ -45,7 +42,7 @@ ndump = 1
 T = 0.2
 dt = 0.8 * hmin
 Dt = Constant(dt)
-print 'Using Courant number adjusted timestep dt = %1.4f' % dt
+print('Using Courant number adjusted timestep dt = %1.4f' % dt)
 rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
 
 # Create function space and set initial conditions:
@@ -69,8 +66,7 @@ else:
     h_file = File('plots/anisotropic_outputs/Burgers_test_hessian.pvd')
 phi_file.write(phi, time=t)
 
-print ''
-print 'Entering outer timeloop!'
+print('\nEntering outer timeloop!')
 while t < T - 0.5 * dt:
     mn += 1
 
@@ -134,14 +130,12 @@ while t < T - 0.5 * dt:
             phi_file.write(phi, time=t)
 
     # Print to screen:
-    print ''
-    print '************ Adaption step %d **************' % mn
-    print 'Time = %1.1fs / %1.1fs' % (t, T)
-    print 'Number of vertices after adaption step %d: ' % mn, n
-    print 'Min/max vertex counts: %d, %d' % (N1, N2)
-    print 'Mean vertex count: %d' % (float(SumN) / mn)
-    print 'Elapsed time for this step: %1.2fs' % (toc2 - tic2)
-    print ''
-print '\a'
+    print('\n************ Adaption step %d **************' % mn)
+    print('Time = %1.1fs / %1.1fs' % (t, T))
+    print('Number of vertices after adaption step %d: ' % mn, n)
+    print('Min/max vertex counts: %d, %d' % (N1, N2))
+    print('Mean vertex count: %d' % (float(SumN) / mn))
+    print('Elapsed time for this step: %1.2fs' % (toc2 - tic2), '\n')
+print('\a')
 toc1 = clock()
-print 'Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1)
+print('Elapsed time for adaptive solver: %1.2fs' % (toc1 - tic1))

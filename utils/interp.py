@@ -28,12 +28,12 @@ def interp(mesh, *fields):
             interp_coordinates.interpolate(mesh.coordinates)
             coords = interp_coordinates.dat.data                                    # Node coords (NOT just vertices)
         else:
-            raise NotImplementedError("Can only interpolate CG fields")
+            raise NotImplementedError('Can only interpolate CG fields')
 
         try:
             f_new.dat.data[:] = f.at(coords)
         except PointNotInDomainError:
-            # print '#### Points not in domain! Commence attempts by increasing tolerances'
+            # print('#### Points not in domain! Commence attempts by increasing tolerances')
 
             # Establish which vertices fall outside the domain:
             for x in range(len(coords)):
@@ -46,9 +46,9 @@ def interp(mesh, *fields):
                     f_new.dat.data[x] = val
         eps = 1e-6                              # Tolerance to be increased
         while len(notInDomain) > 0:
-            # print '#### Points not in domain: %d / %d' % (len(notInDomain), len(coords)),
+            # print('#### Points not in domain: %d / %d' % (len(notInDomain), len(coords)),)
             eps *= 10
-            # print '...... Trying tolerance = ', eps
+            # print('...... Trying tolerance = ', eps)
             for x in notInDomain:
                 try:
                     val = f.at(coords[x], tolerance=eps)
@@ -58,7 +58,7 @@ def interp(mesh, *fields):
                     f_new.dat.data[x] = val
                     notInDomain.remove(x)
             if eps >= 1e8:
-                print '#### Playing with epsilons failed. Abort.'
+                print('#### Playing with epsilons failed. Abort.')
                 exit(23)
 
         fields_new += (f_new,)
@@ -108,9 +108,9 @@ def interp_Taylor_Hood(mesh, u, u_, eta, eta_, b):
 
     eps = 1e-6  # For playing with epsilons
     while len(notInDomain) > 0:
-        # print '#### Points not in domain for P2 space: %d / %d' % (len(notInDomain), len(P2coords)),
+        # print('#### Points not in domain for P2 space: %d / %d' % (len(notInDomain), len(P2coords)),)
         eps *= 10
-        # print '...... Trying epsilon = ', eps
+        # print('...... Trying epsilon = ', eps)
         for x in notInDomain:
             try:
                 valu = u.at(P2coords[x], tolerance=eps)
@@ -123,7 +123,7 @@ def interp_Taylor_Hood(mesh, u, u_, eta, eta_, b):
                 u_new.dat.data[x] = valu_
                 notInDomain.remove(x)
         if eps > 1e8:
-            print '#### Playing with epsilons failed. Abort.'
+            print('#### Playing with epsilons failed. Abort.')
             exit(23)
     assert (len(notInDomain) == 0)  # All nodes should have been brought back into the domain
 
@@ -145,9 +145,9 @@ def interp_Taylor_Hood(mesh, u, u_, eta, eta_, b):
 
     eps = 1e-6  # For playing with epsilons
     while len(notInDomain) > 0:
-        # print '#### Points not in domain for P1 space: %d / %d' % (len(notInDomain), len(P1coords)),
+        # print('#### Points not in domain for P1 space: %d / %d' % (len(notInDomain), len(P1coords)),)
         eps *= 10
-        # print '...... Trying epsilon = ', eps
+        # print('...... Trying epsilon = ', eps)
         for x in notInDomain:
             try:
                 vale = eta.at(P1coords[x], tolerance=eps)
@@ -163,7 +163,7 @@ def interp_Taylor_Hood(mesh, u, u_, eta, eta_, b):
                 bnew.dat.data[x] = valb
                 notInDomain.remove(x)
         if eps > 1e8:
-            print '#### Playing with epsilons failed. Abort.'
+            print('#### Playing with epsilons failed. Abort.')
             exit(23)
 
     return unew, u_new, etanew, eta_new, qnew, q_new, bnew, W

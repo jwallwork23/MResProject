@@ -93,7 +93,7 @@ def Tohoku_domain(res=3, split=False):
     # Define mesh and function spaces:
     if res == 1:
         mesh = Mesh('resources/meshes/TohokuXFine.msh')     # 226,967 vertices, ~45 seconds per timestep
-        print 'WARNING: chosen mesh resolution can be extremely computationally intensive'
+        print('WARNING: chosen mesh resolution can be extremely computationally intensive')
         if raw_input('Are you happy to proceed? (y/n)') == 'n':
             exit(23)
     elif res == 2:

@@ -5,9 +5,9 @@ import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
 from time import clock
 
-from utils.conversion import from_latlon, get_latitude
-from utils.domain import Tohoku_domain
-from utils.storage import gauge_timeseries
+import utils.conversion as conv
+import utils.domain as dom
+import utils.storage as stor
 
 # Change backend to resolve framework problems:
 import matplotlib
@@ -28,7 +28,7 @@ if choices in (0, 1, 2, 3):
 coarseness = int(raw_input('Mesh coarseness? (Integer in range 1-5, default 3): ') or 3)
 
 # Define mesh, mixed function space and variables:
-mesh, W, q_, u_, v_, eta_, lam_, lu_, lv_, b = Tohoku_domain(res=coarseness, split=True)
+mesh, W, q_, u_, v_, eta_, lam_, lu_, lv_, b = dom.Tohoku_domain(res=coarseness, split=True)
 eta0 = Function(W.sub(2), name='Initial free surface')
 eta0.assign(eta_)
 coords = mesh.coordinates.dat.data
@@ -57,7 +57,7 @@ glatlon = {'P02': (38.5002, 142.5016), 'P06': (38.6340, 142.5838),
            '801': (38.2, 141.7), '802': (39.3, 142.1), '803': (38.9, 141.8), '804': (39.7, 142.2), '806': (37.0, 141.2)}
 gloc = {}
 for key in glatlon:
-    east, north, zn, zl = from_latlon(glatlon[key][0], glatlon[key][1], force_zone_number=54)
+    east, north, zn, zl = conv.from_latlon(glatlon[key][0], glatlon[key][1], force_zone_number=54)
     gloc[key] = (east, north)
 
 # Set gauge arrays:
@@ -78,11 +78,11 @@ if mode not in (0, 2):
     f = Function(W.sub(2), name='Coriolis parameter')
     for i in range(len(coords)):
         if coords[i][0] < 100000:
-            f.dat.data[i] = 2 * Om * sin(math.radians(get_latitude(100000, coords[i][1], 54, northern=True)))
+            f.dat.data[i] = 2 * Om * sin(math.radians(conv.get_latitude(100000, coords[i][1], 54, northern=True)))
         elif coords[i][0] < 999999:
-            f.dat.data[i] = 2 * Om * sin(math.radians(get_latitude(coords[i][0], coords[i][1], 54, northern=True)))
+            f.dat.data[i] = 2 * Om * sin(math.radians(conv.get_latitude(coords[i][0], coords[i][1], 54, northern=True)))
         else:
-            f.dat.data[i] = 2 * Om * sin(math.radians(get_latitude(999999, coords[i][1], 54, northern=True)))
+            f.dat.data[i] = 2 * Om * sin(math.radians(conv.get_latitude(999999, coords[i][1], 54, northern=True)))
     File('plots/tsunami_outputs/Coriolis_parameter.pvd').write(f)
 
 for key in mode:
@@ -185,7 +185,7 @@ print('\a')
 plt.savefig('plots/tsunami_outputs/screenshots/gauge_timeseries_{y1}_res{y2}.png'.format(y1=gauge, y2=coarseness))
 
 # Store gauge timeseries data to file:
-gauge_timeseries(gauge, gauge_dat)
+stor.gauge_timeseries(gauge, gauge_dat)
 
 # Plot damage measures time series:
 if dm == 'y':

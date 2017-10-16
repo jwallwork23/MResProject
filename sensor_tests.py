@@ -2,8 +2,8 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils.adaptivity import construct_hessian, compute_steady_metric
-from utils.interp import interp
+import utils.adaptivity as adap
+import utils.interp as inte
 
 print('\n******************************** SENSOR ADAPTIVITY TESTS ********************************\nOptions...')
 print('f1(x,y) = x^2 + y^2\n')
@@ -13,16 +13,16 @@ print('f3(x,y) = 0.1 * sin(50x) + atan(0.1 / (sin(5y) - 2x))\n')
 print('f4(x,y) = atan(0.1 / (sin(5y) - 2x)) + atan(0.5 / (sin(3y) - 7x))\n')
 
 # Specify problem parameters:
-choices = int(raw_input('Choose sensor (1/2/3/4 or 0 to try all): ') or 0)
-hmin = float(raw_input('Minimum element size (default 0.0001)?: ') or 0.0001)
-ani = float(raw_input('Maximum aspect ratio (default 100.)?: ') or 100.)
-num = int(raw_input('Number of adaptations (default 4)?: ') or 4)
-ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+choices = int(input('Choose sensor (1/2/3/4 or 0 to try all): ') or 0)
+hmin = float(input('Minimum element size (default 0.0001)?: ') or 0.0001)
+ani = float(input('Maximum aspect ratio (default 100.)?: ') or 100.)
+num = int(input('Number of adaptations (default 4)?: ') or 4)
+ntype = input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
+iso = bool(input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
 if not iso:
-    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
+    hess_meth = input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
     if hess_meth not in ('parts', 'dL2'):
         raise ValueError('Please try again, choosing parts or dL2.')
 print('\n')
@@ -72,13 +72,13 @@ for i in range(1, 5):
                     H.dat.data[i][0, 0] = np.abs(f.dat.data[i])
                     H.dat.data[i][1, 1] = np.abs(f.dat.data[i])
             else:
-                H = construct_hessian(mesh, V, f, method=hess_meth)
-            M = compute_steady_metric(mesh, V, H, f, h_min=hmin, a=ani, normalise=ntype)
+                H = adap.construct_hessian(mesh, V, f, method=hess_meth)
+            M = adap.compute_steady_metric(mesh, V, H, f, h_min=hmin, a=ani, normalise=ntype)
 
             # Adapt mesh and interpolate functions:
             adaptor = AnisotropicAdaptation(mesh, M)
             mesh = adaptor.adapted_mesh
-            fields = interp(mesh, f)
+            fields = inte.interp(mesh, f)
 
             W = FunctionSpace(mesh, 'CG', 1)
             f = Function(W, name='Sensor {y}'.format(y=i))

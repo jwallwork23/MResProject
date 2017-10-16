@@ -4,11 +4,11 @@ from time import clock
 import math
 import sys
 
-from utils.adaptivity import compute_steady_metric, construct_hessian, metric_intersection, metric_gradation
-from utils.conversion import from_latlon
-from utils.domain import Tohoku_domain
-from utils.interp import interp, interp_Taylor_Hood
-from utils.storage import gauge_timeseries
+import utils.adaptivity as adap
+import utils.conversion as conv
+import utils.domain as dom
+import utils.interp as inte
+import utils.storage as stor
 
 # Change backend to resolve framework problems:
 import matplotlib
@@ -20,8 +20,8 @@ print('GOAL-BASED, mesh adaptive solver initially defined on a mesh of')
 tic1 = clock()
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
-coarseness = int(raw_input('coarseness (Integer in range 1-5, default 4): ') or 4)
-mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(coarseness)
+coarseness = int(input('coarseness (Integer in range 1-5, default 4): ') or 4)
+mesh, W, q_, u_, eta_, lam_, lu_, le_, b = dom.Tohoku_domain(coarseness)
 mesh0 = mesh
 W0 = VectorFunctionSpace(mesh0, 'CG', 1) * FunctionSpace(mesh0, 'CG', 1)    # P1-P1 space for interpolating velocity
 N1 = len(mesh.coordinates.dat.data)                                         # Minimum number of vertices
@@ -30,35 +30,35 @@ SumN = N1                                                                   # Su
 print('...... mesh loaded. Initial number of vertices : ', N1, '\nMore options...')
 
 # Set up adaptivity parameters:
-numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.2): ') or 0.2) * N1
-hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
-hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
+numVer = float(input('Target vertex count as a proportion of the initial number? (default 0.2): ') or 0.2) * N1
+hmin = float(input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
+hmax = float(input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
 hmin2 = pow(hmin, 2)      # Square minimal side-length
 hmax2 = pow(hmax, 2)      # Square maximal side-length
-ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
-beta = float(raw_input('Metric gradation scaling parameter (default 1.4): ') or 1.4)
-iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
+ntype = input('Normalisation type? (lp/manual): ') or 'lp'
+mat_out = bool(input('Hit anything but enter to output Hessian and metric: ')) or False
+beta = float(input('Metric gradation scaling parameter (default 1.4): ') or 1.4)
+iso = bool(input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
 if not iso:
-    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
-    mtype = raw_input('Adapt with respect to speed, free surface or both? (s/f/b, default f): ') or 'f'
+    hess_meth = input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
+    mtype = input('Adapt with respect to speed, free surface or both? (s/f/b, default f): ') or 'f'
     if mtype not in ('s', 'f', 'b'):
         raise ValueError('Field selection not recognised. Please try again, choosing s, f or b.')
 
 # Specify parameters:
-T = float(raw_input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.
+T = float(input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.
 Ts = 5. * 60.                   # Time range lower limit (s), during which we can assume the wave won't reach the shore
 g = 9.81                        # Gravitational acceleration (m s^{-2})
-dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
+dt = float(input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
 cdt = hmin / np.sqrt(g * max(b.dat.data))
 if dt > cdt:
     print('WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt)
-    if bool(raw_input('Hit anything except enter if happy to proceed.')) or False:
+    if bool(input('Hit anything except enter if happy to proceed.')) or False:
         exit(23)
 ndump = int(15. / dt)           # Timesteps per data dump
-rm = int(raw_input('Timesteps per re-mesh (default 60)?: ') or 60)
-stored = bool(raw_input('Hit anything but enter if adjoint data is already stored: ')) or False
+rm = int(input('Timesteps per re-mesh (default 60)?: ') or 60)
+stored = bool(input('Hit anything but enter if adjoint data is already stored: ')) or False
 
 # Convert gauge locations to UTM coordinates:
 glatlon = {'P02': (38.5002, 142.5016), 'P06': (38.6340, 142.5838),
@@ -66,16 +66,16 @@ glatlon = {'P02': (38.5002, 142.5016), 'P06': (38.6340, 142.5838),
 
 gloc = {}
 for key in glatlon:
-    east, north, zn, zl = from_latlon(glatlon[key][0], glatlon[key][1], force_zone_number=54)
+    east, north, zn, zl = conv.from_latlon(glatlon[key][0], glatlon[key][1], force_zone_number=54)
     gloc[key] = (east, north)
 
 # Set gauge arrays:
-gtype = raw_input('Pressure or tide gauge? (p/t, default p): ') or 'p'
+gtype = input('Pressure or tide gauge? (p/t, default p): ') or 'p'
 if gtype == 'p':
-    gauge = raw_input('Gauge P02 or P06? (default P02): ') or 'P02'
+    gauge = input('Gauge P02 or P06? (default P02): ') or 'P02'
     gcoord = gloc[gauge]
 elif gtype == 't':
-    gauge = raw_input('Gauge 801, 802, 803, 804 or 806? (default 801): ') or '801'
+    gauge = input('Gauge 801, 802, 803, 804 or 806? (default 801): ') or '801'
     gcoord = gloc[gauge]
 else:
     ValueError('Gauge type not recognised. Please choose p or t.')
@@ -286,21 +286,21 @@ while t < T - 0.5 * dt:
         if mtype == 's':
             spd = Function(W.sub(1))
             spd.interpolate(sqrt(dot(u, u)))
-            H = construct_hessian(mesh, V, spd, method=hess_meth)
+            H = adap.construct_hessian(mesh, V, spd, method=hess_meth)
         elif mtype == 'f':
-            H = construct_hessian(mesh, V, eta, method=hess_meth)
+            H = adap.construct_hessian(mesh, V, eta, method=hess_meth)
         else:
             raise NotImplementedError('Cannot currently perform goal-based adaption with respect to two fields.')
         for k in range(mesh.topology.num_vertices()):
             H.dat.data[k] *= significance.dat.data[k]
-        M = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
+        M = adap.compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
 
     # Gradate metric, adapt mesh and interpolate variables:
-    M = metric_intersection(mesh, V, M, M_, bdy=True)
-    metric_gradation(mesh, M, beta, isotropic=iso)
+    M = adap.metric_intersection(mesh, V, M, M_, bdy=True)
+    adap.metric_gradation(mesh, M, beta, isotropic=iso)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
-    u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
+    u, u_, eta, eta_, q, q_, b, W = inte.interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
     i += 1
 
     # Mesh resolution analysis:
@@ -361,4 +361,4 @@ toc1 = clock()
 print('Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60))
 
 # Store gauge timeseries data to file:
-gauge_timeseries(gauge, gauge_dat)
+stor.gauge_timeseries(gauge, gauge_dat)

@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib import rc
 from time import clock
 
-from utils.domain import domain_1d
+import utils.domain as dom
 
 # Change backend to resolve framework problems:
 import matplotlib
@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 print('\n******************************** 1D TSUNAMI TEST PROBLEM ********************************\n\nOptions...')
 
 # Specify problem parameters:
-dt = float(raw_input('Specify timestep (default 1): ') or 1.)
+dt = float(input('Specify timestep (default 1): ') or 1.)
 Dt = Constant(dt)
-tol = float(raw_input('Specify significance tolerance (default 0.05): ') or 0.05)
-vid = raw_input('Show video output? (y/n, default n): ') or 'n'
+tol = float(input('Specify significance tolerance (default 0.05): ') or 0.05)
+vid = input('Show video output? (y/n, default n): ') or 'n'
 if vid not in ('y', 'n'):
     raise ValueError('Please try again, choosing y or n.')
 n = 1e-3  # Number of cells per km
@@ -33,7 +33,7 @@ assert (dt < 1. / (n * np.sqrt(g * 4000.)))  # Maximal wavespeed sqrt(gb)
 tic1 = clock()
 
 # Establish problem domain and variables:
-mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b = domain_1d(n)
+mesh, Vq, q_, mu_, eta_, lam_, lm_, le_, b = dom.omain_1d(n)
 nx = int(4e5 * n)  # For data access purposes
 coords = mesh.coordinates.dat.data
 

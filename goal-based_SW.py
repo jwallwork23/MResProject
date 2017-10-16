@@ -2,8 +2,8 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils.adaptivity import compute_steady_metric, construct_hessian, metric_intersection, metric_gradation
-from utils.interp import interp, interp_Taylor_Hood
+import utils.adaptivity as adap
+import utils.interp as inte
 
 print('\n******************************** SHALLOW WATER TEST PROBLEM ********************************\n')
 print('GOAL-BASED, mesh adaptive solver initially defined on a rectangular mesh')
@@ -20,20 +20,20 @@ N2 = N1                                                         # Maximum number
 SumN = N1                                                       # Sum over vertex counts
 print('...... mesh loaded. Initial number of vertices : ', N1, '\nOptions...')
 
-bathy = raw_input('Flat bathymetry or shelf break (f/s, default s?): ') or 's'
-numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.1): ') or 0.1) * N1
-hmin = float(raw_input('Minimum element size in mm (default 1)?: ') or 1.) * 1e-3
-hmax = float(raw_input('Maximum element size in mm (default 1000)?: ') or 1000) * 1e-3
+bathy = input('Flat bathymetry or shelf break (f/s, default s?): ') or 's'
+numVer = float(input('Target vertex count as a proportion of the initial number? (default 0.1): ') or 0.1) * N1
+hmin = float(input('Minimum element size in mm (default 1)?: ') or 1.) * 1e-3
+hmax = float(input('Maximum element size in mm (default 1000)?: ') or 1000) * 1e-3
 hmin2 = pow(hmin, 2)      # Square minimal side-length
 hmax2 = pow(hmax, 2)      # Square maximal side-length
-ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
-mat_out = bool(raw_input('Hit anything but enter to output Hessian and metric: ')) or False
-iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
-gradbdy = bool(raw_input('Hit anything but enter to gradate to initial boundaries: ')) or False
+ntype = input('Normalisation type? (lp/manual): ') or 'lp'
+mat_out = bool(input('Hit anything but enter to output Hessian and metric: ')) or False
+iso = bool(input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
+gradbdy = bool(input('Hit anything but enter to gradate to initial boundaries: ')) or False
 if gradbdy:
-    beta = float(raw_input('Metric gradation scaling parameter (default 1.4): ') or 1.4)
+    beta = float(input('Metric gradation scaling parameter (default 1.4): ') or 1.4)
 if not iso:
-    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
+    hess_meth = input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 
 # Specify parameters:
 depth = 0.1             # Water depth for flat bathymetry case (m)
@@ -43,8 +43,8 @@ Ts = 0.5                # Time range lower limit (s), during which we can assume
 g = 9.81                # Gravitational acceleration (m s^{-2})
 dt = 0.05
 Dt = Constant(dt)
-rm = int(raw_input('Timesteps per re-mesh (default 5)?: ') or 5)
-stored = bool(raw_input('Hit anything but enter if adjoint data is already stored: ')) or False
+rm = int(input('Timesteps per re-mesh (default 5)?: ') or 5)
+stored = bool(input('Hit anything but enter if adjoint data is already stored: ')) or False
 
 # Define mixed Taylor-Hood function space:
 W = VectorFunctionSpace(mesh, 'CG', 2) * FunctionSpace(mesh, 'CG', 1)
@@ -279,18 +279,18 @@ while t < T - 0.5 * dt:
         # TODO: include speed option
 
         H = Function(V)
-        H = construct_hessian(mesh, V, eta, method=hess_meth)
+        H = adap.construct_hessian(mesh, V, eta, method=hess_meth)
         for k in range(mesh.topology.num_vertices()):
             H.dat.data[k] *= significance.dat.data[k]
-        M = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
+        M = adap.compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, normalise=ntype, num=numVer)
 
     # Gradate metric, adapt mesh and interpolate variables:
     if gradbdy:
-        M = metric_intersection(mesh, V, M, M_, bdy=True)
-        metric_gradation(mesh, M, beta, isotropic=iso)
+        M = adap.metric_intersection(mesh, V, M, M_, bdy=True)
+        adap.metric_gradation(mesh, M, beta, isotropic=iso)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
-    u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
+    u, u_, eta, eta_, q, q_, b, W = inte.interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
     i += 1
 
     # Mesh resolution analysis:

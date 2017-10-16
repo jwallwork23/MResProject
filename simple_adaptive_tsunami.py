@@ -19,7 +19,7 @@ print('******************************** ANISOTROPIC ADAPTIVE TSUNAMI SIMULATION 
 print('Mesh adaptive solver initially defined on a mesh of',)
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
-coarseness = int(raw_input('coarseness (Integer in range 1-5, default 5): ') or 5)
+coarseness = int(input('coarseness (Integer in range 1-5, default 5): ') or 5)
 mesh, W, q_, u_, eta_, lam_, lu_, le_, b = dom.Tohoku_domain(coarseness)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
@@ -29,31 +29,31 @@ print('...... mesh loaded. Initial number of vertices : ', N1, 'More options...'
 # Set physical parameters:
 g = 9.81                        # Gravitational acceleration (m s^{-2})
 
-numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.85): ') or 0.85) * N1
-hmin = float(raw_input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
-hmax = float(raw_input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
+numVer = float(input('Target vertex count as a proportion of the initial number? (default 0.85): ') or 0.85) * N1
+hmin = float(input('Minimum element size in km (default 0.5)?: ') or 0.5) * 1e3
+hmax = float(input('Maximum element size in km (default 10000)?: ') or 10000.) * 1e3
 hmin2 = pow(hmin, 2)      # Square minimal side-length
 hmax2 = pow(hmax, 2)      # Square maximal side-length
-ntype = raw_input('Normalisation type? (lp/manual, default lp): ') or 'lp'
-mtype = raw_input('Adapt with respect to speed, free surface or both? (s/f/b, default b): ') or 'b'
+ntype = input('Normalisation type? (lp/manual, default lp): ') or 'lp'
+mtype = input('Adapt with respect to speed, free surface or both? (s/f/b, default b): ') or 'b'
 if mtype not in ('s', 'f', 'b'):
     raise ValueError('Field selection not recognised. lease try again, choosing s, f or b.')
-mat_out = bool(raw_input('Hit any key to output Hessian and metric: ')) or False
-iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
+mat_out = bool(input('Hit any key to output Hessian and metric: ')) or False
+iso = bool(input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
 if not iso:
-    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
+    hess_meth = input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
 
 # Courant number adjusted timestepping parameters:
-T = float(raw_input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.
-dt = float(raw_input('Specify timestep in seconds (default 1): ') or 1.)
+T = float(input('Simulation duration in minutes (default 25)?: ') or 25.) * 60.
+dt = float(input('Specify timestep in seconds (default 1): ') or 1.)
 Dt = Constant(dt)
 cdt = hmin / np.sqrt(g * max(b.dat.data))
 if dt > cdt:
     print ('WARNING: chosen timestep dt =', dt, 'exceeds recommended value of', cdt)
-    if bool(raw_input('Hit anything except enter if happy to proceed.')) or False:
+    if bool(input('Hit anything except enter if happy to proceed.')) or False:
         exit(23)
 ndump = int(15. / dt)           # Timesteps per data dump
-rm = int(raw_input('Timesteps per re-mesh (default 30)?: ') or 30)
+rm = int(input('Timesteps per re-mesh (default 30)?: ') or 30)
 
 # Convert gauge locations to UTM coordinates:
 glatlon = {'P02': (38.5002, 142.5016), 'P06': (38.6340, 142.5838),
@@ -64,12 +64,12 @@ for key in glatlon:
     gloc[key] = (east, north)
 
 # Set gauge arrays:
-gtype = raw_input('Pressure or tide gauge? (p/t, default p): ') or 'p'
+gtype = input('Pressure or tide gauge? (p/t, default p): ') or 'p'
 if gtype == 'p':
-    gauge = raw_input('Gauge P02 or P06? (default P02): ') or 'P02'
+    gauge = input('Gauge P02 or P06? (default P02): ') or 'P02'
     gcoord = gloc[gauge]
 elif gtype == 't':
-    gauge = raw_input('Gauge 801, 802, 803, 804 or 806? (default 801): ') or '801'
+    gauge = input('Gauge 801, 802, 803, 804 or 806? (default 801): ') or '801'
     gcoord = gloc[gauge]
 else:
     ValueError('Gauge type not recognised. Please choose p or t.')

@@ -4,11 +4,11 @@ from time import clock
 import math
 import sys
 
-from utils.adaptivity import compute_steady_metric, construct_hessian, metric_intersection
-from utils.conversion import from_latlon
-from utils.domain import Tohoku_domain
-from utils.interp import interp_Taylor_Hood
-from utils.storage import gauge_timeseries
+import utils.adaptivity as adap
+import utils.conversion as conv
+import utils.domain as dom
+import utils.interp as inte
+import utils.storage as stor
 
 # Change backend to resolve framework problems:
 import matplotlib
@@ -20,7 +20,7 @@ print('Mesh adaptive solver initially defined on a mesh of',)
 
 # Define initial mesh (courtesy of QMESH) and functions, with initial conditions set:
 coarseness = int(raw_input('coarseness (Integer in range 1-5, default 5): ') or 5)
-mesh, W, q_, u_, eta_, lam_, lu_, le_, b = Tohoku_domain(coarseness)
+mesh, W, q_, u_, eta_, lam_, lu_, le_, b = dom.Tohoku_domain(coarseness)
 N1 = len(mesh.coordinates.dat.data)                                     # Minimum number of vertices
 N2 = N1                                                                 # Maximum number of vertices
 SumN = N1                                                               # Sum over vertex counts
@@ -60,7 +60,7 @@ glatlon = {'P02': (38.5002, 142.5016), 'P06': (38.6340, 142.5838),
            '801': (38.2, 141.7), '802': (39.3, 142.1), '803': (38.9, 141.8), '804': (39.7, 142.2), '806': (37.0, 141.2)}
 gloc = {}
 for key in glatlon:
-    east, north, zn, zl = from_latlon(glatlon[key][0], glatlon[key][1], force_zone_number=54)
+    east, north, zn, zl = conv.from_latlon(glatlon[key][0], glatlon[key][1], force_zone_number=54)
     gloc[key] = (east, north)
 
 # Set gauge arrays:
@@ -126,13 +126,13 @@ while t < T - 0.5 * dt:
         if mtype != 'f':
             spd = Function(W.sub(1))
             spd.interpolate(sqrt(dot(u, u)))
-            H = construct_hessian(mesh, V, spd, method=hess_meth)
-            M = compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
+            H = adap.construct_hessian(mesh, V, spd, method=hess_meth)
+            M = adap.compute_steady_metric(mesh, V, H, spd, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
         if mtype != 's':
-            H = construct_hessian(mesh, V, eta, method=hess_meth)
-            M2 = compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
+            H = adap.construct_hessian(mesh, V, eta, method=hess_meth)
+            M2 = adap.compute_steady_metric(mesh, V, H, eta, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
         if mtype == 'b':
-            M = metric_intersection(mesh, V, M, M2)
+            M = adap.metric_intersection(mesh, V, M, M2)
         else:
             M = Function(V)
             M.assign(M2)
@@ -140,7 +140,7 @@ while t < T - 0.5 * dt:
     # Adapt mesh with respect to computed metric field and interpolate functions onto new mesh:
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
-    u, u_, eta, eta_, q, q_, b, W = interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
+    u, u_, eta, eta_, q, q_, b, W = inte.interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
 
     # Mesh resolution analysis:
     n = len(mesh.coordinates.dat.data)
@@ -204,4 +204,4 @@ toc1 = clock()
 print('Elapsed time for adaptive solver: %1.1fs (%1.2f mins)' % (toc1 - tic1, (toc1 - tic1) / 60))
 
 # Store gauge timeseries data to file:
-gauge_timeseries(gauge, gauge_dat)
+stor.gauge_timeseries(gauge, gauge_dat)

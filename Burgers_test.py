@@ -2,8 +2,8 @@ from firedrake import *
 import numpy as np
 from time import clock
 
-from utils.adaptivity import construct_hessian, compute_steady_metric
-from utils.interp import interp
+import utils.adaptivity as adap
+import utils.interp as inte
 
 print('\n******************************** BURGERS EQUATION TEST PROBLEM ********************************\n')
 print('Mesh adaptive solver initially defined on a rectangular mesh')
@@ -22,18 +22,18 @@ print('...... mesh loaded. Initial number of nodes : ', N1)
 
 # Choose function space degree:
 print('\nOptions...')
-numVer = float(raw_input('Target vertex count as a proportion of the initial number? (default 0.85): ') or 0.85) * N1
-p = int(raw_input('Polynomial degree? (default 1): ') or 1)
-nu = Constant(float(raw_input('Diffusion parameter (default 1e-3)?: ') or 1e-3))
-hmin = float(raw_input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
-hmax = float(raw_input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
-ntype = raw_input('Normalisation type? (lp/manual): ') or 'lp'
+numVer = float(input('Target vertex count as a proportion of the initial number? (default 0.85): ') or 0.85) * N1
+p = int(input('Polynomial degree? (default 1): ') or 1)
+nu = Constant(float(input('Diffusion parameter (default 1e-3)?: ') or 1e-3))
+hmin = float(input('Minimum element size in mm (default 5)?: ') or 5.) * 1e-3
+hmax = float(input('Maximum element size in mm (default 100)?: ') or 100.) * 1e-3
+ntype = input('Normalisation type? (lp/manual): ') or 'lp'
 if ntype not in ('lp', 'manual'):
     raise ValueError('Please try again, choosing lp or manual.')
-mat_out = raw_input('Output Hessian and metric? (y/n): ') or 'n'
-iso = bool(raw_input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
+mat_out = input('Output Hessian and metric? (y/n): ') or 'n'
+iso = bool(input('Hit anything but enter to use isotropic, rather than anisotropic: ')) or False
 if not iso:
-    hess_meth = raw_input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
+    hess_meth = input('Integration by parts or double L2 projection? (parts/dL2, default dL2): ') or 'dL2'
     if hess_meth not in ('parts', 'dL2'):
         raise ValueError('Please try again, choosing parts or dL2.')
 
@@ -43,7 +43,7 @@ T = 0.2
 dt = 0.8 * hmin
 Dt = Constant(dt)
 print('Using Courant number adjusted timestep dt = %1.4f' % dt)
-rm = int(raw_input('Timesteps per remesh (default 5)?: ') or 5)
+rm = int(input('Timesteps per remesh (default 5)?: ') or 5)
 
 # Create function space and set initial conditions:
 W = FunctionSpace(mesh, 'CG', p)
@@ -79,8 +79,8 @@ while t < T - 0.5 * dt:
             H.dat.data[i][0, 0] = np.abs(phi.dat.data[i])
             H.dat.data[i][1, 1] = np.abs(phi.dat.data[i])
     else:
-        H = construct_hessian(mesh, V, phi, method=hess_meth)
-    M = compute_steady_metric(mesh, V, H, phi, h_min=hmin, h_max=hmax, num=nodes, normalise=ntype)
+        H = adap.construct_hessian(mesh, V, phi, method=hess_meth)
+    M = adap.compute_steady_metric(mesh, V, H, phi, h_min=hmin, h_max=hmax, num=numVer, normalise=ntype)
     if mat_out == 'y':
         H.rename('Hessian')
         h_file.write(H, time=t)
@@ -90,7 +90,7 @@ while t < T - 0.5 * dt:
     # Adapt mesh and interpolate functions:
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
-    phi_, phi = interp(mesh, phi_, phi)
+    phi_, phi = inte.interp(mesh, phi_, phi)
     W = FunctionSpace(mesh, 'CG', p)
     phi.rename('Concentration')
     toc2 = clock()

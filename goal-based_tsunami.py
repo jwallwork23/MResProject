@@ -1,19 +1,13 @@
 from firedrake import *
+
 import numpy as np
 from time import clock
-import math
-import sys
 
 import utils.adaptivity as adap
 import utils.conversion as conv
 import utils.domain as dom
 import utils.interp as inte
 import utils.storage as stor
-
-# Change backend to resolve framework problems:
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
 
 print('\n******************************** GOAL-BASED ADAPTIVE TSUNAMI SIMULATION ********************************\n')
 print('GOAL-BASED, mesh adaptive solver initially defined on a mesh of')
@@ -265,7 +259,7 @@ while t < T - 0.5 * dt:
     sig_file.write(significance, time=t)
 
     # Interpolate initial mesh size onto new mesh and build associated metric:
-    fields = interp(mesh, h)
+    fields = inte.interp(mesh, h)
     h = Function(W.sub(1))
     h.dat.data[:] = fields[0].dat.data[:]
     M_ = Function(V)
@@ -300,7 +294,7 @@ while t < T - 0.5 * dt:
     adap.metric_gradation(mesh, M, beta, isotropic=iso)
     adaptor = AnisotropicAdaptation(mesh, M)
     mesh = adaptor.adapted_mesh
-    u, u_, eta, eta_, q, q_, b, W = inte.interp_Taylor_Hood(mesh, u, u_, eta, eta_, b)
+    u, u_, eta, eta_, q, q_, b, W = inte.interpTaylorHood(mesh, u, u_, eta, eta_, b)
     i += 1
 
     # Mesh resolution analysis:

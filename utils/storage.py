@@ -1,9 +1,5 @@
 import numpy as np
 import scipy.interpolate as si
-
-# Change backend to resolve framework problems:
-import matplotlib
-#matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 
@@ -37,7 +33,7 @@ def gauge_timeseries(gauge, dat):
     :param dat: a list of data values of this gauge.
     :return: a file containing the timeseries data.
     """
-    name = raw_input('Enter a name for this time series (e.g. xcoarse): ')
+    name = input('Enter a name for this time series (e.g. xcoarse): ')
     outfile = open('timeseries/{y1}_{y2}.txt'.format(y1=gauge, y2=name), 'w+')
     for i in range(len(dat)):
         outfile.write(str(dat[i]) + '\n')
@@ -128,10 +124,9 @@ def plot_gauges(gauge, prob='comparison', log=False, error=False):
 
         # Print norm values to screen:
         if error:
-            print ''
-            print 'L1 norm for ', setup[key], ' : ', L1 / 1501
-            print 'L2 norm for ', setup[key], ' : ', np.sqrt(L2 / 1501)
-            print 'Linf norm for ', setup[key], ' : ', Linf
+            print('L1 norm for ', setup[key], ' : ', L1 / 1501)
+            print('L2 norm for ', setup[key], ' : ', np.sqrt(L2 / 1501))
+            print('Linf norm for ', setup[key], ' : ', Linf)
 
         # Deal with special cases:
         if setup[key] in ('fine_nonlinear', 'fine_nonlinear_rotational',

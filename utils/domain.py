@@ -1,8 +1,9 @@
 from firedrake import *
+
 import scipy.interpolate as si
 from scipy.io.netcdf import NetCDFFile
 
-from conversion import vectorlonlat2utm
+from . import conversion
 
 
 def domain_1d(n):
@@ -146,7 +147,7 @@ def Tohoku_domain(res=3, split=False):
     nc1 = NetCDFFile('resources/Saito_files/init_profile.nc', mmap=False)
     lon1 = nc1.variables['x'][:]
     lat1 = nc1.variables['y'][:]
-    x1, y1 = vectorlonlat2utm(lat1, lon1, force_zone_number=54)             # Our mesh mainly resides in UTM zone 54
+    x1, y1 = conversion.vectorlonlat2utm(lat1, lon1, force_zone_number=54)             # Our mesh mainly resides in UTM zone 54
     elev1 = nc1.variables['z'][:, :]
     interpolator_surf = si.RectBivariateSpline(y1, x1, elev1)
     eta0vec = eta0.dat.data
@@ -156,7 +157,7 @@ def Tohoku_domain(res=3, split=False):
     nc2 = NetCDFFile('resources/bathy_data/GEBCO_bathy.nc', mmap=False)
     lon2 = nc2.variables['lon'][:]
     lat2 = nc2.variables['lat'][:-1]
-    x2, y2 = vectorlonlat2utm(lat2, lon2, force_zone_number=54)
+    x2, y2 = conversion.vectorlonlat2utm(lat2, lon2, force_zone_number=54)
     elev2 = nc2.variables['elevation'][:-1, :]
     interpolator_bath = si.RectBivariateSpline(y2, x2, elev2)
     b_vec = b.dat.data
